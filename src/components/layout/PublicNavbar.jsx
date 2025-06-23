@@ -100,48 +100,66 @@ export default function PublicNavbar() {
         <div className="md:hidden fixed inset-0 bg-[#1E3A8A] dark:bg-gray-900 bg-opacity-95 flex flex-col items-end gap-3 px-6 pt-24 pb-8 z-10 transition-all w-full overflow-x-hidden">
           <NavLink
             to="/"
-            className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"
-            activeclassname="active"
+            className={({ isActive }) =>
+              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              }`
+            }
             onClick={() => setOpen(false)}
           >
             Home
           </NavLink>
           <NavLink
             to="/about"
-            className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"
-            activeclassname="active"
+            className={({ isActive }) =>
+              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              }`
+            }
             onClick={() => setOpen(false)}
           >
             About
           </NavLink>
           <NavLink
             to="/news"
-            className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"
-            activeclassname="active"
+            className={({ isActive }) =>
+              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              }`
+            }
             onClick={() => setOpen(false)}
           >
             News
           </NavLink>
           <NavLink
             to="/markets"
-            className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"
-            activeclassname="active"
+            className={({ isActive }) =>
+              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              }`
+            }
             onClick={() => setOpen(false)}
           >
             Markets
           </NavLink>
           <NavLink
             to="/contact"
-            className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"
-            activeclassname="active"
+            className={({ isActive }) =>
+              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              }`
+            }
             onClick={() => setOpen(false)}
           >
             Contact
           </NavLink>
           <NavLink
             to="/login"
-            className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"
-            activeclassname="active"
+            className={({ isActive }) =>
+              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              }`
+            }
             onClick={() => setOpen(false)}
           >
             Login
