@@ -16,14 +16,15 @@ export default function Landing() {
           Turn Data Into Discipline,<br className="hidden md:inline" /> and Discipline Into Profits
         </h1>
         <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-6 font-medium">
-          ForexJournal empowers you to track your trades, analyze your performance, and connect with top traders. 
+          FXsnip empowers you to track your trades, analyze your performance, and connect with top traders. 
           <span className="block mt-2">
             <span className="font-bold text-[#a99d6b]">Access your journals from any device, anywhere, anytime.</span>
           </span>
         </p>
         <div className="mb-8">
           <span className="inline-block bg-[#a99d6b] text-white px-4 py-2 rounded-full font-semibold text-base shadow transition-transform duration-300 hover:scale-105">
-            1 free trading journal per month! Paid plans for screenshots & video journals.
+            <span className="block md:hidden">1 free trading journal per month!</span>
+            <span className="hidden md:inline">1 free trading journal per month! Paid plans for screenshots & video journals.</span>
           </span>
         </div>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
@@ -44,8 +45,9 @@ export default function Landing() {
 
       {/* Pricing Section */}
       <div className="w-full max-w-4xl mx-auto grid md:grid-cols-3 gap-6 mt-8 mb-16">
-        <div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center border-2 border-[#1E3A8A] transition-transform duration-300 hover:scale-105"
+        <Link
+          to="/register"
+          className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center border-2 border-[#1E3A8A] transition-transform duration-300 hover:scale-105 focus:outline-none"
           data-aos="fade-up"
         >
           <span className="text-[#a99d6b] font-bold text-lg mb-2">Free Plan</span>
@@ -54,9 +56,11 @@ export default function Landing() {
             Create and manage one trading journal every month at no cost.
           </p>
           <span className="text-3xl font-extrabold text-[#1E3A8A] dark:text-white mb-2">Free</span>
-        </div>
-        <div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center border-2 border-[#1E3A8A] transition-transform duration-300 hover:scale-105"
+          <span className="mt-4 inline-block px-6 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">Get Started</span>
+        </Link>
+        <Link
+          to="/register"
+          className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center border-2 border-[#1E3A8A] transition-transform duration-300 hover:scale-105 focus:outline-none"
           data-aos="fade-up"
           data-aos-delay="100"
         >
@@ -68,9 +72,11 @@ export default function Landing() {
           <span className="text-3xl font-extrabold text-[#1E3A8A] dark:text-white mb-2">
             $2.5<span className="text-base font-normal">/month</span>
           </span>
-        </div>
-        <div
-          className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center border-2 border-[#1E3A8A] transition-transform duration-300 hover:scale-105"
+          <span className="mt-4 inline-block px-6 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">Get Started</span>
+        </Link>
+        <Link
+          to="/register"
+          className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 flex flex-col items-center border-2 border-[#1E3A8A] transition-transform duration-300 hover:scale-105 focus:outline-none"
           data-aos="fade-up"
           data-aos-delay="200"
         >
@@ -82,7 +88,8 @@ export default function Landing() {
           <span className="text-3xl font-extrabold text-[#1E3A8A] dark:text-white mb-2">
             $10<span className="text-base font-normal">/month</span>
           </span>
-        </div>
+          <span className="mt-4 inline-block px-6 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">Get Started</span>
+        </Link>
       </div>
 
       {/* Features Section */}
@@ -130,9 +137,9 @@ export default function Landing() {
 
       {/* Why Choose Us Section */}
       <div className="max-w-3xl mx-auto text-center mb-16" data-aos="fade-up">
-        <h2 className="text-2xl md:text-3xl font-bold text-[#1E3A8A] dark:text-white mb-4">Why ForexJournal?</h2>
+        <h2 className="text-2xl md:text-3xl font-bold text-[#1E3A8A] dark:text-white mb-4">Why FXsnip?</h2>
         <p className="text-gray-700 dark:text-gray-300 mb-6">
-          ForexJournal is built for traders who want to turn data into discipline and discipline into profits.
+          FXsnip is built for traders who want to turn data into discipline and discipline into profits.
           Our platform is designed to help you:
         </p>
         <ul className="text-left text-gray-700 dark:text-gray-300 mx-auto max-w-xl space-y-3">
@@ -181,7 +188,7 @@ export default function Landing() {
           to="/register"
           className="inline-block px-10 py-4 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition-transform duration-300 hover:scale-105"
         >
-          Join ForexJournal Free
+          Join FXsnip Free
         </Link>
       </div>
 
@@ -193,7 +200,7 @@ export default function Landing() {
           rel="noopener noreferrer"
           className="block hover:underline transition"
         >
-          &copy; {new Date().getFullYear()} ForexJournal. All rights reserved.
+          &copy; {new Date().getFullYear()} FXsnip. All rights reserved.
         </a>
       </div>
     </section>
