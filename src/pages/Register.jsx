@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { FaUser, FaEnvelope, FaLock } from "react-icons/fa";
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useTheme } from "../hooks/useTheme";
-import { Link } from "react-router-dom"; // <-- Add this import
+import { Link } from "react-router-dom";
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -13,7 +13,9 @@ export default function Register() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [darkMode, setDarkMode] = useTheme(); // <-- Add this line
+  const [darkMode, setDarkMode] = useTheme();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -31,7 +33,6 @@ export default function Register() {
       setError("Passwords do not match.");
       return;
     }
-    // Simulate registration
     setError("");
     setSuccess(true);
     setForm({ name: "", username: "", email: "", password: "", confirm: "" });
@@ -80,29 +81,47 @@ export default function Register() {
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
             />
           </div>
-          <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b]">
+          <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b] relative">
             <FaLock className="text-[#a99d6b] mr-3" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               value={form.password}
               onChange={handleChange}
               required
               placeholder="Password"
-              className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
+              className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200 pr-8"
             />
+            <button
+              type="button"
+              className="absolute right-3 text-[#a99d6b] focus:outline-none"
+              tabIndex={-1}
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
           </div>
-          <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b]">
+          <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b] relative">
             <FaLock className="text-[#a99d6b] mr-3" />
             <input
-              type="password"
+              type={showConfirm ? "text" : "password"}
               name="confirm"
               value={form.confirm}
               onChange={handleChange}
               required
               placeholder="Confirm Password"
-              className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
+              className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200 pr-8"
             />
+            <button
+              type="button"
+              className="absolute right-3 text-[#a99d6b] focus:outline-none"
+              tabIndex={-1}
+              onClick={() => setShowConfirm((v) => !v)}
+              aria-label={showConfirm ? "Hide password" : "Show password"}
+            >
+              {showConfirm ? <FaEyeSlash /> : <FaEye />}
+            </button>
           </div>
           {error && (
             <div className="text-red-600 text-center text-sm font-semibold">{error}</div>
@@ -128,10 +147,6 @@ export default function Register() {
             Login
           </Link>
         </div>
-        {/* Optionally add a theme toggle button for user control */}
-        {/* <button onClick={() => setDarkMode((v) => !v)} className="mt-4 px-4 py-2 rounded-lg bg-[#a99d6b] text-white font-semibold shadow hover:bg-[#c2b77a] transition">
-          {darkMode ? "Light Mode" : "Dark Mode"}
-        </button> */}
       </div>
     </section>
   );

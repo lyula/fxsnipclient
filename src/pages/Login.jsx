@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { FaUser, FaLock } from "react-icons/fa";
-import { useNavigate, Link } from "react-router-dom"; // <-- Add Link import
-import { useTheme } from "../hooks/useTheme"; // <-- Add this import
+import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
+import { useNavigate, Link } from "react-router-dom";
+import { useTheme } from "../hooks/useTheme";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const [darkMode, setDarkMode] = useTheme();
 
@@ -16,14 +17,12 @@ export default function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Add your authentication logic here
     if (!form.email || !form.password) {
       setError("Please enter both email and password.");
       return;
     }
-    // Simulate login
     setError("");
-    navigate("/dashboard"); // Redirect to dashboard after login
+    navigate("/dashboard");
   };
 
   return (
@@ -45,17 +44,26 @@ export default function Login() {
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
             />
           </div>
-          <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b]">
+          <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b] relative">
             <FaLock className="text-[#a99d6b] mr-3" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               value={form.password}
               onChange={handleChange}
               required
               placeholder="Password"
-              className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
+              className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200 pr-8"
             />
+            <button
+              type="button"
+              className="absolute right-3 text-[#a99d6b] focus:outline-none"
+              tabIndex={-1}
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
           </div>
           {error && (
             <div className="text-red-600 text-center text-sm font-semibold">{error}</div>
@@ -76,10 +84,6 @@ export default function Login() {
             Register
           </Link>
         </div>
-        {/* Optionally add a theme toggle button for user control */}
-        {/* <button onClick={() => setDarkMode((v) => !v)}>
-          {darkMode ? "Light Mode" : "Dark Mode"}
-        </button> */}
       </div>
     </section>
   );
