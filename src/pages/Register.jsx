@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { FaUser, FaEnvelope, FaLock } from "react-icons/fa";
-import { useTheme } from "../hooks/useTheme"; // <-- Add this import
+import { useTheme } from "../hooks/useTheme";
+import { Link } from "react-router-dom"; // <-- Add this import
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -120,12 +121,12 @@ export default function Register() {
         </form>
         <div className="mt-6 text-center text-gray-600 dark:text-gray-300 text-sm">
           Already have an account?{" "}
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="text-[#1E3A8A] dark:text-[#a99d6b] font-semibold hover:underline"
           >
             Login
-          </a>
+          </Link>
         </div>
         {/* Optionally add a theme toggle button for user control */}
         {/* <button onClick={() => setDarkMode((v) => !v)} className="mt-4 px-4 py-2 rounded-lg bg-[#a99d6b] text-white font-semibold shadow hover:bg-[#c2b77a] transition">
