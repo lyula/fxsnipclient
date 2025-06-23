@@ -101,8 +101,8 @@ export default function PublicNavbar() {
           <NavLink
             to="/"
             className={({ isActive }) =>
-              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
-                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              `font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "text-[#a99d6b]" : "text-white"
               }`
             }
             onClick={() => setOpen(false)}
@@ -112,8 +112,8 @@ export default function PublicNavbar() {
           <NavLink
             to="/about"
             className={({ isActive }) =>
-              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
-                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              `font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "text-[#a99d6b]" : "text-white"
               }`
             }
             onClick={() => setOpen(false)}
@@ -123,8 +123,8 @@ export default function PublicNavbar() {
           <NavLink
             to="/news"
             className={({ isActive }) =>
-              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
-                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              `font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "text-[#a99d6b]" : "text-white"
               }`
             }
             onClick={() => setOpen(false)}
@@ -134,8 +134,8 @@ export default function PublicNavbar() {
           <NavLink
             to="/markets"
             className={({ isActive }) =>
-              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
-                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              `font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "text-[#a99d6b]" : "text-white"
               }`
             }
             onClick={() => setOpen(false)}
@@ -145,8 +145,8 @@ export default function PublicNavbar() {
           <NavLink
             to="/contact"
             className={({ isActive }) =>
-              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
-                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              `font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "text-[#a99d6b]" : "text-white"
               }`
             }
             onClick={() => setOpen(false)}
@@ -156,8 +156,8 @@ export default function PublicNavbar() {
           <NavLink
             to="/login"
             className={({ isActive }) =>
-              `text-white font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
-                isActive ? "bg-[#a99d6b] text-white" : "hover:bg-[#a99d6b] hover:text-white"
+              `font-semibold text-lg px-2 py-2 rounded transition w-full text-right ${
+                isActive ? "text-[#a99d6b]" : "text-white"
               }`
             }
             onClick={() => setOpen(false)}
@@ -166,7 +166,7 @@ export default function PublicNavbar() {
           </NavLink>
           <Link
             to="/register"
-            className="mt-2 px-4 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition w-full text-right"
+            className="mt-2 font-bold text-lg text-[#a99d6b] bg-transparent px-2 py-2 rounded transition w-auto text-right shadow-none hover:underline"
             onClick={() => setOpen(false)}
           >
             Register
