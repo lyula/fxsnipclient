@@ -16,6 +16,7 @@ export default function Register() {
   const [darkMode, setDarkMode] = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -33,9 +34,14 @@ export default function Register() {
       setError("Passwords do not match.");
       return;
     }
+    if (!agreed) {
+      setError("You must agree to the Terms & Conditions.");
+      return;
+    }
     setError("");
     setSuccess(true);
     setForm({ name: "", username: "", email: "", password: "", confirm: "" });
+    setAgreed(false);
   };
 
   return (
@@ -122,6 +128,27 @@ export default function Register() {
             >
               {showConfirm ? <FaEyeSlash /> : <FaEye />}
             </button>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm mt-2">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={agreed}
+              onChange={e => setAgreed(e.target.checked)}
+              className="accent-[#a99d6b] w-4 h-4"
+              required
+            />
+            <label htmlFor="terms" className="text-gray-700 dark:text-gray-300">
+              I agree to the{" "}
+              <Link
+                to="/terms"
+                className="text-[#1E3A8A] dark:text-[#a99d6b] underline hover:opacity-80"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Terms &amp; Conditions
+              </Link>
+            </label>
           </div>
           {error && (
             <div className="text-red-600 text-center text-sm font-semibold">{error}</div>
