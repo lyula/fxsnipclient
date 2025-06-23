@@ -5,8 +5,8 @@ export default function PublicNavbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="w-full bg-white dark:bg-gray-900 shadow-sm border-b border-blue-100 dark:border-gray-800">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <nav className="w-full bg-white dark:bg-gray-900 shadow-sm border-b border-blue-100 dark:border-gray-800 fixed top-0 left-0 z-30">
+      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between w-full">
         {/* Logo */}
         <Link to="/" className="text-2xl font-extrabold text-[#1E3A8A] dark:text-white font-inter">
           FXsnip
@@ -36,17 +36,76 @@ export default function PublicNavbar() {
         </button>
         {/* Desktop Nav Links */}
         <div className="hidden md:flex items-center gap-6 ml-auto">
-          <NavLink to="/about" className="navlink" activeclassname="active">About</NavLink>
-          <NavLink to="/news" className="navlink" activeclassname="active">News</NavLink>
-          <NavLink to="/markets" className="navlink" activeclassname="active">Markets</NavLink>
-          <NavLink to="/contact" className="navlink" activeclassname="active">Contact</NavLink>
-          <NavLink to="/login" className="navlink" activeclassname="active">Login</NavLink>
-          <Link to="/register" className="ml-2 px-4 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">Register</Link>
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              `px-2 py-1 font-semibold rounded transition
+              ${isActive ? "text-[#a99d6b] underline" : "text-[#1E3A8A] dark:text-white"}`
+            }
+          >
+            Home
+          </NavLink>
+          <NavLink
+            to="/about"
+            className={({ isActive }) =>
+              `px-2 py-1 font-semibold rounded transition
+              ${isActive ? "text-[#a99d6b] underline" : "text-[#1E3A8A] dark:text-white"}`
+            }
+          >
+            About
+          </NavLink>
+          <NavLink
+            to="/news"
+            className={({ isActive }) =>
+              `px-2 py-1 font-semibold rounded transition
+              ${isActive ? "text-[#a99d6b] underline" : "text-[#1E3A8A] dark:text-white"}`
+            }
+          >
+            News
+          </NavLink>
+          <NavLink
+            to="/markets"
+            className={({ isActive }) =>
+              `px-2 py-1 font-semibold rounded transition
+              ${isActive ? "text-[#a99d6b] underline" : "text-[#1E3A8A] dark:text-white"}`
+            }
+          >
+            Markets
+          </NavLink>
+          <NavLink
+            to="/contact"
+            className={({ isActive }) =>
+              `px-2 py-1 font-semibold rounded transition
+              ${isActive ? "text-[#a99d6b] underline" : "text-[#1E3A8A] dark:text-white"}`
+            }
+          >
+            Contact
+          </NavLink>
+          <NavLink
+            to="/login"
+            className={({ isActive }) =>
+              `px-2 py-1 font-semibold rounded transition
+              ${isActive ? "text-[#a99d6b] underline" : "text-[#1E3A8A] dark:text-white"}`
+            }
+          >
+            Login
+          </NavLink>
+          <Link to="/register" className="ml-2 px-4 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">
+            Register
+          </Link>
         </div>
       </div>
       {/* Mobile Nav */}
       {open && (
-        <div className="md:hidden fixed inset-0 bg-[#1E3A8A] dark:bg-gray-900 bg-opacity-95 flex flex-col items-end gap-3 px-8 pt-24 pb-8 z-10 transition-all">
+        <div className="md:hidden fixed inset-0 bg-[#1E3A8A] dark:bg-gray-900 bg-opacity-95 flex flex-col items-end gap-3 px-6 pt-24 pb-8 z-10 transition-all w-full overflow-x-hidden">
+          <NavLink
+            to="/"
+            className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"
+            activeclassname="active"
+            onClick={() => setOpen(false)}
+          >
+            Home
+          </NavLink>
           <NavLink
             to="/about"
             className="text-white font-semibold text-lg px-2 py-2 rounded hover:bg-[#a99d6b] hover:text-white transition w-full text-right"

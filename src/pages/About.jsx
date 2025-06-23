@@ -2,15 +2,21 @@ import { Link } from "react-router-dom";
 
 export default function About() {
   return (
-    <section className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
+    <section className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12 pt-20">
       <div className="max-w-3xl mx-auto text-center" data-aos="fade-down">
         <h1 className="text-4xl md:text-5xl font-extrabold text-[#1E3A8A] dark:text-white mb-4 font-inter">
           About FXsnip
         </h1>
         <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-8 font-medium">
-          FXsnip is dedicated to empowering traders to turn <span className="text-[#a99d6b] font-bold">data into discipline</span> and <span className="text-[#a99d6b] font-bold">discipline into profits</span>.
+          FXsnip is dedicated to empowering traders to turn{" "}
+          <span className="text-[#a99d6b] font-bold">data into discipline</span>{" "}
+          and{" "}
+          <span className="text-[#a99d6b] font-bold">discipline into profits</span>
+          .
           <br />
-          We provide a modern, cloud-based platform for journaling, analyzing, and improving your trading performance—accessible from any device, anywhere, anytime.
+          We provide a modern, cloud-based platform for journaling, analyzing, and
+          improving your trading performance—accessible from any device, anywhere,
+          anytime.
         </p>
       </div>
 
@@ -47,14 +53,18 @@ export default function About() {
       <div className="max-w-3xl mx-auto text-center mb-16" data-aos="fade-up">
         <h2 className="text-2xl md:text-3xl font-bold text-[#1E3A8A] dark:text-white mb-4">Our Mission</h2>
         <p className="text-gray-700 dark:text-gray-300 mb-6">
-          We believe every trader deserves the tools to grow, learn, and succeed. ForexJournal is here to help you build discipline, master your psychology, and achieve consistent results—no matter your experience level.
+          We believe every trader deserves the tools to grow, learn, and succeed.
+          ForexJournal is here to help you build discipline, master your psychology,
+          and achieve consistent results—no matter your experience level.
         </p>
       </div>
 
       <div className="max-w-2xl mx-auto text-center mb-8" data-aos="fade-up">
         <h2 className="text-2xl md:text-3xl font-bold text-[#1E3A8A] dark:text-white mb-4">Easy Payments, Instant Access</h2>
         <p className="text-gray-700 dark:text-gray-300 mb-6">
-          We support <span className="text-[#a99d6b] font-semibold">all major payment methods</span> for your convenience—credit/debit cards, PayPal, mobile money, crypto, and more.
+          We support{" "}
+          <span className="text-[#a99d6b] font-semibold">all major payment methods</span>{" "}
+          for your convenience—credit/debit cards, PayPal, mobile money, crypto, and more.
           <br />
           Enjoy seamless, secure payments and instant access to all ForexJournal features.
         </p>

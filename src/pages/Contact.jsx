@@ -20,8 +20,8 @@ export default function Contact() {
 
   return (
     <>
-      <section className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-screen flex flex-col items-center justify-center px-2 py-6 md:py-12">
-        <div className="w-full max-w-4xl grid gap-6 md:grid-cols-2">
+      <section className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-4 py-8 pt-20 flex justify-center items-start">
+        <div className="w-full max-w-4xl grid gap-6 md:grid-cols-2 mx-auto">
           {/* Contact Details Card */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 md:p-8 border border-[#a99d6b] flex flex-col items-center">
             <h1 className="text-2xl md:text-3xl font-extrabold text-[#1E3A8A] dark:text-white mb-4 text-center font-inter">
