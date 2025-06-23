@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { FaUser, FaLock } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom"; // <-- Add Link import
 import { useTheme } from "../hooks/useTheme"; // <-- Add this import
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useTheme(); // <-- Add this line
+  const [darkMode, setDarkMode] = useTheme();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -69,12 +69,12 @@ export default function Login() {
         </form>
         <div className="mt-6 text-center text-gray-600 dark:text-gray-300 text-sm">
           Don't have an account?{" "}
-          <a
-            href="/register"
+          <Link
+            to="/register"
             className="text-[#1E3A8A] dark:text-[#a99d6b] font-semibold hover:underline"
           >
             Register
-          </a>
+          </Link>
         </div>
         {/* Optionally add a theme toggle button for user control */}
         {/* <button onClick={() => setDarkMode((v) => !v)}>
