@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useTheme } from "../hooks/useTheme";
 import { Link, useNavigate } from "react-router-dom"; // <-- add useNavigate
+import { registerUser } from "../utils/api";
 
 // Helper to get user's country using IP geolocation API
 async function fetchUserCountry() {
@@ -94,7 +95,7 @@ export default function Register() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     // JavaScript validation for all required fields, with specific error messages
     if (!form.username.trim()) {
@@ -144,23 +145,17 @@ export default function Register() {
       return;
     }
     setError("");
-    setSuccess(true);
-    setForm({
-      username: "",
-      email: "",
-      password: "",
-      confirm: "",
-      country: "",
-      countryCode: "",
-      countryFlag: "",
-    });
-    setCountryQuery("");
-    setAgreed(false);
+    setSuccess(false);
 
-    // Redirect to login after a short delay
-    setTimeout(() => {
-      navigate("/login");
-    }, 1500); // 1.5 seconds
+    const { username, email, password, country, countryCode, countryFlag } = form;
+    const result = await registerUser({ username, email, password, country, countryCode, countryFlag });
+
+    if (result.message === "User registered successfully") {
+      setSuccess(true);
+      setTimeout(() => navigate("/login"), 1500);
+    } else {
+      setError(result.message || "Registration failed.");
+    }
   };
 
   return (

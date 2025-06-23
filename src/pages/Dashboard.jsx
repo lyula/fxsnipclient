@@ -16,10 +16,9 @@ import {
   FaCreditCard,
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
+import jwtDecode from "jwt-decode";
 
 // Dummy user data for demonstration. Replace with real user data as needed.
-const username = "TraderJoe";
-const userEmail = "user@email.com";
 const notificationCount = 3; // Replace with your actual notification count
 
 // Import only dashboard subpages that are linked in the sidebar
@@ -32,6 +31,33 @@ import Subscriptions from "./dashboard/Subscriptions";
 // (Do not import pages like About, Contact, Markets, News, Terms, Register, Login, etc.)
 
 export default function Dashboard() {
+  const [user, setUser] = useState(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return null;
+    try {
+      return jwtDecode(token);
+    } catch {
+      return null;
+    }
+  });
+
+  // Optionally, update user state if localStorage changes (e.g. after login)
+  useEffect(() => {
+    const handleStorage = () => {
+      const token = localStorage.getItem("token");
+      if (!token) setUser(null);
+      else {
+        try {
+          setUser(jwtDecode(token));
+        } catch {
+          setUser(null);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Persist sidebarCollapsed in localStorage (PC only)
@@ -75,6 +101,7 @@ export default function Dashboard() {
   const location = useLocation();
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
     navigate("/login");
   };
 
@@ -96,7 +123,7 @@ export default function Dashboard() {
       {/* Greeting and username */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-[#a99d6b] dark:text-[#a99d6b]">
-          {getGreeting()}, {username}
+          {getGreeting()}, {user?.username}
         </h2>
       </div>
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-2 mb-12">
@@ -224,11 +251,11 @@ export default function Dashboard() {
             </div>
             {!sidebarCollapsed ? (
               <>
-                <span className="block text-[#1E3A8A] dark:text-white font-semibold text-base text-center truncate w-full" title={username}>
-                  {username}
+                <span className="block text-[#1E3A8A] dark:text-white font-semibold text-base text-center truncate w-full" title={user?.username}>
+                  {user?.username}
                 </span>
-                <span className="block text-gray-500 dark:text-gray-400 text-xs text-center truncate w-full" title={userEmail}>
-                  {userEmail}
+                <span className="block text-gray-500 dark:text-gray-400 text-xs text-center truncate w-full" title={user?.email}>
+                  {user?.email}
                 </span>
                 <Link
                   to="/profile"
@@ -380,7 +407,7 @@ export default function Dashboard() {
           {/* Show email at bottom only on mobile */}
           {window.innerWidth < 768 && (
             <span className="text-xs text-gray-500 dark:text-gray-400 text-center break-all px-2 pt-2 w-full block">
-              {userEmail}
+              {user?.email}
             </span>
           )}
           {/* Logout button: only show on desktop when collapsed */}

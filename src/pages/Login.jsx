@@ -2,6 +2,8 @@ import { useState } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate, Link } from "react-router-dom";
 import { useTheme } from "../hooks/useTheme";
+import { loginUser } from "../utils/api";
+import jwtDecode from "jwt-decode";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -15,14 +17,22 @@ export default function Login() {
     setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
       setError("Please enter both email and password.");
       return;
     }
     setError("");
-    navigate("/dashboard");
+
+    const result = await loginUser({ email: form.email, password: form.password });
+
+    if (result.token) {
+      localStorage.setItem("token", result.token);
+      navigate("/dashboard");
+    } else {
+      setError(result.message || "Login failed.");
+    }
   };
 
   return (
