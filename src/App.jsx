@@ -24,13 +24,14 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Terms page should be independent */}
+        <Route path="/terms" element={<Terms />} />
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Landing />} />
           <Route path="/about" element={<About />} />
           <Route path="/news" element={<News />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/markets" element={<Markets />} />
-          <Route path="/terms" element={<Terms />} />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

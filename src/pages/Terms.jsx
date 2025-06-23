@@ -42,10 +42,10 @@ export default function Terms() {
         </div>
         <div className="mt-8 text-center">
           <Link
-            to="/login"
+            to="/register"
             className="text-[#1E3A8A] dark:text-[#a99d6b] font-semibold hover:underline"
           >
-            Back to Login
+            Back to Register
           </Link>
         </div>
       </div>
