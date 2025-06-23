@@ -1,87 +1,51 @@
-import { Link, NavLink } from "react-router-dom";
 import { useState } from "react";
-
-const navLinks = [
-  { to: "/", label: "Home" },
-  { to: "/about", label: "About" },
-  { to: "/news", label: "News" },
-  { to: "/markets", label: "Markets" },
-  { to: "/contact", label: "Contact" },
-  { to: "/login", label: "Login" },
-  { to: "/register", label: "Register" },
-];
+import { Link, NavLink } from "react-router-dom";
 
 export default function PublicNavbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <nav className="bg-white dark:bg-gray-900 shadow-lg font-sans">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <Link
-          to="/"
-          className="text-2xl font-extrabold tracking-tight text-[#1E3A8A] dark:text-white font-inter"
-          style={{ letterSpacing: ".02em" }}
-        >
-          Forex
-          <span className="text-white bg-[#1E3A8A] px-2 py-1 rounded ml-1">
-            Journal
-          </span>
+    <nav className="w-full bg-white dark:bg-gray-900 shadow-sm border-b border-blue-100 dark:border-gray-800">
+      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        {/* Logo */}
+        <Link to="/" className="text-2xl font-extrabold text-[#1E3A8A] dark:text-white font-inter">
+          FXsnip
         </Link>
-        <div className="md:hidden">
-          <button
-            onClick={() => setOpen(!open)}
-            className="text-[#1E3A8A] dark:text-white focus:outline-none"
-            aria-label="Toggle menu"
-          >
-            <svg
-              className="w-7 h-7"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              {open ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 8h16M4 16h16"
-                />
-              )}
-            </svg>
-          </button>
-        </div>
-        <div
-          className={`flex-col md:flex-row md:flex gap-2 md:gap-6 items-center transition-all duration-200 ${
-            open
-              ? "flex absolute top-16 left-0 w-full bg-white dark:bg-gray-900 z-50 rounded-b-lg shadow-lg"
-              : "hidden md:!flex md:static md:bg-transparent"
-          }`}
+        {/* Hamburger */}
+        <button
+          className="md:hidden ml-auto flex flex-col justify-center items-center w-10 h-10 focus:outline-none"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Open navigation"
         >
-          {navLinks.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `block md:inline text-base font-medium font-inter px-4 py-2 md:px-2 md:py-1 rounded-lg transition-all duration-150 ${
-                  isActive
-                    ? "bg-[#1E3A8A] text-white font-semibold shadow"
-                    : "text-[#1E3A8A] dark:text-white hover:bg-[#1E3A8A] hover:text-white"
-                }`
-              }
-              end={link.to === "/"}
-            >
-              {link.label}
-            </NavLink>
-          ))}
+          <span className={`block w-7 h-0.5 bg-[#a99d6b] mb-1 transition-all duration-200`} />
+          <span className={`block w-7 h-0.5 bg-[#a99d6b] mb-1 transition-all duration-200`} />
+          <span className={`block w-7 h-0.5 bg-[#a99d6b] transition-all duration-200`} />
+        </button>
+        {/* Nav Links */}
+        <div className="hidden md:flex items-center gap-6 ml-auto">
+          <NavLink to="/about" className="navlink" activeclassname="active">About</NavLink>
+          <NavLink to="/news" className="navlink" activeclassname="active">News</NavLink>
+          <NavLink to="/markets" className="navlink" activeclassname="active">Markets</NavLink>
+          <NavLink to="/contact" className="navlink" activeclassname="active">Contact</NavLink>
+          <NavLink to="/login" className="navlink" activeclassname="active">Login</NavLink>
+          <Link to="/register" className="ml-2 px-4 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">Register</Link>
         </div>
       </div>
+      {/* Mobile Nav */}
+      {open && (
+        <div className="md:hidden px-4 pb-4 flex flex-col items-end gap-3 bg-white dark:bg-gray-900 shadow">
+          <NavLink to="/about" className="navlink" activeclassname="active" onClick={() => setOpen(false)}>About</NavLink>
+          <NavLink to="/news" className="navlink" activeclassname="active" onClick={() => setOpen(false)}>News</NavLink>
+          <NavLink to="/markets" className="navlink" activeclassname="active" onClick={() => setOpen(false)}>Markets</NavLink>
+          <NavLink to="/contact" className="navlink" activeclassname="active" onClick={() => setOpen(false)}>Contact</NavLink>
+          <NavLink to="/login" className="navlink" activeclassname="active" onClick={() => setOpen(false)}>Login</NavLink>
+          <Link to="/register" className="mt-2 px-4 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition" onClick={() => setOpen(false)}>Register</Link>
+        </div>
+      )}
     </nav>
   );
 }
+
+// Add this to your CSS (e.g., index.css or tailwind config)
+// .navlink { @apply text-[#1E3A8A] dark:text-white font-semibold px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-gray-800 transition; }
+// .active { @apply underline text-[#a99d6b]; }
