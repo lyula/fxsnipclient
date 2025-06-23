@@ -16,7 +16,7 @@ import {
   FaCreditCard,
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
-import jwtDecode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
 // Dummy user data for demonstration. Replace with real user data as needed.
 const notificationCount = 3; // Replace with your actual notification count

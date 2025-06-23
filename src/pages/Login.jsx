@@ -3,7 +3,7 @@ import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate, Link } from "react-router-dom";
 import { useTheme } from "../hooks/useTheme";
 import { loginUser } from "../utils/api";
-import jwtDecode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
