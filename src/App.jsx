@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
 import PublicLayout from "./components/layout/PublicLayout";
 import PrivateLayout from "./components/layout/PrivateLayout";
 import Landing from "./pages/Landing";
@@ -10,6 +11,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Terms from "./pages/Terms";
+import { useTheme } from "./hooks/useTheme"; // <-- Make sure this exists
 
 function Placeholder({ title }) {
   return (
@@ -21,6 +23,16 @@ function Placeholder({ title }) {
 }
 
 function App() {
+  const [darkMode] = useTheme();
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
   return (
     <Router>
       <Routes>
