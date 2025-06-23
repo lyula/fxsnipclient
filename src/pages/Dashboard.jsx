@@ -39,7 +39,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
+    <div className="fixed inset-0 flex bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       {/* Sidebar */}
       <aside
         className={`fixed z-30 inset-y-0 left-0 transform ${
@@ -151,11 +151,9 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content */}
-      <div
-        className={`flex-1 flex flex-col min-h-screen ml-0 transition-all duration-300 ease-in-out`}
-      >
+      <div className="flex-1 flex flex-col min-h-0 ml-0 transition-all duration-300 ease-in-out">
         {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20">
+        <header className="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20 flex-shrink-0">
           <div className="flex items-center gap-3">
             <button
               className="md:hidden text-[#a99d6b] text-2xl"
@@ -212,48 +210,118 @@ export default function Dashboard() {
         </header>
 
         {/* Dashboard Content */}
-        <main className="flex-1 p-2 md:p-6">
-          <div className="grid gap-6 md:gap-8 grid-cols-1 md:grid-cols-3 mb-12">
-            <Link
-              to="/journal"
-              className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-6 flex flex-col items-center border-2 border-[#a99d6b] hover:scale-105 transition-transform"
-            >
-              <FaBook className="text-3xl text-[#a99d6b] mb-3" />
-              <h2 className="font-bold text-xl text-[#1E3A8A] dark:text-white mb-2">My Journals</h2>
-              <p className="text-gray-600 dark:text-gray-300 text-center text-sm">
-                View, edit, and reflect on your trading journals.
-              </p>
-              <span className="mt-4 inline-block px-6 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">
-                Go to Journals
-              </span>
-            </Link>
-            <Link
-              to="/stats"
-              className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-6 flex flex-col items-center border-2 border-[#a99d6b] hover:scale-105 transition-transform"
-            >
-              <FaChartBar className="text-3xl text-[#a99d6b] mb-3" />
-              <h2 className="font-bold text-xl text-[#1E3A8A] dark:text-white mb-2">Analytics</h2>
-              <p className="text-gray-600 dark:text-gray-300 text-center text-sm">
-                Visualize your performance and trading edge.
-              </p>
-              <span className="mt-4 inline-block px-6 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">
-                View Analytics
-              </span>
-            </Link>
-            <Link
-              to="/community"
-              className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-6 flex flex-col items-center border-2 border-[#a99d6b] hover:scale-105 transition-transform"
-            >
-              <FaUsers className="text-3xl text-[#a99d6b] mb-3" />
-              <h2 className="font-bold text-xl text-[#1E3A8A] dark:text-white mb-2">Community</h2>
-              <p className="text-gray-600 dark:text-gray-300 text-center text-sm">
-                Connect with other traders and view public journals.
-              </p>
-              <span className="mt-4 inline-block px-6 py-2 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition">
-                Explore Community
-              </span>
-            </Link>
+        <main
+          className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 min-h-0"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {/* Recent Activity & Performance Overview */}
+          <div className="grid gap-4 sm:gap-6 md:gap-8 grid-cols-1 lg:grid-cols-2 mb-12">
+            {/* Recent Activity */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 sm:p-6 flex flex-col">
+              <h2 className="font-bold text-lg sm:text-xl text-[#1E3A8A] dark:text-white mb-3">
+                Recent Activity
+              </h2>
+              <div className="flex-1 overflow-auto">
+                <div className="flex flex-col gap-2">
+                  {/* Activity Item */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-gray-700 transition-all duration-200 hover:bg-blue-100 dark:hover:bg-gray-600">
+                    <div className="flex-shrink-0">
+                      <FaBook className="text-[#a99d6b] text-2xl" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[#1E3A8A] dark:text-white font-medium text-sm">
+                        Reviewed journal entry
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">
+                        10 minutes ago
+                      </p>
+                    </div>
+                  </div>
+                  {/* Activity Item */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-gray-700 transition-all duration-200 hover:bg-blue-100 dark:hover:bg-gray-600">
+                    <div className="flex-shrink-0">
+                      <FaChartBar className="text-[#a99d6b] text-2xl" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[#1E3A8A] dark:text-white font-medium text-sm">
+                        Analyzed trading statistics
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">
+                        30 minutes ago
+                      </p>
+                    </div>
+                  </div>
+                  {/* Activity Item */}
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-gray-700 transition-all duration-200 hover:bg-blue-100 dark:hover:bg-gray-600">
+                    <div className="flex-shrink-0">
+                      <FaBullhorn className="text-[#a99d6b] text-2xl" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[#1E3A8A] dark:text-white font-medium text-sm">
+                        Received new trading signal
+                      </p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs">
+                        1 hour ago
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Performance Overview */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 sm:p-6 flex flex-col">
+              <h2 className="font-bold text-lg sm:text-xl text-[#1E3A8A] dark:text-white mb-4">
+                Performance Overview
+              </h2>
+              <div className="flex-1 flex flex-col gap-4">
+                {/* Performance Chart Placeholder */}
+                <div className="h-32 sm:h-48 bg-blue-50 dark:bg-gray-700 rounded-lg flex items-center justify-center text-[#1E3A8A] dark:text-white font-semibold text-sm">
+                  Performance Chart
+                </div>
+                {/* Key Metrics */}
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 shadow">
+                    <p className="text-[#1E3A8A] dark:text-white font-bold text-lg">
+                      +12.5%
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      Monthly Return
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 shadow">
+                    <p className="text-[#1E3A8A] dark:text-white font-bold text-lg">
+                      1.35
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      Sharpe Ratio
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 shadow">
+                    <p className="text-[#1E3A8A] dark:text-white font-bold text-lg">
+                      8
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      Winning Trades
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-4 sm:p-6 shadow">
+                    <p className="text-[#1E3A8A] dark:text-white font-bold text-lg">
+                      2
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      Losing Trades
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* Footer */}
+          <footer className="py-4 px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+            &copy; 2023 FXsnip. All rights reserved.
+          </footer>
         </main>
       </div>
     </div>
