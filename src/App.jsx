@@ -47,7 +47,7 @@ function App() {
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/*" element={<Dashboard />} />
         <Route element={<PrivateLayout />}>
           <Route path="/tsr" element={<Placeholder title="TSR" />} />
           <Route path="/stats" element={<Placeholder title="Stats" />} />

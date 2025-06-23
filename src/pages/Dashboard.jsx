@@ -1,11 +1,35 @@
-import { Link, useNavigate } from "react-router-dom";
-import { FaBook, FaChartBar, FaUsers, FaSignOutAlt, FaBars, FaChevronLeft, FaChevronRight, FaBullhorn, FaUser, FaInbox, FaBell, FaMoon, FaSun } from "react-icons/fa";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import {
+  FaBook,
+  FaChartBar,
+  FaUsers,
+  FaSignOutAlt,
+  FaBars,
+  FaChevronLeft,
+  FaChevronRight,
+  FaBullhorn,
+  FaUser,
+  FaInbox,
+  FaBell,
+  FaMoon,
+  FaSun,
+  FaCreditCard,
+} from "react-icons/fa";
 import { useState, useEffect } from "react";
 
 // Dummy user data for demonstration. Replace with real user data as needed.
 const username = "TraderJoe";
 const userEmail = "user@email.com";
 const notificationCount = 3; // Replace with your actual notification count
+
+// Import only dashboard subpages that are linked in the sidebar
+import Journal from "./dashboard/Journal";
+import Stats from "./dashboard/Stats";
+import Community from "./dashboard/Community";
+import Signals from "./dashboard/Signals";
+import Inbox from "./dashboard/Inbox";
+import Subscriptions from "./dashboard/Subscriptions";
+// (Do not import pages like About, Contact, Markets, News, Terms, Register, Login, etc.)
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -48,6 +72,7 @@ export default function Dashboard() {
   }, [sidebarCollapsed]);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     navigate("/login");
@@ -55,7 +80,6 @@ export default function Dashboard() {
 
   const currentYear = new Date().getFullYear();
 
-  // Add this helper function inside your Dashboard component, before return:
   function getGreeting() {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
@@ -63,6 +87,96 @@ export default function Dashboard() {
     return "Good evening";
   }
 
+  // Helper for active nav link
+  const isActive = (path) => location.pathname === path;
+
+  // Main dashboard content (preserved original layout)
+  const DashboardMain = (
+    <div className="w-full max-w-7xl mx-auto">
+      {/* Greeting and username */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-[#a99d6b] dark:text-[#a99d6b]">
+          {getGreeting()}, {username}
+        </h2>
+      </div>
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-2 mb-12">
+        {/* Recent Activity */}
+        <div className="bg-[#232c3b] dark:bg-gray-800 rounded-2xl shadow p-6 flex flex-col min-w-0 h-full">
+          <h2 className="font-extrabold text-2xl text-white mb-6">Recent Activity</h2>
+          <div className="flex flex-col gap-4">
+            <div className="bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
+              <FaBook className="text-[#a99d6b] text-2xl" />
+              <div>
+                <div className="font-semibold text-white">Reviewed journal entry</div>
+                <div className="text-gray-400 text-xs">10 minutes ago</div>
+              </div>
+            </div>
+            <div className="bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
+              <FaChartBar className="text-[#a99d6b] text-2xl" />
+              <div>
+                <div className="font-semibold text-white">Analyzed trading statistics</div>
+                <div className="text-gray-400 text-xs">30 minutes ago</div>
+              </div>
+            </div>
+            <div className="bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
+              <FaBullhorn className="text-[#a99d6b] text-2xl" />
+              <div>
+                <div className="font-semibold text-white">Received new trading signal</div>
+                <div className="text-gray-400 text-xs">1 hour ago</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Performance Overview */}
+        <div className="bg-[#232c3b] dark:bg-gray-800 rounded-2xl shadow p-6 flex flex-col min-w-0 h-full">
+          <h2 className="font-extrabold text-2xl text-white mb-6">Performance Overview</h2>
+          <div className="bg-[#2e3a4e] rounded-lg p-8 flex items-center justify-center text-white text-lg mb-6" style={{ minHeight: 120 }}>
+            Performance Chart
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#a99d6b]">+12.5%</span>
+              <span className="text-gray-400 text-xs mt-1">Monthly Return</span>
+            </div>
+            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#a99d6b]">1.35</span>
+              <span className="text-gray-400 text-xs mt-1">Sharpe Ratio</span>
+            </div>
+            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#a99d6b]">8</span>
+              <span className="text-gray-400 text-xs mt-1">Winning Trades</span>
+            </div>
+            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#a99d6b]">2</span>
+              <span className="text-gray-400 text-xs mt-1">Losing Trades</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Determine which dashboard page to show
+  let MainContent;
+  if (location.pathname === "/dashboard") {
+    MainContent = DashboardMain;
+  } else if (location.pathname.startsWith("/dashboard/journal")) {
+    MainContent = <Journal />;
+  } else if (location.pathname.startsWith("/dashboard/stats")) {
+    MainContent = <Stats />;
+  } else if (location.pathname.startsWith("/dashboard/community")) {
+    MainContent = <Community />;
+  } else if (location.pathname.startsWith("/dashboard/signals")) {
+    MainContent = <Signals />;
+  } else if (location.pathname.startsWith("/dashboard/inbox")) {
+    MainContent = <Inbox />;
+  } else if (location.pathname.startsWith("/dashboard/subscriptions")) {
+    MainContent = <Subscriptions />;
+  } else {
+    MainContent = DashboardMain;
+  }
+
+  // Sidebar and header code remains unchanged
   return (
     <div className="fixed inset-0 flex bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       {/* Sidebar */}
@@ -129,7 +243,9 @@ export default function Dashboard() {
         <nav className="flex-1 px-1 sm:px-2 py-6 flex flex-col gap-2 min-w-0 w-full items-center md:items-stretch">
           <Link
             to="/dashboard"
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold text-[#1E3A8A] dark:text-white hover:bg-blue-50 dark:hover:bg-gray-800 transition
+            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
               w-full md:w-auto justify-center md:justify-start
             `}
@@ -145,8 +261,10 @@ export default function Dashboard() {
             </span>
           </Link>
           <Link
-            to="/journal"
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold text-[#1E3A8A] dark:text-white hover:bg-blue-50 dark:hover:bg-gray-800 transition
+            to="/dashboard/journal"
+            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard/journal") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
               w-full md:w-auto justify-center md:justify-start
             `}
@@ -162,8 +280,10 @@ export default function Dashboard() {
             </span>
           </Link>
           <Link
-            to="/stats"
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold text-[#1E3A8A] dark:text-white hover:bg-blue-50 dark:hover:bg-gray-800 transition
+            to="/dashboard/stats"
+            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard/stats") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
               w-full md:w-auto justify-center md:justify-start
             `}
@@ -179,8 +299,10 @@ export default function Dashboard() {
             </span>
           </Link>
           <Link
-            to="/community"
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold text-[#1E3A8A] dark:text-white hover:bg-blue-50 dark:hover:bg-gray-800 transition
+            to="/dashboard/community"
+            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard/community") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
               w-full md:w-auto justify-center md:justify-start
             `}
@@ -196,8 +318,10 @@ export default function Dashboard() {
             </span>
           </Link>
           <Link
-            to="/signals"
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold text-[#1E3A8A] dark:text-white hover:bg-blue-50 dark:hover:bg-gray-800 transition
+            to="/dashboard/signals"
+            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard/signals") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
               w-full md:w-auto justify-center md:justify-start
             `}
@@ -213,8 +337,10 @@ export default function Dashboard() {
             </span>
           </Link>
           <Link
-            to="/inbox"
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold text-[#1E3A8A] dark:text-white hover:bg-blue-50 dark:hover:bg-gray-800 transition
+            to="/dashboard/inbox"
+            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard/inbox") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
               w-full md:w-auto justify-center md:justify-start
             `}
@@ -227,6 +353,25 @@ export default function Dashboard() {
                 : "inline-block")
             }>
               Inbox
+            </span>
+          </Link>
+          <Link
+            to="/dashboard/subscriptions"
+            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard/subscriptions") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
+              ${sidebarCollapsed ? "justify-center md:px-2" : ""}
+              w-full md:w-auto justify-center md:justify-start
+            `}
+          >
+            <FaCreditCard className="text-lg" />
+            <span className={
+              "truncate " +
+              (sidebarCollapsed
+                ? "hidden md:inline-block md:opacity-0 md:w-0 md:visible"
+                : "inline-block")
+            }>
+              Subscriptions
             </span>
           </Link>
         </nav>
@@ -258,7 +403,7 @@ export default function Dashboard() {
         <header className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-3 sm:py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20 flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
-              className="md:hidden text-[#a99d6b] text-3xl sm:text-xl md:text-2xl" // Larger hamburger on mobile
+              className="md:hidden text-[#a99d6b] text-3xl sm:text-xl md:text-2xl"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open sidebar"
             >
@@ -267,7 +412,7 @@ export default function Dashboard() {
             <h1
               className="font-bold text-[#1E3A8A] dark:text-white font-inter truncate"
               style={{
-                fontSize: "clamp(1rem, 5vw, 2rem)", // Responsive font size
+                fontSize: "clamp(1rem, 5vw, 2rem)",
                 lineHeight: 1.1,
                 maxWidth: "60vw"
               }}
@@ -328,116 +473,7 @@ export default function Dashboard() {
             <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
-              {/* Mobile greeting and spacing */}
-              <div className="block md:hidden mb-4 mt-2">
-                <h2 className="text-lg font-semibold text-[#1E3A8A] dark:text-white">
-                  {getGreeting()}, {username}
-                </h2>
-              </div>
-              {/* Recent Activity & Performance Overview */}
-              <div className="grid gap-4 sm:gap-6 md:gap-8 grid-cols-1 lg:grid-cols-2 mb-12 h-full">
-                {/* Add extra margin-top to Recent Activity on mobile */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-2 sm:p-4 flex flex-col min-w-0 h-full mt-6 md:mt-0">
-                  <h2 className="font-bold text-base sm:text-lg md:text-xl text-[#1E3A8A] dark:text-white mb-2 sm:mb-3">
-                    Recent Activity
-                  </h2>
-                  <div className="flex-1 overflow-auto">
-                    <div className="flex flex-col gap-2">
-                      {/* Activity Item */}
-                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-blue-50 dark:bg-gray-700 transition-all duration-200 hover:bg-blue-100 dark:hover:bg-gray-600">
-                        <div className="flex-shrink-0">
-                          <FaBook className="text-[#a99d6b] text-lg sm:text-2xl" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[#1E3A8A] dark:text-white font-medium text-xs sm:text-sm truncate">
-                            Reviewed journal entry
-                          </p>
-                          <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs truncate">
-                            10 minutes ago
-                          </p>
-                        </div>
-                      </div>
-                      {/* Activity Item */}
-                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-blue-50 dark:bg-gray-700 transition-all duration-200 hover:bg-blue-100 dark:hover:bg-gray-600">
-                        <div className="flex-shrink-0">
-                          <FaChartBar className="text-[#a99d6b] text-lg sm:text-2xl" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[#1E3A8A] dark:text-white font-medium text-xs sm:text-sm truncate">
-                            Analyzed trading statistics
-                          </p>
-                          <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs truncate">
-                            30 minutes ago
-                          </p>
-                        </div>
-                      </div>
-                      {/* Activity Item */}
-                      <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-blue-50 dark:bg-gray-700 transition-all duration-200 hover:bg-blue-100 dark:hover:bg-gray-600">
-                        <div className="flex-shrink-0">
-                          <FaBullhorn className="text-[#a99d6b] text-lg sm:text-2xl" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[#1E3A8A] dark:text-white font-medium text-xs sm:text-sm truncate">
-                            Received new trading signal
-                          </p>
-                          <p className="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs truncate">
-                            1 hour ago
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Performance Overview */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-2 sm:p-4 flex flex-col min-w-0 h-full">
-                  <h2 className="font-bold text-base sm:text-lg md:text-xl text-[#1E3A8A] dark:text-white mb-2 sm:mb-4">
-                    Performance Overview
-                  </h2>
-                  <div className="flex-1 flex flex-col gap-2 sm:gap-4">
-                    {/* Performance Chart Placeholder */}
-                    <div className="h-24 sm:h-32 md:h-48 bg-blue-50 dark:bg-gray-700 rounded-lg flex items-center justify-center text-[#1E3A8A] dark:text-white font-semibold text-xs sm:text-sm">
-                      Performance Chart
-                    </div>
-                    {/* Key Metrics */}
-                    <div className="grid grid-cols-2 gap-2 sm:gap-4 text-center">
-                      <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-2 sm:p-4 shadow">
-                        <p className="text-[#1E3A8A] dark:text-white font-bold text-base sm:text-lg">
-                          +12.5%
-                        </p>
-                        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-                          Monthly Return
-                        </p>
-                      </div>
-                      <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-2 sm:p-4 shadow">
-                        <p className="text-[#1E3A8A] dark:text-white font-bold text-base sm:text-lg">
-                          1.35
-                        </p>
-                        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-                          Sharpe Ratio
-                        </p>
-                      </div>
-                      <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-2 sm:p-4 shadow">
-                        <p className="text-[#1E3A8A] dark:text-white font-bold text-base sm:text-lg">
-                          8
-                        </p>
-                        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-                          Winning Trades
-                        </p>
-                      </div>
-                      <div className="bg-blue-50 dark:bg-gray-700 rounded-lg p-2 sm:p-4 shadow">
-                        <p className="text-[#1E3A8A] dark:text-white font-bold text-base sm:text-lg">
-                          2
-                        </p>
-                        <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-                          Losing Trades
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* Footer moved inside scrollable area */}
+              {MainContent}
               <footer
                 className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0
                   sm:static sm:z-auto"
