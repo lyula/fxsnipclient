@@ -1,22 +1,78 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useTheme } from "../hooks/useTheme";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // <-- add useNavigate
+
+// Helper to get user's country using IP geolocation API
+async function fetchUserCountry() {
+  try {
+    const res = await fetch("https://ipapi.co/json/");
+    const data = await res.json();
+    return { name: data.country_name, code: data.country_code, flag: "" }; // flag will be set after fetching countries
+  } catch {
+    return null;
+  }
+}
 
 export default function Register() {
   const [form, setForm] = useState({
-    name: "",
     username: "",
     email: "",
     password: "",
     confirm: "",
+    country: "",
+    countryCode: "",
+    countryFlag: "",
   });
+  const [countries, setCountries] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [darkMode, setDarkMode] = useTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [countryQuery, setCountryQuery] = useState("");
+  const [showCountryList, setShowCountryList] = useState(false);
+  const [userDetectedCountry, setUserDetectedCountry] = useState(null);
+  const navigate = useNavigate(); // <-- add this
+
+  // Fetch countries from API and user's country
+  useEffect(() => {
+    fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags")
+      .then(res => res.json())
+      .then(data => {
+        const countryList = data.map(c => ({
+          name: c.name.common,
+          code: c.cca2,
+          flag: c.flags && c.flags.png ? c.flags.png : "",
+          emoji: c.flags && c.flags.alt ? c.flags.alt : "",
+        })).sort((a, b) => a.name.localeCompare(b.name));
+        setCountries(countryList);
+
+        // Get user's country and prepopulate
+        fetchUserCountry().then(userCountry => {
+          if (userCountry) {
+            setUserDetectedCountry(userCountry); // Save detected country for later comparison
+            const match = countryList.find(
+              c => c.code === userCountry.code || c.name === userCountry.name
+            );
+            if (match) {
+              setForm(f => ({
+                ...f,
+                country: match.name,
+                countryCode: match.code,
+                countryFlag: match.flag,
+              }));
+              setCountryQuery(match.name);
+            }
+          }
+        });
+      });
+  }, []);
+
+  const filteredCountries = countries.filter(c =>
+    c.name.toLowerCase().includes(countryQuery.toLowerCase())
+  );
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -24,24 +80,87 @@ export default function Register() {
     setSuccess(false);
   };
 
+  const handleCountrySelect = (country) => {
+    setForm({ ...form, country: country.name, countryCode: country.code, countryFlag: country.flag });
+    setCountryQuery(country.name);
+    setShowCountryList(false);
+
+    // If userDetectedCountry exists and the selected country matches, clear the error
+    if (
+      userDetectedCountry &&
+      (country.code === userDetectedCountry.code || country.name === userDetectedCountry.name)
+    ) {
+      setError("");
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name || !form.username || !form.email || !form.password || !form.confirm) {
-      setError("Please fill in all fields.");
+    // JavaScript validation for all required fields, with specific error messages
+    if (!form.username.trim()) {
+      setError("Username is required.");
+      setSuccess(false);
+      return;
+    }
+    if (!form.email.trim()) {
+      setError("Email is required.");
+      setSuccess(false);
+      return;
+    }
+    if (!form.password) {
+      setError("Password is required.");
+      setSuccess(false);
+      return;
+    }
+    if (!form.confirm) {
+      setError("Please confirm your password.");
+      setSuccess(false);
       return;
     }
     if (form.password !== form.confirm) {
       setError("Passwords do not match.");
+      setSuccess(false);
+      return;
+    }
+    if (!form.country || !form.countryCode || !form.countryFlag) {
+      setError("Please select your country.");
+      setSuccess(false);
+      return;
+    }
+    // Check if selected country matches detected country
+    if (
+      userDetectedCountry &&
+      (form.countryCode !== userDetectedCountry.code && form.country !== userDetectedCountry.name)
+    ) {
+      setError(
+        "The country you selected does not match your current location. Please enter your real country."
+      );
+      setSuccess(false);
       return;
     }
     if (!agreed) {
       setError("You must agree to the Terms & Conditions.");
+      setSuccess(false);
       return;
     }
     setError("");
     setSuccess(true);
-    setForm({ name: "", username: "", email: "", password: "", confirm: "" });
+    setForm({
+      username: "",
+      email: "",
+      password: "",
+      confirm: "",
+      country: "",
+      countryCode: "",
+      countryFlag: "",
+    });
+    setCountryQuery("");
     setAgreed(false);
+
+    // Redirect to login after a short delay
+    setTimeout(() => {
+      navigate("/login");
+    }, 1500); // 1.5 seconds
   };
 
   return (
@@ -55,22 +174,9 @@ export default function Register() {
             <FaUser className="text-[#a99d6b] mr-3" />
             <input
               type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              placeholder="Full Name"
-              className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
-            />
-          </div>
-          <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b]">
-            <FaUser className="text-[#a99d6b] mr-3" />
-            <input
-              type="text"
               name="username"
               value={form.username}
               onChange={handleChange}
-              required
               placeholder="Username"
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
             />
@@ -82,7 +188,6 @@ export default function Register() {
               name="email"
               value={form.email}
               onChange={handleChange}
-              required
               placeholder="Email"
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
             />
@@ -94,7 +199,6 @@ export default function Register() {
               name="password"
               value={form.password}
               onChange={handleChange}
-              required
               placeholder="Password"
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200 pr-8"
             />
@@ -115,7 +219,6 @@ export default function Register() {
               name="confirm"
               value={form.confirm}
               onChange={handleChange}
-              required
               placeholder="Confirm Password"
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200 pr-8"
             />
@@ -129,6 +232,59 @@ export default function Register() {
               {showConfirm ? <FaEyeSlash /> : <FaEye />}
             </button>
           </div>
+          <div className="mb-4 relative">
+            <label htmlFor="country" className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              Country
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                id="country"
+                name="country"
+                autoComplete="off"
+                value={countryQuery}
+                onChange={e => {
+                  setCountryQuery(e.target.value);
+                  setShowCountryList(true);
+                  setForm({ ...form, country: "", countryCode: "", countryFlag: "" });
+                }}
+                onFocus={() => setShowCountryList(true)}
+                placeholder="Start typing to search..."
+                className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 pl-10"
+                style={{ paddingLeft: form.countryFlag ? 38 : undefined }}
+                readOnly={false}
+              />
+              {form.countryFlag && (
+                <img
+                  src={form.countryFlag}
+                  alt={form.countryCode}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 w-6 h-4 object-cover rounded-sm pointer-events-none"
+                />
+              )}
+              {showCountryList && (
+                <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded shadow">
+                  {filteredCountries.length === 0 && (
+                    <li className="px-4 py-2 text-gray-500 dark:text-gray-300">No countries found</li>
+                  )}
+                  {filteredCountries.map((country) => (
+                    <li
+                      key={country.code}
+                      className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-gray-800"
+                      onClick={() => {
+                        handleCountrySelect(country);
+                        setShowCountryList(false);
+                      }}
+                    >
+                      {country.flag && (
+                        <img src={country.flag} alt={country.code} className="w-6 h-4 object-cover rounded-sm" />
+                      )}
+                      <span className="text-gray-900 dark:text-white">{country.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-2 text-xs sm:text-sm mt-2">
             <input
               type="checkbox"
@@ -136,7 +292,6 @@ export default function Register() {
               checked={agreed}
               onChange={e => setAgreed(e.target.checked)}
               className="accent-[#a99d6b] w-4 h-4"
-              required
             />
             <label htmlFor="terms" className="text-gray-700 dark:text-gray-300">
               I agree to the{" "}
@@ -160,7 +315,7 @@ export default function Register() {
           )}
           <button
             type="submit"
-            className="bg-[#a99d6b] text-white font-bold py-2 px-6 rounded-lg shadow hover:bg-[#c2b77a] transition"
+            className="w-full py-2 px-4 bg-[#a99d6b] text-white rounded-lg font-semibold hover:bg-[#8c865a] transition"
           >
             Register
           </button>
