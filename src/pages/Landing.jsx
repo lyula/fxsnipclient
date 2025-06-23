@@ -9,7 +9,10 @@ export default function Landing() {
   }, []);
 
   return (
-    <section className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12">
+    <section
+      className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12"
+      style={{ width: "100vw", maxWidth: "100vw", overflowX: "hidden" }}
+    >
       {/* Hero Section */}
       <div className="max-w-2xl text-center" data-aos="fade-down">
         <h1 className="text-4xl md:text-5xl font-extrabold text-[#1E3A8A] dark:text-white mb-4 font-inter">
