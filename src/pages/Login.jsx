@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { FaUser, FaLock } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -19,11 +21,11 @@ export default function Login() {
     }
     // Simulate login
     setError("");
-    // Redirect or show success here
+    navigate("/dashboard"); // Redirect to dashboard after login
   };
 
   return (
-    <section className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-2 py-8">
+    <section className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pt-20">
       <div className="w-full max-w-sm sm:max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8 border border-[#a99d6b] flex flex-col items-center">
         <h1 className="text-3xl md:text-4xl font-extrabold text-[#1E3A8A] dark:text-white mb-6 font-inter text-center">
           Welcome Back

@@ -7,7 +7,8 @@ import News from "./pages/News";
 import Markets from "./pages/Markets";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
-import Register from "./pages/Register"; // Add this import
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
 
 function Placeholder({ title }) {
   return (
@@ -29,10 +30,10 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/markets" element={<Markets />} />
         </Route>
-        <Route path="/login" element={<Login />} /> {/* Independent */}
-        <Route path="/register" element={<Register />} /> {/* Independent */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route element={<PrivateLayout />}>
-          <Route path="/dashboard" element={<Placeholder title="Dashboard" />} />
           <Route path="/tsr" element={<Placeholder title="TSR" />} />
           <Route path="/stats" element={<Placeholder title="Stats" />} />
         </Route>
