@@ -2,8 +2,11 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import AOS from "aos";
 import "aos/dist/aos.css";
+import { useTheme } from "../hooks/useTheme"; // <-- Add this import
 
 export default function Landing() {
+  const [darkMode, setDarkMode] = useTheme(); // <-- Add this line
+
   useEffect(() => {
     AOS.init({ once: true, duration: 700, offset: 80 });
   }, []);

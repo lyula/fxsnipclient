@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FaUser, FaEnvelope, FaLock } from "react-icons/fa";
+import { useTheme } from "../hooks/useTheme"; // <-- Add this import
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -11,6 +12,7 @@ export default function Register() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [darkMode, setDarkMode] = useTheme(); // <-- Add this line
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -125,6 +127,10 @@ export default function Register() {
             Login
           </a>
         </div>
+        {/* Optionally add a theme toggle button for user control */}
+        {/* <button onClick={() => setDarkMode((v) => !v)} className="mt-4 px-4 py-2 rounded-lg bg-[#a99d6b] text-white font-semibold shadow hover:bg-[#c2b77a] transition">
+          {darkMode ? "Light Mode" : "Dark Mode"}
+        </button> */}
       </div>
     </section>
   );
