@@ -293,11 +293,11 @@ export default function Dashboard() {
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
-              w-full md:w-auto justify-center md:justify-start
+              w-full md:w-auto
             `}
           >
             <FaBook className="text-lg" />
@@ -315,11 +315,11 @@ export default function Dashboard() {
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/journal") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
-              w-full md:w-auto justify-center md:justify-start
+              w-full md:w-auto
             `}
           >
             <FaBook className="text-lg" />
@@ -337,11 +337,11 @@ export default function Dashboard() {
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/stats") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
-              w-full md:w-auto justify-center md:justify-start
+              w-full md:w-auto
             `}
           >
             <FaChartBar className="text-lg" />
@@ -359,11 +359,11 @@ export default function Dashboard() {
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/community") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
-              w-full md:w-auto justify-center md:justify-start
+              w-full md:w-auto
             `}
           >
             <FaUsers className="text-lg" />
@@ -381,11 +381,11 @@ export default function Dashboard() {
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/signals") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
-              w-full md:w-auto justify-center md:justify-start
+              w-full md:w-auto
             `}
           >
             <FaBullhorn className="text-lg" />
@@ -403,11 +403,11 @@ export default function Dashboard() {
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/inbox") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
-              w-full md:w-auto justify-center md:justify-start
+              w-full md:w-auto
             `}
           >
             <FaInbox className="text-lg" />
@@ -425,11 +425,11 @@ export default function Dashboard() {
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
-            className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/subscriptions") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
-              w-full md:w-auto justify-center md:justify-start
+              w-full md:w-auto
             `}
           >
             <FaCreditCard className="text-lg" />
