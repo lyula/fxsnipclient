@@ -293,8 +293,6 @@ export default function Register() {
               <Link
                 to="/terms"
                 className="text-[#1E3A8A] dark:text-[#a99d6b] underline hover:opacity-80"
-                target="_blank"
-                rel="noopener noreferrer"
               >
                 Terms &amp; Conditions
               </Link>
