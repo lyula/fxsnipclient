@@ -554,7 +554,8 @@ export default function Dashboard() {
                 <Route path="profile" element={<Profile />} />
                 {/* Add other routes as needed */}
               </Routes>
-              {location.pathname.startsWith("/dashboard/inbox") ? null : (
+              {/* Only show footer if not in any community subpath */}
+              {!location.pathname.startsWith("/dashboard/community") && !location.pathname.startsWith("/dashboard/community/user/") ? (
                 <footer
                   className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0
                     sm:static sm:z-auto"
@@ -562,7 +563,7 @@ export default function Dashboard() {
                 >
                   &copy; {currentYear} FXsnip. All rights reserved.
                 </footer>
-              )}
+              ) : null}
             </div>
           </div>
         </main>

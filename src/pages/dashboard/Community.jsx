@@ -3,6 +3,7 @@ import { FaCheckCircle } from "react-icons/fa";
 import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
 import CreatePostBox from "./community/CreatePostBox";
+import UserSearch from "./community/UserSearch";
 
 // Dummy users for posts
 const users = [
@@ -144,6 +145,7 @@ export default function Community({ user }) {
 	const [showCreate, setShowCreate] = useState(false);
 	const [postsForYou, setPostsForYou] = useState(initialPostsForYou);
 	const [postsFollowing, setPostsFollowing] = useState(initialPostsFollowing);
+	const [showUserSearch, setShowUserSearch] = useState(false);
 
 	// Handlers for posts
 	const handleNewPost = (content, image) => {
@@ -239,6 +241,11 @@ export default function Community({ user }) {
 				/>
 			)}
 			<div className="flex-1 overflow-y-auto px-2 py-4 bg-gray-50 dark:bg-gray-800 scrollbar-hide">
+				{activeTab === "following" && (
+					<div className="mb-4">
+						<UserSearch currentUser={user} />
+					</div>
+				)}
 				<ChatList
 					posts={activeTab === "forYou" ? postsForYou : postsFollowing}
 					onReply={handleReply}
