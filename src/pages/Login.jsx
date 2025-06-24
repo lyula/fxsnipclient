@@ -1,11 +1,13 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate, Link } from "react-router-dom";
 import { useTheme } from "../hooks/useTheme";
 import { loginUser } from "../utils/api";
 import { jwtDecode } from "jwt-decode";
+import { useAuth } from "../context/auth";
 
 export default function Login() {
+  const { refreshUser } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -37,17 +39,21 @@ export default function Login() {
     setError("");
     setLoggingIn(true);
 
-    const result = await loginUser({ email: form.email, password: form.password });
+    try {
+      const result = await loginUser({ email: form.email, password: form.password });
+      setLoggingIn(false);
 
-    setLoggingIn(false);
-
-    if (result.token) {
-      localStorage.setItem("token", result.token);
-      // After successful login:
-      const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
-      navigate(lastRoute, { replace: true });
-    } else {
-      setError(result.message || "Login failed.");
+      if (result.token) {
+        localStorage.setItem("token", result.token);
+        await refreshUser(); // <-- fetch and set user profile
+        const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
+        navigate(lastRoute, { replace: true });
+      } else {
+        setError(result.message || "Login failed.");
+      }
+    } catch (err) {
+      setLoggingIn(false);
+      setError(err.message || "Login failed.");
     }
   };
 
