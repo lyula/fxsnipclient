@@ -1,4 +1,4 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation, Routes, Route } from "react-router-dom";
 import {
   FaBook,
   FaChartBar,
@@ -17,6 +17,9 @@ import {
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
+import UserProfile from "./dashboard/community/UserProfile";
+import Profile from "./dashboard/Profile";
+import { useAuth } from "../context/auth";
 
 // Dummy user data for demonstration. Replace with real user data as needed.
 const notificationCount = 3; // Replace with your actual notification count
@@ -30,16 +33,20 @@ import Inbox from "./dashboard/Inbox";
 import Subscriptions from "./dashboard/Subscriptions";
 // (Do not import pages like About, Contact, Markets, News, Terms, Register, Login, etc.)
 
+// Add this mapping at the top of your file
+const DASHBOARD_LABELS = {
+  "/dashboard": "Dashboard",
+  "/dashboard/journal": "My Journals",
+  "/dashboard/stats": "Analytics",
+  "/dashboard/community": "Vibe", // changed from "Community"
+  "/dashboard/signals": "Signal Rooms",
+  "/dashboard/inbox": "Inbox",
+  "/dashboard/subscriptions": "Subscriptions",
+  // Add more as needed
+};
+
 export default function Dashboard() {
-  const [user, setUser] = useState(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return null;
-    try {
-      return jwtDecode(token);
-    } catch {
-      return null;
-    }
-  });
+  const { user } = useAuth();
 
   // Optionally, update user state if localStorage changes (e.g. after login)
   useEffect(() => {
@@ -100,6 +107,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // --- Remember last dashboard route in localStorage ---
+  useEffect(() => {
+    if (location.pathname.startsWith("/dashboard")) {
+      localStorage.setItem("lastDashboardRoute", location.pathname + location.search);
+    }
+  }, [location]);
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/login");
@@ -116,6 +130,12 @@ export default function Dashboard() {
 
   // Helper for active nav link
   const isActive = (path) => location.pathname === path;
+
+  // Find the best matching label (longest prefix match)
+  const currentLabel =
+    Object.entries(DASHBOARD_LABELS)
+      .sort((a, b) => b[0].length - a[0].length)
+      .find(([key]) => location.pathname.startsWith(key))?.[1] || "Dashboard";
 
   // Main dashboard content (preserved original layout)
   const DashboardMain = (
@@ -192,7 +212,7 @@ export default function Dashboard() {
   } else if (location.pathname.startsWith("/dashboard/stats")) {
     MainContent = <Stats />;
   } else if (location.pathname.startsWith("/dashboard/community")) {
-    MainContent = <Community />;
+    MainContent = <Community user={user} />;
   } else if (location.pathname.startsWith("/dashboard/signals")) {
     MainContent = <Signals />;
   } else if (location.pathname.startsWith("/dashboard/inbox")) {
@@ -258,7 +278,7 @@ export default function Dashboard() {
                   {user?.email}
                 </span>
                 <Link
-                  to="/profile"
+                  to="/dashboard/profile"
                   className="mt-2 text-xs text-[#a99d6b] hover:underline font-medium text-center"
                 >
                   Update Profile
@@ -270,6 +290,9 @@ export default function Dashboard() {
         <nav className="flex-1 px-1 sm:px-2 py-6 flex flex-col gap-2 min-w-0 w-full items-center md:items-stretch">
           <Link
             to="/dashboard"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
@@ -289,6 +312,9 @@ export default function Dashboard() {
           </Link>
           <Link
             to="/dashboard/journal"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/journal") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
@@ -308,6 +334,9 @@ export default function Dashboard() {
           </Link>
           <Link
             to="/dashboard/stats"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/stats") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
@@ -327,6 +356,9 @@ export default function Dashboard() {
           </Link>
           <Link
             to="/dashboard/community"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/community") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
@@ -341,11 +373,14 @@ export default function Dashboard() {
                 ? "hidden md:inline-block md:opacity-0 md:w-0 md:visible"
                 : "inline-block")
             }>
-              Community
+              Vibe {/* changed from Community */}
             </span>
           </Link>
           <Link
             to="/dashboard/signals"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/signals") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
@@ -365,6 +400,9 @@ export default function Dashboard() {
           </Link>
           <Link
             to="/dashboard/inbox"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/inbox") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
@@ -384,6 +422,9 @@ export default function Dashboard() {
           </Link>
           <Link
             to="/dashboard/subscriptions"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
             className={`flex items-center gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
               ${isActive("/dashboard/subscriptions") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
@@ -444,7 +485,7 @@ export default function Dashboard() {
                 maxWidth: "60vw"
               }}
             >
-              Dashboard
+              {currentLabel}
             </h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
@@ -497,17 +538,31 @@ export default function Dashboard() {
         {/* Dashboard Content */}
         <main className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6"
+            <div
+              className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
-              {MainContent}
-              <footer
-                className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0
-                  sm:static sm:z-auto"
-                style={{}}
-              >
-                &copy; {currentYear} FXsnip. All rights reserved.
-              </footer>
+              <Routes>
+                <Route path="" element={DashboardMain} />
+                <Route path="community/user/:username" element={<UserProfile />} />
+                <Route path="community/*" element={<Community user={user} />} />
+                <Route path="inbox" element={<Inbox />} />
+                <Route path="signals" element={<Signals />} />
+                <Route path="journal" element={<Journal />} />
+                <Route path="stats" element={<Stats />} />
+                <Route path="subscriptions" element={<Subscriptions />} />
+                <Route path="profile" element={<Profile />} />
+                {/* Add other routes as needed */}
+              </Routes>
+              {location.pathname.startsWith("/dashboard/inbox") ? null : (
+                <footer
+                  className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0
+                    sm:static sm:z-auto"
+                  style={{}}
+                >
+                  &copy; {currentYear} FXsnip. All rights reserved.
+                </footer>
+              )}
             </div>
           </div>
         </main>

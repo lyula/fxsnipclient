@@ -9,8 +9,19 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [dotCount, setDotCount] = useState(1);
   const navigate = useNavigate();
   const [darkMode, setDarkMode] = useTheme();
+
+  // Animate dots for "Logging in..."
+  React.useEffect(() => {
+    if (!loggingIn) return;
+    const interval = setInterval(() => {
+      setDotCount((d) => (d % 3) + 1);
+    }, 400);
+    return () => clearInterval(interval);
+  }, [loggingIn]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -24,12 +35,17 @@ export default function Login() {
       return;
     }
     setError("");
+    setLoggingIn(true);
 
     const result = await loginUser({ email: form.email, password: form.password });
 
+    setLoggingIn(false);
+
     if (result.token) {
       localStorage.setItem("token", result.token);
-      navigate("/dashboard");
+      // After successful login:
+      const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
+      navigate(lastRoute, { replace: true });
     } else {
       setError(result.message || "Login failed.");
     }
@@ -52,6 +68,7 @@ export default function Login() {
               required
               placeholder="Email"
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200"
+              disabled={loggingIn}
             />
           </div>
           <div className="flex items-center border border-[#a99d6b] rounded-lg px-4 py-2 bg-transparent focus-within:ring-2 focus-within:ring-[#a99d6b] relative">
@@ -64,6 +81,7 @@ export default function Login() {
               required
               placeholder="Password"
               className="w-full bg-transparent outline-none text-gray-800 dark:text-gray-200 pr-8"
+              disabled={loggingIn}
             />
             <button
               type="button"
@@ -71,6 +89,7 @@ export default function Login() {
               tabIndex={-1}
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? "Hide password" : "Show password"}
+              disabled={loggingIn}
             >
               {showPassword ? <FaEyeSlash /> : <FaEye />}
             </button>
@@ -81,8 +100,15 @@ export default function Login() {
           <button
             type="submit"
             className="bg-[#a99d6b] text-white font-bold py-2 px-6 rounded-lg shadow hover:bg-[#c2b77a] transition"
+            disabled={loggingIn}
           >
-            Login
+            {loggingIn
+              ? (
+                <span>
+                  Logging in{"." + ".".repeat(dotCount)}
+                </span>
+              )
+              : "Login"}
           </button>
         </form>
         <div className="mt-6 text-center text-gray-600 dark:text-gray-300 text-sm">

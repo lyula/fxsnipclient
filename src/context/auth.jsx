@@ -1,16 +1,26 @@
-import { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { getProfile } from "../utils/api";
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  // For demo: always authenticated. Change to false to simulate logged out.
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [user, setUser] = useState(null);
 
-  const login = () => setIsAuthenticated(true);
-  const logout = () => setIsAuthenticated(false);
+  // Fetch user profile on mount (or after login)
+  useEffect(() => {
+    getProfile().then((data) => {
+      if (data && data.username) setUser(data);
+    });
+  }, []);
+
+  // Provide a way to refresh user data after profile update
+  const refreshUser = async () => {
+    const data = await getProfile();
+    if (data && data.username) setUser(data);
+  };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
