@@ -106,6 +106,7 @@ export default function Dashboard() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const isInboxChatOpen = location.pathname === "/dashboard/inbox" && new URLSearchParams(location.search).has("chat");
 
   // --- Remember last dashboard route in localStorage ---
   useEffect(() => {
@@ -468,82 +469,84 @@ export default function Dashboard() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 ml-0 transition-all duration-300 ease-in-out">
         {/* Header */}
-        <header className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-3 sm:py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20 flex-shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              className="md:hidden text-[#a99d6b] text-3xl sm:text-xl md:text-2xl"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
-            >
-              <FaBars />
-            </button>
-            <h1
-              className="font-bold text-[#1E3A8A] dark:text-white font-inter truncate"
-              style={{
-                fontSize: "clamp(1rem, 5vw, 2rem)",
-                lineHeight: 1.1,
-                maxWidth: "60vw"
-              }}
-            >
-              {currentLabel}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Community (Vibe) Icon */}
-            <button
-              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title="Vibe"
-              type="button"
-              onClick={() => navigate("/dashboard/community")}
-            >
-              <FaUsers className="text-base sm:text-xl" />
-            </button>
-            {/* Inbox Icon */}
-            <button
-              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title="Inbox"
-              type="button"
-              onClick={() => navigate("/dashboard/inbox")}
-            >
-              <FaInbox className="text-base sm:text-xl" />
-            </button>
-            {/* Theme Toggle */}
-            <button
-              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              onClick={() => setDarkMode((v) => !v)}
-              type="button"
-            >
-              {darkMode ? (
-                <FaSun className="text-base sm:text-xl" />
-              ) : (
-                <FaMoon className="text-base sm:text-xl" />
-              )}
-            </button>
-            {/* Notifications */}
-            <button
-              className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title="Notifications"
-              type="button"
-            >
-              <FaBell className="text-base sm:text-xl" />
-              {notificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] sm:min-w-[20px] text-center leading-none">
-                  {notificationCount}
-                </span>
-              )}
-            </button>
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="p-2 sm:p-3 bg-[#a99d6b] text-white rounded-full shadow hover:bg-[#c2b77a] transition"
-              title="Logout"
-              type="button"
-            >
-              <FaSignOutAlt className="text-base sm:text-xl" />
-            </button>
-          </div>
-        </header>
+        {!isInboxChatOpen && (
+          <header className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-3 sm:py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                className="md:hidden text-[#a99d6b] text-3xl sm:text-xl md:text-2xl"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open sidebar"
+              >
+                <FaBars />
+              </button>
+              <h1
+                className="font-bold text-[#1E3A8A] dark:text-white font-inter truncate"
+                style={{
+                  fontSize: "clamp(1rem, 5vw, 2rem)",
+                  lineHeight: 1.1,
+                  maxWidth: "60vw"
+                }}
+              >
+                {currentLabel}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Community (Vibe) Icon */}
+              <button
+                className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title="Vibe"
+                type="button"
+                onClick={() => navigate("/dashboard/community")}
+              >
+                <FaUsers className="text-base sm:text-xl" />
+              </button>
+              {/* Inbox Icon */}
+              <button
+                className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title="Inbox"
+                type="button"
+                onClick={() => navigate("/dashboard/inbox")}
+              >
+                <FaInbox className="text-base sm:text-xl" />
+              </button>
+              {/* Theme Toggle */}
+              <button
+                className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                onClick={() => setDarkMode((v) => !v)}
+                type="button"
+              >
+                {darkMode ? (
+                  <FaSun className="text-base sm:text-xl" />
+                ) : (
+                  <FaMoon className="text-base sm:text-xl" />
+                )}
+              </button>
+              {/* Notifications */}
+              <button
+                className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title="Notifications"
+                type="button"
+              >
+                <FaBell className="text-base sm:text-xl" />
+                {notificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] sm:min-w-[20px] text-center leading-none">
+                    {notificationCount}
+                  </span>
+                )}
+              </button>
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="p-2 sm:p-3 bg-[#a99d6b] text-white rounded-full shadow hover:bg-[#c2b77a] transition"
+                title="Logout"
+                type="button"
+              >
+                <FaSignOutAlt className="text-base sm:text-xl" />
+              </button>
+            </div>
+          </header>
+        )}
 
         {/* Dashboard Content */}
         <main className="flex-1 flex flex-col min-h-0">

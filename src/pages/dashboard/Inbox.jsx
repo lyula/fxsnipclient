@@ -30,12 +30,12 @@ export default function Inbox() {
     }
     return user;
   });
-  const [messages, setMessages] = useState(selectedUser ? selectedUser.messages : []);
+  const [messages, setMessages] = useState(selectedUser && Array.isArray(selectedUser.messages) ? selectedUser.messages : []);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    if (selectedUser) setMessages(selectedUser.messages);
+    if (selectedUser) setMessages(Array.isArray(selectedUser.messages) ? selectedUser.messages : []);
   }, [selectedUser]);
 
   useEffect(() => {
@@ -134,9 +134,7 @@ export default function Inbox() {
   if (!selectedUser) {
     return (
       <div className="w-full max-w-lg mx-auto flex flex-col h-screen bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow p-0">
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-xl">
-          <span className="font-bold text-gray-900 dark:text-white text-lg">Inbox</span>
-        </div>
+        {/* Removed the default Inbox header */}
         {/* Always show search at the top */}
         <div className="relative w-full max-w-xs mx-auto mt-4 mb-2">
           <input
@@ -155,23 +153,8 @@ export default function Inbox() {
                   key={user.username}
                   className="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-800 cursor-pointer transition"
                   onClick={() => {
-                    setSelectedUser({
-                      ...user,
-                      messages: [],
-                      lastMessage: "",
-                      lastTime: "",
-                    });
-                    setUsers(prev => [
-                      ...prev,
-                      {
-                        ...user,
-                        messages: [],
-                        lastMessage: "",
-                        lastTime: "",
-                      },
-                    ]);
-                    setSearch("");
-                    setSearchResults([]);
+                    setSelectedUser(user);
+                    navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
                   }}
                 >
                   <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
@@ -197,7 +180,13 @@ export default function Inbox() {
               <button
                 key={user.username}
                 className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition"
-                onClick={() => setSelectedUser(user)}
+                onClick={() => {
+                  setSelectedUser({
+                    ...user,
+                    messages: Array.isArray(user.messages) ? user.messages : [],
+                  });
+                  navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
+                }}
               >
                 <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
                 <div className="flex-1 text-left">
@@ -216,20 +205,29 @@ export default function Inbox() {
   // If user selected, show chat view
   return (
     <div className="w-full max-w-lg mx-auto h-screen flex flex-col bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow p-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+      {/* Sticky Header with Username */}
+      <div
+        className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky top-0 z-20"
+        style={{ minHeight: "56px" }}
+      >
         <button
-          onClick={() => setSelectedUser(null)}
+          onClick={() => {
+            setSelectedUser(null);
+            navigate("/dashboard/inbox");
+          }}
           className="mr-2 text-[#a99d6b] font-bold text-lg px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-gray-700 transition"
         >
           &larr;
         </button>
         <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full" />
-        <span className="font-bold text-gray-900 dark:text-white text-lg">{selectedUser.username}</span>
+        <span className="font-bold text-gray-900 dark:text-white text-lg truncate">{selectedUser.username}</span>
       </div>
-      {/* Messages */}
-      <div className="flex-1 px-4 py-3 space-y-3 bg-gray-50 dark:bg-gray-900">
-        {messages.map((msg, idx) => (
+      {/* Scrollable Messages */}
+      <div
+        className="flex-1 px-4 py-3 space-y-3 bg-gray-50 dark:bg-gray-900 overflow-y-auto"
+        style={{ minHeight: 0 }}
+      >
+        {(messages || []).map((msg, idx) => (
           <div
             key={idx}
             className={`flex ${msg.from === "You" ? "justify-end" : "justify-start"}`}
@@ -251,8 +249,7 @@ export default function Inbox() {
       {/* Input */}
       <form
         onSubmit={handleSend}
-        className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-none sm:rounded-b-xl
-          sticky bottom-0 z-10"
+        className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 sticky bottom-0 z-10"
         style={{ background: "inherit" }}
       >
         <input
