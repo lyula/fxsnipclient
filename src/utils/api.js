@@ -88,3 +88,38 @@ export async function searchUsers(query) {
   );
   return res.json();
 }
+
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+
+// Send a message
+export async function sendMessage(to, text) {
+  const res = await fetch(`${API_BASE}/message`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ to, text }),
+  });
+  return res.json();
+}
+
+// Get conversation with a user
+export async function getConversation(userId) {
+  const res = await fetch(`${API_BASE}/message/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  return res.json();
+}
+
+// Get all conversations
+export async function getConversations() {
+  const res = await fetch(`${API_BASE}/message`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  return res.json();
+}
