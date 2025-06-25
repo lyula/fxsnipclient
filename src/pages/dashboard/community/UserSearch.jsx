@@ -3,6 +3,7 @@ import { FaUser } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { searchUsers, followUser } from "../../../utils/api";
 import SHA256 from "crypto-js/sha256";
+import VerifiedBadge from "../../../components/VerifiedBadge";
 
 function hashId(id) {
   return SHA256(id.toString()).toString();
@@ -86,9 +87,11 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
                     className="flex items-center gap-3 flex-1 cursor-pointer"
                     onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(user.username)}`)}
                   >
-                    <FaUser className="text-[#1E3A8A] dark:text-[#a99d6b] text-lg" />
-                    <span className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b]">{user.username}</span>
-                    {user.countryFlag && (
+                    <span className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] flex items-center">
+                      {user.username}
+                      {user.verified && <VerifiedBadge />}
+                    </span>
+                    {!user.verified && user.countryFlag && (
                       <img src={user.countryFlag} alt={user.country} className="w-5 h-4 rounded-sm" />
                     )}
                   </div>

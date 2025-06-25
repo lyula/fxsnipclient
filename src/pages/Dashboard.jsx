@@ -20,6 +20,7 @@ import { jwtDecode } from "jwt-decode";
 import UserProfile from "./dashboard/community/UserProfile";
 import Profile from "./dashboard/Profile";
 import { useAuth } from "../context/auth";
+import VerifiedBadge from "../components/VerifiedBadge";
 
 // Dummy user data for demonstration. Replace with real user data as needed.
 const notificationCount = 3; // Replace with your actual notification count
@@ -282,6 +283,7 @@ export default function Dashboard() {
               <>
                 <span className="block text-[#1E3A8A] dark:text-white font-semibold text-base text-center truncate w-full" title={user?.username}>
                   {user?.username}
+                  {user?.verified && <VerifiedBadge />}
                 </span>
                 <span className="block text-gray-500 dark:text-gray-400 text-xs text-center truncate w-full" title={user?.email}>
                   {user?.email}

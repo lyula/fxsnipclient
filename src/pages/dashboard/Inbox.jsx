@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 import { getConversations, getConversation, sendMessage } from "../../utils/api";
 import { jwtDecode } from "jwt-decode";
+import VerifiedBadge from "../../components/VerifiedBadge";
 
 export default function Inbox(props) {
   const location = useLocation();
@@ -107,6 +108,7 @@ export default function Inbox(props) {
               avatar: u.countryFlag
                 ? u.countryFlag
                 : "https://ui-avatars.com/api/?name=" + encodeURIComponent(u.username),
+              verified: u.verified || false,
             }))
           );
         }
@@ -133,15 +135,20 @@ export default function Inbox(props) {
           avatar: conv.user.countryFlag
             ? conv.user.countryFlag
             : "https://ui-avatars.com/api/?name=" + encodeURIComponent(conv.user.username),
-          lastMessage: conv.lastMessage.text,
-          lastTime: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          lastTimestamp: new Date(conv.lastMessage.createdAt).getTime(),
+          lastMessage: conv.lastMessage?.text || "",
+          lastTime: conv.lastMessage
+            ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "",
+          lastTimestamp: conv.lastMessage
+            ? new Date(conv.lastMessage.createdAt).getTime()
+            : 0,
           unreadCount: conv.unreadCount || 0,
+          verified: !!conv.user.verified, // <--- this is the badge flag
         }))
-        .sort((a, b) => b.lastTimestamp - a.lastTimestamp); // Sort by timestamp descending
+        .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
       setUsers(sortedUsers);
     });
   }, []);
@@ -233,6 +240,14 @@ export default function Inbox(props) {
     return words.slice(0, numWords).join(" ") + " ...";
   }
 
+  // Keep selectedUser in sync with users array for latest verified status, etc.
+  useEffect(() => {
+    if (selectedUser && users.length > 0) {
+      const updated = users.find(u => u._id === selectedUser._id);
+      if (updated) setSelectedUser(updated);
+    }
+  }, [users]);
+
   // If no user selected, show chat list or start messaging UI
   if (!selectedUser) {
     return (
@@ -253,12 +268,17 @@ export default function Inbox(props) {
                   key={user.username}
                   className="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-800 cursor-pointer transition"
                   onClick={() => {
-                    setSelectedUser(user);
+                    // Prefer the user object from the conversation list if it exists
+                    const fullUser = users.find(u => u._id === user._id) || user;
+                    setSelectedUser(fullUser);
                     navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
                   }}
                 >
                   <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
-                  <span className="font-semibold text-gray-900 dark:text-white">{user.username}</span>
+                  <span className="font-semibold text-gray-900 dark:text-white flex items-center">
+                    {user.username}
+                    {user.verified && <VerifiedBadge />}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -278,10 +298,11 @@ export default function Inbox(props) {
           ) : (
             users.map((user) => (
               <button
-                key={user.username}
+                key={user._id}
                 className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition relative"
                 onClick={async () => {
-                  setSelectedUser(user);
+                  const fullUser = users.find(u => u._id === user._id) || user;
+                  setSelectedUser(fullUser);
                   navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
                   setUsers((prev) =>
                     prev.map((u) =>
@@ -294,12 +315,9 @@ export default function Inbox(props) {
                   <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
                 </div>
                 <div className="flex-1 text-left">
-                  <div
-                    className={`text-gray-900 dark:text-white ${
-                      user.unreadCount > 0 ? "font-bold" : "font-normal"
-                    }`}
-                  >
+                  <div className={`text-gray-900 dark:text-white ${user.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
                     {user.username}
+                    {user.verified && <VerifiedBadge />}
                   </div>
                   <div
                     className={`text-xs truncate ${
@@ -324,7 +342,6 @@ export default function Inbox(props) {
   // If user selected, show chat view
   if (selectedUser) {
     const groupedMessages = groupMessagesByDate(messages);
-
     return (
       <div className="w-full max-w-lg mx-auto h-screen flex flex-col bg-gray-50 dark:bg-gray-900 rounded-none sm:rounded-xl shadow p-0">
         {/* Sticky Header */}
@@ -344,18 +361,10 @@ export default function Inbox(props) {
             className="w-10 h-10 rounded-full"
           />
           <span
-            className="font-bold text-gray-900 dark:text-white text-lg truncate cursor-pointer hover:underline"
-            onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
-            title={`View ${selectedUser.username}'s profile`}
-            tabIndex={0}
-            role="button"
-            onKeyDown={e => {
-              if (e.key === "Enter" || e.key === " ") {
-                navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`);
-              }
-            }}
+            className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] flex items-center"
           >
             {selectedUser.username}
+            {selectedUser.verified && <VerifiedBadge />}
           </span>
         </div>
         {/* Scrollable Messages */}
@@ -400,58 +409,36 @@ export default function Inbox(props) {
                       } ${item.msg.from === myUserId ? "ml-auto" : "mr-auto"}`}
                     >
                       {item.msg.text}
-                      <div className="text-[10px] text-right mt-1 opacity-80 flex items-center justify-end gap-1">
+                      <div className="text-[10px] text-gray-400 mt-1 text-right">
                         {new Date(item.msg.createdAt).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                        {item.msg.from === myUserId && (
-                          <span
-                            className={`flex items-center gap-1 ${
-                              item.msg.read ? "text-green-200" : "text-gray-300 dark:text-gray-400"
-                            }`}
-                          >
-                            {item.msg.read ? (
-                              <>
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M7.629 14.571L2.286 9.229l1.414-1.414L7.629 11.743 16.086 3.286l1.414 1.414z" />
-                                  <path d="M11.086 14.571L5.743 9.229l1.414-1.414 4.929 4.928 4.928-4.928 1.414 1.414z" />
-                                </svg>
-                                Seen
-                              </>
-                            ) : (
-                              <>
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path d="M7.629 14.571L2.286 9.229l1.414-1.414L7.629 11.743 16.086 3.286l1.414 1.414z" />
-                                </svg>
-                                Delivered
-                              </>
-                            )}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
                 )
               )}
-              <div ref={messagesEndRef} style={{ height: "0px" }} />
+              <div ref={messagesEndRef} />
             </div>
           </div>
         </div>
-        {/* Input */}
+        {/* Message input form */}
         <form
           onSubmit={handleSend}
-          className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky bottom-0 z-40"
+          className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
         >
           <input
             className="flex-1 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder={`Message ${selectedUser.username}...`}
+            placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            autoComplete="off"
           />
           <button
             type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded-full font-semibold hover:bg-blue-700 dark:hover:bg-blue-500 transition"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-full transition"
+            disabled={!input.trim()}
           >
             Send
           </button>
@@ -459,4 +446,7 @@ export default function Inbox(props) {
       </div>
     );
   }
+
+  // fallback (should never hit)
+  return null;
 }

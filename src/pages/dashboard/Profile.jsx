@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getProfile, updateProfile } from "../../utils/api";
 import { useAuth } from "../../context/auth";
+import VerifiedBadge from "../../components/VerifiedBadge";
 
 export default function Profile() {
   const { refreshUser } = useAuth();
@@ -82,6 +83,12 @@ export default function Profile() {
       <div className="flex flex-col items-center mb-6">
         <div className="w-24 h-24 rounded-full bg-[#a99d6b] flex items-center justify-center text-white text-4xl font-bold mb-3 select-none">
           {user.username?.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex items-center justify-center gap-2 w-full mb-2">
+          <span className="block text-[#1E3A8A] dark:text-white font-semibold text-base text-center truncate w-full" title={user?.username}>
+            {user?.username}
+            {user?.verified && <VerifiedBadge />}
+          </span>
         </div>
         <div className="flex items-center justify-center gap-10 w-full mb-2">
           <div className="flex flex-col items-center">

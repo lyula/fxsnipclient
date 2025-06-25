@@ -5,6 +5,7 @@ import { formatCount } from "../../../utils/formatNumber";
 import SHA256 from "crypto-js/sha256";
 import { followUser, unfollowUser } from "../../../utils/api";
 import { hashId } from "../../../utils/hash";
+import VerifiedBadge from "../../../components/VerifiedBadge";
 
 function hashIdFunc(id) {
   return SHA256(id.toString()).toString();
@@ -154,7 +155,10 @@ export default function UserProfile() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-xl text-gray-900 dark:text-white break-all">{profile.username}</span>
+            <span className="font-bold text-xl text-gray-900 dark:text-white break-all">
+              {profile.username}
+              {profile.verified && <VerifiedBadge />}
+            </span>
           </div>
           <div className="text-sm text-gray-500 dark:text-gray-400 break-all">
             {profile.country || ""}
