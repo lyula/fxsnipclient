@@ -29,6 +29,10 @@ export default function Inbox() {
         setSelectedUser(user);
       }
     }
+    // If chatUsername is not present, clear selectedUser to show conversation list
+    if (!chatUsername) {
+      setSelectedUser(null);
+    }
   }, [chatUsername, users]);
 
   useEffect(() => {
