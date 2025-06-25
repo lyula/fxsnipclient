@@ -46,7 +46,7 @@ const DASHBOARD_LABELS = {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   // Optionally, update user state if localStorage changes (e.g. after login)
   useEffect(() => {

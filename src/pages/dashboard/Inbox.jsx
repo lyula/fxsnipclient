@@ -48,10 +48,28 @@ const users = [
 export default function Inbox() {
   const location = useLocation();
   const navigate = useNavigate();
-  const to = location.state?.to;
-  const [selectedUser, setSelectedUser] = useState(
-    to ? users.find(u => u.name === to) : null
-  );
+  const recipient = location.state?.to;
+
+  const [selectedUser, setSelectedUser] = useState(() => {
+    if (!recipient) return null;
+    // Try to find by username (case-insensitive)
+    let user = users.find(
+      u => u.name.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
+        || u.name === recipient
+    );
+    // If not found, create a new user object for this chat
+    if (!user) {
+      user = {
+        name: recipient,
+        avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(recipient),
+        messages: [],
+        lastMessage: "",
+        lastTime: "",
+      };
+      users.push(user); // Optionally add to users array for session
+    }
+    return user;
+  });
   const [messages, setMessages] = useState(selectedUser ? selectedUser.messages : []);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
@@ -74,6 +92,27 @@ export default function Inbox() {
       setInput("");
     }
   };
+
+  // Update selectedUser if recipient changes (e.g., navigating to a new chat)
+  useEffect(() => {
+    if (recipient) {
+      let user = users.find(
+        u => u.name.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
+          || u.name === recipient
+      );
+      if (!user) {
+        user = {
+          name: recipient,
+          avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(recipient),
+          messages: [],
+          lastMessage: "",
+          lastTime: "",
+        };
+        users.push(user);
+      }
+      setSelectedUser(user);
+    }
+  }, [recipient]);
 
   // If no user selected, show chat list
   if (!selectedUser) {
@@ -107,9 +146,9 @@ export default function Inbox() {
 
   // If user selected, show chat view
   return (
-    <div className="w-full max-w-lg mx-auto flex flex-col h-[70vh] bg-white dark:bg-gray-800 rounded-xl shadow p-0">
+    <div className="w-full max-w-lg mx-auto h-screen flex flex-col bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow p-0">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-xl">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <button
           onClick={() => setSelectedUser(null)}
           className="mr-2 text-[#a99d6b] font-bold text-lg px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-gray-700 transition"
@@ -143,7 +182,9 @@ export default function Inbox() {
       {/* Input */}
       <form
         onSubmit={handleSend}
-        className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-xl"
+        className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-none sm:rounded-b-xl
+          sticky bottom-0 z-10"
+        style={{ background: "inherit" }}
       >
         <input
           className="flex-1 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none"

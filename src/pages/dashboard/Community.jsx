@@ -227,6 +227,14 @@ export default function Community({ user }) {
 		else setPostsFollowing(updatePosts(postsFollowing));
 	};
 
+	const handleFollow = (userId) => {
+		const hashedId = hashId(userId);
+		setCurrentUser((prev) => ({
+			...prev,
+			followingHashed: [...prev.followingHashed, hashedId],
+		}));
+	};
+
 	return (
 		<div className="flex flex-col h-full max-h-full">
 			<CommunityTabs

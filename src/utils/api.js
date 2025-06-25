@@ -50,6 +50,7 @@ export async function updateProfile(data) {
 
 // Follow a user
 export async function followUser(userId) {
+  if (!userId) throw new Error("User ID is required");
   const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
   const res = await fetch(`${API_BASE}/user/follow/${userId}`, {
     method: "POST",

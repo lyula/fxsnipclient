@@ -2,14 +2,23 @@ import { useState, useEffect, useRef } from "react";
 import { FaUser } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { searchUsers, followUser } from "../../../utils/api";
+import SHA256 from "crypto-js/sha256";
+
+function hashId(id) {
+  return SHA256(id.toString()).toString();
+}
 
 export default function UserSearch({ currentUser, username, onFollow, onClose }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [visible, setVisible] = useState(true); // Add this state
+  const [localFollowingHashed, setLocalFollowingHashed] = useState(currentUser?.followingHashed || []);
   const debounceRef = useRef();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setLocalFollowingHashed(currentUser?.followingHashed || []);
+  }, [currentUser]);
 
   useEffect(() => {
     if (!query) {
@@ -21,28 +30,23 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       const data = await searchUsers(query);
-      const filtered = (data.users || []).filter(u =>
-        u.username.toLowerCase().includes(query.toLowerCase())
-      );
-      setResults(filtered);
+      const mappedResults = (data.users || []).map(u => ({
+        ...u,
+        isFollowing: localFollowingHashed.includes(hashId(u._id)),
+      }));
+      setResults(mappedResults);
       setLoading(false);
     }, 400);
     return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  }, [query, localFollowingHashed]);
 
   const handleFollow = async (userId) => {
     await followUser(userId);
-    if (onFollow) onFollow(userId);
+    const hashedId = hashId(userId);
+    setLocalFollowingHashed((prev) => [...prev, hashedId]);
     setResults(results.map(u => u._id === userId ? { ...u, isFollowing: true } : u));
+    if (onFollow) onFollow(userId);
   };
-
-  // Hide the search input and results when Close is clicked
-  const handleClose = () => {
-    setVisible(false);
-    if (onClose) onClose();
-  };
-
-  if (!visible) return null;
 
   return (
     <div className="relative bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 p-2 mb-2 rounded">
