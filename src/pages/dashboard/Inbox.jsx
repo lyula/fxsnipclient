@@ -278,156 +278,158 @@ export default function Inbox(props) {
               <button
                 key={user.username}
                 className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition relative"
-                onClick={() => {
+                onClick={async () => {
                   setSelectedUser(user);
                   navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
-                  }}
-                >
-                  <div className="relative">
-                    <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
-                    {user.unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                        {user.unreadCount}
-                      </span>
-                    )}
+                  setUsers(prev =>
+                    prev.map(u =>
+                      u._id === user._id
+                        ? { ...u, unreadCount: 0 }
+                        : u
+                    )
+                  );
+                }}
+              >
+                <div className="relative">
+                  <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className={`text-gray-900 dark:text-white ${user.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
+                    {user.username}
                   </div>
-                  <div className="flex-1 text-left">
-                    <div className={`text-gray-900 dark:text-white ${user.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
-                      {user.username}
-                    </div>
-                    <div className={`text-xs truncate ${user.unreadCount > 0 ? "font-bold text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
-                      <span className="block sm:hidden">{truncateWords(user.lastMessage, 4)}</span>
-                      <span className="hidden sm:block">{truncateWords(user.lastMessage, 8)}</span>
-                    </div>
+                  <div className={`text-xs truncate ${user.unreadCount > 0 ? "font-bold text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
+                    <span className="block sm:hidden">{truncateWords(user.lastMessage, 4)}</span>
+                    <span className="hidden sm:block">{truncateWords(user.lastMessage, 8)}</span>
                   </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">{user.lastTime}</div>
-                </button>
-              ))
-            )}
-          </div>
+                </div>
+                <div className="text-xs text-gray-400 dark:text-gray-500">{user.lastTime}</div>
+              </button>
+            ))
+          )}
         </div>
-      );
-    }
-  
-    // If user selected, show chat view
-    if (selectedUser) {
-      const groupedMessages = groupMessagesByDate(messages);
-  
-      return (
-        <div className="w-full max-w-lg mx-auto h-screen flex flex-col bg-gray-50 dark:bg-gray-900 rounded-none sm:rounded-xl shadow p-0">
-          {/* Sticky Header */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky top-0 z-30">
-            <button
-              onClick={() => {
-                setSelectedUser(null);
-                navigate("/dashboard/inbox");
-              }}
-              className="mr-2 text-blue-600 dark:text-blue-400 font-bold text-lg px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-gray-700 transition"
-            >
-              ←
-            </button>
-            <img
-              src={selectedUser.avatar}
-              alt={selectedUser.username}
-              className="w-10 h-10 rounded-full"
-            />
-            <span className="font-bold text-gray-900 dark:text-white text-lg truncate">
-              {selectedUser.username}
-            </span>
-          </div>
-          {/* Scrollable Messages */}
-          <div className="flex-1 relative overflow-hidden">
-            <div
-              ref={messagesContainerRef}
-              className="absolute inset-0 overflow-y-auto no-scrollbar px-4 py-3"
-            >
-              <style>
-                {`
-                  .no-scrollbar {
-                    scrollbar-width: none;
-                  }
-                  .no-scrollbar::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}
-              </style>
-              <div>
-                {groupedMessages.map((item, idx) =>
-                  item.type === "date" ? (
+      </div>
+    );
+  }
+
+  // If user selected, show chat view
+  if (selectedUser) {
+    const groupedMessages = groupMessagesByDate(messages);
+
+    return (
+      <div className="w-full max-w-lg mx-auto h-screen flex flex-col bg-gray-50 dark:bg-gray-900 rounded-none sm:rounded-xl shadow p-0">
+        {/* Sticky Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky top-0 z-30">
+          <button
+            onClick={() => {
+              setSelectedUser(null);
+              navigate("/dashboard/inbox");
+            }}
+            className="mr-2 text-blue-600 dark:text-blue-400 font-bold text-lg px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-gray-700 transition"
+          >
+            ←
+          </button>
+          <img
+            src={selectedUser.avatar}
+            alt={selectedUser.username}
+            className="w-10 h-10 rounded-full"
+          />
+          <span className="font-bold text-gray-900 dark:text-white text-lg truncate">
+            {selectedUser.username}
+          </span>
+        </div>
+        {/* Scrollable Messages */}
+        <div className="flex-1 relative overflow-hidden">
+          <div
+            ref={messagesContainerRef}
+            className="absolute inset-0 overflow-y-auto no-scrollbar px-4 py-3"
+          >
+            <style>
+              {`
+                .no-scrollbar {
+                  scrollbar-width: none;
+                }
+                .no-scrollbar::-webkit-scrollbar {
+                  display: none;
+                }
+              `}
+            </style>
+            <div>
+              {groupedMessages.map((item, idx) =>
+                item.type === "date" ? (
+                  <div
+                    key={`date-${idx}`}
+                    className="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 my-4"
+                  >
+                    <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                      {item.label}
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    key={`msg-${idx}`}
+                    className={`flex ${item.msg.from === myUserId ? "justify-end" : "justify-start"} ${item.isFirstInGroup ? "mt-4" : "mt-1"} mb-2 flex-col`}
+                  >
                     <div
-                      key={`date-${idx}`}
-                      className="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 my-4"
+                      className={`max-w-xs px-4 py-2 rounded-2xl text-sm shadow-sm ${
+                        item.msg.from === myUserId
+                          ? "bg-blue-600 text-white rounded-br-none border border-blue-700"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-300 dark:border-gray-600"
+                      } ${item.msg.from === myUserId ? "ml-auto" : "mr-auto"}`}
                     >
-                      <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                        {item.label}
-                      </span>
-                    </div>
-                  ) : (
-                    <div
-                      key={`msg-${idx}`}
-                      className={`flex ${item.msg.from === myUserId ? "justify-end" : "justify-start"} ${item.isFirstInGroup ? "mt-4" : "mt-1"} mb-2 flex-col`}
-                    >
-                      <div
-                        className={`max-w-xs px-4 py-2 rounded-2xl text-sm shadow-sm ${
-                          item.msg.from === myUserId
-                            ? "bg-blue-600 text-white rounded-br-none border border-blue-700"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-300 dark:border-gray-600"
-                        } ${item.msg.from === myUserId ? "ml-auto" : "mr-auto"}`}
-                      >
-                        {item.msg.text}
-                        <div className="text-[10px] text-right mt-1 opacity-80 flex items-center justify-end gap-1">
-                          {new Date(item.msg.createdAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                          {item.msg.from === myUserId && (
-                            <span className={`flex items-center gap-1 ${item.msg.read ? "text-green-200" : "text-gray-300 dark:text-gray-400"}`}>
-                              {item.msg.read ? (
-                                <>
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M7.629 14.571L2.286 9.229l1.414-1.414L7.629 11.743 16.086 3.286l1.414 1.414z" />
-                                    <path d="M11.086 14.571L5.743 9.229l1.414-1.414 4.929 4.928 4.928-4.928 1.414 1.414z" />
-                                  </svg>
-                                  Seen
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M7.629 14.571L2.286 9.229l1.414-1.414L7.629 11.743 16.086 3.286l1.414 1.414z" />
-                                  </svg>
-                                  Delivered
-                                </>
-                              )}
-                            </span>
-                          )}
-                        </div>
+                      {item.msg.text}
+                      <div className="text-[10px] text-right mt-1 opacity-80 flex items-center justify-end gap-1">
+                        {new Date(item.msg.createdAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {item.msg.from === myUserId && (
+                          <span className={`flex items-center gap-1 ${item.msg.read ? "text-green-200" : "text-gray-300 dark:text-gray-400"}`}>
+                            {item.msg.read ? (
+                              <>
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M7.629 14.571L2.286 9.229l1.414-1.414L7.629 11.743 16.086 3.286l1.414 1.414z" />
+                                  <path d="M11.086 14.571L5.743 9.229l1.414-1.414 4.929 4.928 4.928-4.928 1.414 1.414z" />
+                                </svg>
+                                Seen
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M7.629 14.571L2.286 9.229l1.414-1.414L7.629 11.743 16.086 3.286l1.414 1.414z" />
+                                </svg>
+                                Delivered
+                              </>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  )
-                )}
-                <div ref={messagesEndRef} style={{ height: "0px" }} />
-              </div>
+                  </div>
+                )
+              )}
+              <div ref={messagesEndRef} style={{ height: "0px" }} />
             </div>
           </div>
-          {/* Input */}
-          <form
-            onSubmit={handleSend}
-            className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky bottom-0 z-40"
-          >
-            <input
-              className="flex-1 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder={`Message ${selectedUser.username}...`}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-full font-semibold hover:bg-blue-700 dark:hover:bg-blue-500 transition"
-            >
-              Send
-            </button>
-          </form>
         </div>
-      );
-    }
+        {/* Input */}
+        <form
+          onSubmit={handleSend}
+          className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky bottom-0 z-40"
+        >
+          <input
+            className="flex-1 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={`Message ${selectedUser.username}...`}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded-full font-semibold hover:bg-blue-700 dark:hover:bg-blue-500 transition"
+          >
+            Send
+          </button>
+        </form>
+      </div>
+    );
   }
+}
