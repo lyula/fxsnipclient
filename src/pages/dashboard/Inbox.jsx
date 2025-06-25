@@ -343,7 +343,18 @@ export default function Inbox(props) {
             alt={selectedUser.username}
             className="w-10 h-10 rounded-full"
           />
-          <span className="font-bold text-gray-900 dark:text-white text-lg truncate">
+          <span
+            className="font-bold text-gray-900 dark:text-white text-lg truncate cursor-pointer hover:underline"
+            onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
+            title={`View ${selectedUser.username}'s profile`}
+            tabIndex={0}
+            role="button"
+            onKeyDown={e => {
+              if (e.key === "Enter" || e.key === " ") {
+                navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`);
+              }
+            }}
+          >
             {selectedUser.username}
           </span>
         </div>
