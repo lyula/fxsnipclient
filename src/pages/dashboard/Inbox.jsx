@@ -1,72 +1,32 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 
-const users = [
-  {
-    name: "Jane Trader",
-    avatar: "https://randomuser.me/api/portraits/women/44.jpg",
-    lastMessage: "Thank you! Let me know if you want to discuss setups.",
-    lastTime: "09:02",
-    messages: [
-      {
-        from: "Jane Trader",
-        text: "Hey there! 👋",
-        time: "09:00",
-      },
-      {
-        from: "You",
-        text: "Hi Jane! Congrats on your last trade 🚀",
-        time: "09:01",
-      },
-      {
-        from: "Jane Trader",
-        text: "Thank you! Let me know if you want to discuss setups.",
-        time: "09:02",
-      },
-    ],
-  },
-  {
-    name: "John FX",
-    avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-    lastMessage: "Let's catch up on GBP/USD later.",
-    lastTime: "Yesterday",
-    messages: [
-      {
-        from: "You",
-        text: "Hey John, what's your view on GBP/USD?",
-        time: "Yesterday",
-      },
-      {
-        from: "John FX",
-        text: "Let's catch up on GBP/USD later.",
-        time: "Yesterday",
-      },
-    ],
-  },
-];
-
 export default function Inbox() {
   const location = useLocation();
   const navigate = useNavigate();
   const recipient = location.state?.to;
 
+  // All conversations in this session
+  const [users, setUsers] = useState([]);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
   const [selectedUser, setSelectedUser] = useState(() => {
     if (!recipient) return null;
-    // Try to find by username (case-insensitive)
     let user = users.find(
-      u => u.name.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
-        || u.name === recipient
+      u => u.username && (
+        u.username.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
+        || u.username === recipient
+      )
     );
-    // If not found, create a new user object for this chat
     if (!user) {
       user = {
-        name: recipient,
+        username: recipient,
         avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(recipient),
         messages: [],
         lastMessage: "",
         lastTime: "",
       };
-      users.push(user); // Optionally add to users array for session
+      setUsers(prev => [...prev, user]);
     }
     return user;
   });
@@ -82,23 +42,14 @@ export default function Inbox() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, selectedUser]);
 
-  const handleSend = (e) => {
-    e.preventDefault();
-    if (input.trim() && selectedUser) {
-      setMessages([
-        ...messages,
-        { from: "You", text: input, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) },
-      ]);
-      setInput("");
-    }
-  };
-
   // Update selectedUser if recipient changes (e.g., navigating to a new chat)
   useEffect(() => {
     if (recipient) {
       let user = users.find(
-        u => u.name.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
-          || u.name === recipient
+        u => u.username && (
+          u.username.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
+          || u.username === recipient
+        )
       );
       if (!user) {
         user = {
@@ -108,36 +59,154 @@ export default function Inbox() {
           lastMessage: "",
           lastTime: "",
         };
-        users.push(user);
+        setUsers(prev => [...prev, user]);
       }
       setSelectedUser(user);
     }
   }, [recipient]);
 
-  // If no user selected, show chat list
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (input.trim() && selectedUser) {
+      const newMsg = {
+        from: "You",
+        text: input,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages([...messages, newMsg]);
+      setUsers(prev =>
+        prev.map(u =>
+          u.username === selectedUser.username
+            ? {
+                ...u,
+                messages: [...u.messages, newMsg],
+                lastMessage: input,
+                lastTime: newMsg.time,
+              }
+            : u
+        )
+      );
+      setInput("");
+    }
+  };
+
+  // Debounced search for users from backend
+  useEffect(() => {
+    if (search.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      try {
+        const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+        const res = await fetch(`${API_BASE}/user/search?q=${encodeURIComponent(search)}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          signal: controller.signal,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(
+            (data.users || []).map(u => ({
+              username: u.username,
+              avatar: u.countryFlag
+                ? u.countryFlag
+                : "https://ui-avatars.com/api/?name=" + encodeURIComponent(u.username),
+            }))
+          );
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          setSearchResults([]);
+        }
+      }
+    }, 300); // debounce
+
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [search]);
+
+  // If no user selected, show chat list or start messaging UI
   if (!selectedUser) {
     return (
-      <div className="w-full max-w-lg mx-auto flex flex-col h-[70vh] bg-white dark:bg-gray-800 rounded-xl shadow p-0">
+      <div className="w-full max-w-lg mx-auto flex flex-col h-screen bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow p-0">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-t-xl">
           <span className="font-bold text-gray-900 dark:text-white text-lg">Inbox</span>
         </div>
-        <div className="flex-1 overflow-y-auto px-0 py-0 bg-gray-50 dark:bg-gray-900 rounded-b-xl">
-          {users.map(user => (
-            <button
-              key={user.name}
-              className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition"
-              onClick={() => setSelectedUser(user)}
-            >
-              <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full" />
-              <div className="flex-1 text-left">
-                <div className="font-bold text-gray-900 dark:text-white">{user.name}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.lastMessage}</div>
-              </div>
-              <div className="text-xs text-gray-400">{user.lastTime}</div>
-            </button>
-          ))}
-          {users.length === 0 && (
-            <div className="text-center text-gray-400 py-10">No conversations yet.</div>
+        {/* Always show search at the top */}
+        <div className="relative w-full max-w-xs mx-auto mt-4 mb-2">
+          <input
+            className="w-full rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none"
+            placeholder="Search user to message..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoComplete="off"
+          />
+          {/* Render search results dropdown */}
+          {search && searchResults.length > 0 && (
+            <ul className="absolute left-0 right-0 z-20 bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded shadow-lg mt-1
+              max-h-none overflow-visible">
+              {searchResults.map(user => (
+                <li
+                  key={user.username}
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-800 cursor-pointer transition"
+                  onClick={() => {
+                    setSelectedUser({
+                      ...user,
+                      messages: [],
+                      lastMessage: "",
+                      lastTime: "",
+                    });
+                    setUsers(prev => [
+                      ...prev,
+                      {
+                        ...user,
+                        messages: [],
+                        lastMessage: "",
+                        lastTime: "",
+                      },
+                    ]);
+                    setSearch("");
+                    setSearchResults([]);
+                  }}
+                >
+                  <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
+                  <span className="font-bold text-gray-900 dark:text-white">{user.username}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {search && searchResults.length === 0 && (
+            <div className="absolute left-0 right-0 z-20 bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded shadow-lg mt-1 p-3 text-xs text-gray-500">
+              No users found.
+            </div>
+          )}
+        </div>
+        {/* Conversation list below search */}
+        <div className="flex-1 px-0 py-0 bg-gray-50 dark:bg-gray-900 rounded-b-xl">
+          {users.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 text-lg">
+              Start messaging
+            </div>
+          ) : (
+            users.map(user => (
+              <button
+                key={user.username}
+                className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition"
+                onClick={() => setSelectedUser(user)}
+              >
+                <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
+                <div className="flex-1 text-left">
+                  <div className="font-bold text-gray-900 dark:text-white">{user.username}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.lastMessage}</div>
+                </div>
+                <div className="text-xs text-gray-400">{user.lastTime}</div>
+              </button>
+            ))
           )}
         </div>
       </div>
@@ -155,11 +224,11 @@ export default function Inbox() {
         >
           &larr;
         </button>
-        <img src={selectedUser.avatar} alt={selectedUser.name} className="w-10 h-10 rounded-full" />
-        <span className="font-bold text-gray-900 dark:text-white text-lg">{selectedUser.name}</span>
+        <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full" />
+        <span className="font-bold text-gray-900 dark:text-white text-lg">{selectedUser.username}</span>
       </div>
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-gray-50 dark:bg-gray-900">
+      <div className="flex-1 px-4 py-3 space-y-3 bg-gray-50 dark:bg-gray-900">
         {messages.map((msg, idx) => (
           <div
             key={idx}
@@ -188,7 +257,7 @@ export default function Inbox() {
       >
         <input
           className="flex-1 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none"
-          placeholder={`Message ${selectedUser.name}...`}
+          placeholder={`Message ${selectedUser.username}...`}
           value={input}
           onChange={e => setInput(e.target.value)}
         />

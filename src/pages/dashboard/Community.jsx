@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { FaCheckCircle } from "react-icons/fa";
+import { Link } from "react-router-dom";
 import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
 import CreatePostBox from "./community/CreatePostBox";
 import UserSearch from "./community/UserSearch";
 
-// Dummy users for posts
+// Dummy users for posts (keep as is or update if needed)
 const users = [
 	{
 		name: "Jane Trader",
@@ -24,39 +25,47 @@ const users = [
 	},
 ];
 
+// Add a post from zack after the ad, move Jane's post to the bottom
 const initialPostsForYou = [
 	{
-		id: 1,
-		user: "AdBot",
-		avatar: "🟢",
-		content: "🚀 Trade smarter, not harder! Try our premium Forex signals today. #Ad",
+		id: 100,
+		user: "ad",
+		avatar: (
+			<img
+				src="https://ui-avatars.com/api/?name=Ad"
+				alt="Ad"
+				className="w-8 h-8 rounded-full inline-block"
+			/>
+		),
+		verified: null,
+		content: "📊 Master forex trading with real-time chart analysis and stay ahead of the market!",
 		isAd: true,
-		image: "https://images.unsplash.com/photo-1556740772-1a741367b93e?auto=format&fit=crop&w=600&q=80",
+		image: "https://images.unsplash.com/photo-1556740772-1a741367b93e?auto=format&fit=crop&w=600&q=80", // forex trading dummy image
 		replies: [],
 		comments: [],
 		likes: 0,
 		views: 0,
-		timestamp: "Just now",
+		timestamp: "Ad",
 	},
 	{
 		id: 2,
-		user: users[0].name,
+		user: "zack",
 		avatar: (
 			<img
-				src={users[0].avatar}
-				alt="Jane"
+				src="https://ui-avatars.com/api/?name=Zack"
+				alt="Zack"
 				className="w-8 h-8 rounded-full inline-block"
 			/>
 		),
-		verified: users[0].verified,
-		content: "Just closed a EUR/USD long for +40 pips! 🚀",
+		verified: null,
+		content: "Excited to share my latest EUR/USD trade setup! 🚀",
 		isAd: false,
 		image: "",
 		replies: [],
 		comments: [],
-		likes: 2,
-		views: 12,
-		timestamp: "2m ago",
+		likes: 5,
+		views: 15,
+		timestamp: "Just now",
 	},
 	{
 		id: 3,
@@ -77,6 +86,26 @@ const initialPostsForYou = [
 		likes: 1,
 		views: 8,
 		timestamp: "5m ago",
+	},
+	{
+		id: 1,
+		user: "Jane Trader",
+		avatar: (
+			<img
+				src={users[0].avatar}
+				alt="Jane"
+				className="w-8 h-8 rounded-full inline-block"
+			/>
+		),
+		verified: users[0].verified,
+		content: "Just closed a EUR/USD long for +40 pips! 🚀",
+		isAd: false,
+		image: "",
+		replies: [],
+		comments: [],
+		likes: 2,
+		views: 12,
+		timestamp: "2m ago",
 	},
 ];
 

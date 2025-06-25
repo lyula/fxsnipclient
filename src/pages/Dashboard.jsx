@@ -489,6 +489,24 @@ export default function Dashboard() {
             </h1>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
+            {/* Community (Vibe) Icon */}
+            <button
+              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+              title="Vibe"
+              type="button"
+              onClick={() => navigate("/dashboard/community")}
+            >
+              <FaUsers className="text-base sm:text-xl" />
+            </button>
+            {/* Inbox Icon */}
+            <button
+              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+              title="Inbox"
+              type="button"
+              onClick={() => navigate("/dashboard/inbox")}
+            >
+              <FaInbox className="text-base sm:text-xl" />
+            </button>
             {/* Theme Toggle */}
             <button
               className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
@@ -514,14 +532,6 @@ export default function Dashboard() {
                   {notificationCount}
                 </span>
               )}
-            </button>
-            {/* Inbox */}
-            <button
-              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title="Inbox"
-              type="button"
-            >
-              <FaInbox className="text-base sm:text-xl" />
             </button>
             {/* Logout */}
             <button
@@ -555,7 +565,9 @@ export default function Dashboard() {
                 {/* Add other routes as needed */}
               </Routes>
               {/* Only show footer if not in any community subpath */}
-              {!location.pathname.startsWith("/dashboard/community") && !location.pathname.startsWith("/dashboard/community/user/") ? (
+              {!location.pathname.startsWith("/dashboard/community") &&
+ !location.pathname.startsWith("/dashboard/community/user/") &&
+ !location.pathname.startsWith("/dashboard/inbox") ? (
                 <footer
                   className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0
                     sm:static sm:z-auto"
