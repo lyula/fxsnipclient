@@ -202,7 +202,7 @@ export default function UserProfile() {
               </button>
             )}
             <button
-              onClick={() => navigate("/dashboard/inbox", { state: { to: profile.username } })}
+              onClick={() => navigate(`/dashboard/inbox?chat=${encodeURIComponent(profile.username)}`)}
               className="flex-1 min-w-0 px-2 py-1 rounded-full bg-blue-500 text-white flex items-center justify-center gap-2 font-semibold hover:bg-blue-600 transition text-sm sm:w-32"
               title="Message"
             >

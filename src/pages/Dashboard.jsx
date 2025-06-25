@@ -106,7 +106,12 @@ export default function Dashboard() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const isInboxChatOpen = location.pathname === "/dashboard/inbox" && new URLSearchParams(location.search).has("chat");
+  const isInboxChatOpen =
+    location.pathname === "/dashboard/inbox" &&
+    (
+      new URLSearchParams(location.search).has("chat") ||
+      (location.state && location.state.to)
+    );
 
   // --- Remember last dashboard route in localStorage ---
   useEffect(() => {

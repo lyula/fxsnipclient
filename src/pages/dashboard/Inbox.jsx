@@ -4,35 +4,39 @@ import { useState, useRef, useEffect } from "react";
 export default function Inbox() {
   const location = useLocation();
   const navigate = useNavigate();
-  const recipient = location.state?.to;
+  const query = new URLSearchParams(location.search);
+  const chatUsername = query.get("chat");
 
   // All conversations in this session
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(() => {
-    if (!recipient) return null;
-    let user = users.find(
-      u => u.username && (
-        u.username.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
-        || u.username === recipient
-      )
-    );
-    if (!user) {
-      user = {
-        username: recipient,
-        avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(recipient),
-        messages: [],
-        lastMessage: "",
-        lastTime: "",
-      };
-      setUsers(prev => [...prev, user]);
-    }
-    return user;
-  });
-  const [messages, setMessages] = useState(selectedUser && Array.isArray(selectedUser.messages) ? selectedUser.messages : []);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
+
+  // When chatUsername is present, select or create that user
+  useEffect(() => {
+    if (chatUsername) {
+      let user = users.find(
+        u => u.username && u.username.toLowerCase() === chatUsername.toLowerCase()
+      );
+      if (!user) {
+        user = {
+          username: chatUsername,
+          avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(chatUsername),
+          messages: [],
+          lastMessage: "",
+          lastTime: "",
+        };
+        setUsers(prev => [...prev, user]);
+        setSelectedUser(user); // <-- Fix: setSelectedUser immediately for new user
+      } else {
+        setSelectedUser(user);
+      }
+    }
+  }, [chatUsername, users]);
 
   useEffect(() => {
     if (selectedUser) setMessages(Array.isArray(selectedUser.messages) ? selectedUser.messages : []);
@@ -41,29 +45,6 @@ export default function Inbox() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, selectedUser]);
-
-  // Update selectedUser if recipient changes (e.g., navigating to a new chat)
-  useEffect(() => {
-    if (recipient) {
-      let user = users.find(
-        u => u.username && (
-          u.username.toLowerCase().replace(/\s/g, "") === recipient.toLowerCase().replace(/\s/g, "")
-          || u.username === recipient
-        )
-      );
-      if (!user) {
-        user = {
-          name: recipient,
-          avatar: "https://ui-avatars.com/api/?name=" + encodeURIComponent(recipient),
-          messages: [],
-          lastMessage: "",
-          lastTime: "",
-        };
-        setUsers(prev => [...prev, user]);
-      }
-      setSelectedUser(user);
-    }
-  }, [recipient]);
 
   const handleSend = (e) => {
     e.preventDefault();
@@ -88,7 +69,7 @@ export default function Inbox() {
       );
       setInput("");
     }
-  };
+  }; // <-- This closing brace and semicolon fixes the syntax error
 
   // Debounced search for users from backend
   useEffect(() => {
@@ -201,7 +182,6 @@ export default function Inbox() {
       </div>
     );
   }
-
   // If user selected, show chat view
   return (
     <div className="w-full max-w-lg mx-auto h-screen flex flex-col bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow p-0">
