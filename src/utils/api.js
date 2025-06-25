@@ -62,6 +62,20 @@ export async function followUser(userId) {
   return res.json();
 }
 
+// Unfollow a user
+export async function unfollowUser(userId) {
+  if (!userId) throw new Error("User ID is required");
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+  const res = await fetch(`${API_BASE}/user/unfollow/${userId}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "Content-Type": "application/json",
+    },
+  });
+  return res.json();
+}
+
 // Search users by username or email
 export async function searchUsers(query) {
   const res = await fetch(

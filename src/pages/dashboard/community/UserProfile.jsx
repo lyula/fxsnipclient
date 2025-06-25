@@ -3,9 +3,10 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
 import SHA256 from "crypto-js/sha256";
-import { followUser } from "../../../utils/api";
+import { followUser, unfollowUser } from "../../../utils/api";
+import { hashId } from "../../../utils/hash";
 
-function hashId(id) {
+function hashIdFunc(id) {
   return SHA256(id.toString()).toString();
 }
 
@@ -78,7 +79,7 @@ export default function UserProfile() {
       if (res.ok) {
         const me = await res.json();
         if (me && me.followingHashed && profile && profile._id) {
-          const hashedProfileId = hashId(profile._id);
+          const hashedProfileId = hashIdFunc(profile._id);
           setIsFollowing(me.followingHashed.includes(hashedProfileId));
         }
       }
@@ -96,6 +97,23 @@ export default function UserProfile() {
         setProfile((p) => ({ ...p, followers: (p.followers ?? 0) + 1 }));
       } else {
         alert(res.message || "Could not follow user.");
+      }
+    } catch (err) {
+      alert("Network error. Please try again.");
+    }
+    setFollowLoading(false);
+  };
+
+  const handleUnfollow = async () => {
+    if (!profile || !profile._id) return;
+    setFollowLoading(true);
+    try {
+      const res = await unfollowUser(profile._id);
+      if (res && res.message === "Unfollowed") {
+        setIsFollowing(false);
+        setProfile((p) => ({ ...p, followers: Math.max((p.followers ?? 1) - 1, 0) }));
+      } else {
+        alert(res.message || "Could not unfollow user.");
       }
     } catch (err) {
       alert("Network error. Please try again.");
@@ -166,10 +184,12 @@ export default function UserProfile() {
             {isFollowing ? (
               <button
                 className="flex-1 min-w-0 px-2 py-1 rounded-full font-semibold bg-gray-200 dark:bg-gray-700 text-gray-500 text-sm sm:w-32"
-                disabled
-                title="Already following"
+                disabled={followLoading}
+                onClick={handleUnfollow}
+                title="Unfollow"
+                style={{ transition: "background 0.2s, color 0.2s" }}
               >
-                Following
+                {followLoading ? "..." : "Following"}
               </button>
             ) : (
               <button
