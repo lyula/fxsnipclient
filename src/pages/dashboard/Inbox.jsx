@@ -23,7 +23,7 @@ export default function Inbox(props) {
   useEffect(() => {
     if (chatUsername && users.length > 0) {
       let user = users.find(
-        u => u.username && u.username.toLowerCase() === chatUsername.toLowerCase()
+        (u) => u.username && u.username.toLowerCase() === chatUsername.toLowerCase()
       );
       if (user) {
         setSelectedUser(user);
@@ -51,24 +51,25 @@ export default function Inbox(props) {
       try {
         const newMsg = await sendMessage(selectedUser._id, input);
         if (newMsg && newMsg.text) {
-          setMessages(prev => [...prev, newMsg]);
+          setMessages((prev) => [...prev, newMsg]);
           setInput("");
-          setUsers(prev =>
-            prev
-              .map(u =>
-                u._id === selectedUser._id
-                  ? {
-                      ...u,
-                      lastMessage: newMsg.text,
-                      lastTime: new Date(newMsg.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }),
-                    }
-                  : u
-              )
-              .sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime))
-          );
+          setUsers((prev) => {
+            const updatedUsers = prev.map((u) =>
+              u._id === selectedUser._id
+                ? {
+                    ...u,
+                    lastMessage: newMsg.text,
+                    lastTime: new Date(newMsg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                    lastTimestamp: new Date(newMsg.createdAt).getTime(), // Update timestamp
+                  }
+                : u
+            );
+            // Sort by lastTimestamp in descending order to ensure latest is at top
+            return updatedUsers.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+          });
         } else {
           alert("Failed to send message.");
         }
@@ -100,7 +101,7 @@ export default function Inbox(props) {
         if (res.ok) {
           const data = await res.json();
           setSearchResults(
-            (data.users || []).map(u => ({
+            (data.users || []).map((u) => ({
               _id: u._id,
               username: u.username,
               avatar: u.countryFlag
@@ -124,30 +125,30 @@ export default function Inbox(props) {
 
   // Fetch conversations on mount
   useEffect(() => {
-    getConversations().then(data => {
-      setUsers(
-        data
-          .map(conv => ({
-            _id: conv.user._id,
-            username: conv.user.username,
-            avatar: conv.user.countryFlag
-              ? conv.user.countryFlag
-              : "https://ui-avatars.com/api/?name=" + encodeURIComponent(conv.user.username),
-            lastMessage: conv.lastMessage.text,
-            lastTime: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            unreadCount: conv.unreadCount || 0,
-          }))
-          .sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime))
-      );
+    getConversations().then((data) => {
+      const sortedUsers = data
+        .map((conv) => ({
+          _id: conv.user._id,
+          username: conv.user.username,
+          avatar: conv.user.countryFlag
+            ? conv.user.countryFlag
+            : "https://ui-avatars.com/api/?name=" + encodeURIComponent(conv.user.username),
+          lastMessage: conv.lastMessage.text,
+          lastTime: new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          lastTimestamp: new Date(conv.lastMessage.createdAt).getTime(),
+          unreadCount: conv.unreadCount || 0,
+        }))
+        .sort((a, b) => b.lastTimestamp - a.lastTimestamp); // Sort by timestamp descending
+      setUsers(sortedUsers);
     });
   }, []);
 
   useEffect(() => {
     if (selectedUser && selectedUser._id) {
-      getConversation(selectedUser._id).then(msgs => setMessages(msgs));
+      getConversation(selectedUser._id).then((msgs) => setMessages(msgs));
     }
   }, [selectedUser]);
 
@@ -202,8 +203,9 @@ export default function Inbox(props) {
         lastDate = dateKey;
       }
 
-      // Simplified isFirstInGroup logic to avoid parsing issues
-      const isFirstInGroup = index === 0 || (messages[index - 1] && new Date(messages[index - 1].createdAt).getDate() !== msgDay);
+      const isFirstInGroup =
+        index === 0 ||
+        (messages[index - 1] && new Date(messages[index - 1].createdAt).getDate() !== msgDay);
 
       groups.push({
         type: "msg",
@@ -217,7 +219,7 @@ export default function Inbox(props) {
 
   // Count conversations with unread messages
   useEffect(() => {
-    const unreadConversations = users.filter(u => u.unreadCount > 0).length;
+    const unreadConversations = users.filter((u) => u.unreadCount > 0).length;
     if (typeof props.setUnreadConversations === "function") {
       props.setUnreadConversations(unreadConversations);
     }
@@ -241,12 +243,12 @@ export default function Inbox(props) {
             className="w-full rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Search user to message..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             autoComplete="off"
           />
           {search && searchResults.length > 0 && (
             <ul className="absolute left-0 right-0 z-20 bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
-              {searchResults.map(user => (
+              {searchResults.map((user) => (
                 <li
                   key={user.username}
                   className="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-800 cursor-pointer transition"
@@ -274,18 +276,16 @@ export default function Inbox(props) {
               Start messaging
             </div>
           ) : (
-            users.map(user => (
+            users.map((user) => (
               <button
                 key={user.username}
                 className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition relative"
                 onClick={async () => {
                   setSelectedUser(user);
                   navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
-                  setUsers(prev =>
-                    prev.map(u =>
-                      u._id === user._id
-                        ? { ...u, unreadCount: 0 }
-                        : u
+                  setUsers((prev) =>
+                    prev.map((u) =>
+                      u._id === user._id ? { ...u, unreadCount: 0 } : u
                     )
                   );
                 }}
@@ -294,10 +294,20 @@ export default function Inbox(props) {
                   <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
                 </div>
                 <div className="flex-1 text-left">
-                  <div className={`text-gray-900 dark:text-white ${user.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
+                  <div
+                    className={`text-gray-900 dark:text-white ${
+                      user.unreadCount > 0 ? "font-bold" : "font-normal"
+                    }`}
+                  >
                     {user.username}
                   </div>
-                  <div className={`text-xs truncate ${user.unreadCount > 0 ? "font-bold text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
+                  <div
+                    className={`text-xs truncate ${
+                      user.unreadCount > 0
+                        ? "font-bold text-gray-900 dark:text-white"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                  >
                     <span className="block sm:hidden">{truncateWords(user.lastMessage, 4)}</span>
                     <span className="hidden sm:block">{truncateWords(user.lastMessage, 8)}</span>
                   </div>
@@ -367,7 +377,9 @@ export default function Inbox(props) {
                 ) : (
                   <div
                     key={`msg-${idx}`}
-                    className={`flex ${item.msg.from === myUserId ? "justify-end" : "justify-start"} ${item.isFirstInGroup ? "mt-4" : "mt-1"} mb-2 flex-col`}
+                    className={`flex ${
+                      item.msg.from === myUserId ? "justify-end" : "justify-start"
+                    } ${item.isFirstInGroup ? "mt-4" : "mt-1"} mb-2 flex-col`}
                   >
                     <div
                       className={`max-w-xs px-4 py-2 rounded-2xl text-sm shadow-sm ${
@@ -383,7 +395,11 @@ export default function Inbox(props) {
                           minute: "2-digit",
                         })}
                         {item.msg.from === myUserId && (
-                          <span className={`flex items-center gap-1 ${item.msg.read ? "text-green-200" : "text-gray-300 dark:text-gray-400"}`}>
+                          <span
+                            className={`flex items-center gap-1 ${
+                              item.msg.read ? "text-green-200" : "text-gray-300 dark:text-gray-400"
+                            }`}
+                          >
                             {item.msg.read ? (
                               <>
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -420,7 +436,7 @@ export default function Inbox(props) {
             className="flex-1 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
             placeholder={`Message ${selectedUser.username}...`}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
           />
           <button
             type="submit"
