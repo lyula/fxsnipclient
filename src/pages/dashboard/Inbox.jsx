@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { getConversations, getConversation, sendMessage } from "../../utils/api";
 import { jwtDecode } from "jwt-decode";
 
-export default function Inbox() {
+export default function Inbox(props) {
   const location = useLocation();
   const navigate = useNavigate();
   const query = new URLSearchParams(location.search);
@@ -123,7 +123,7 @@ export default function Inbox() {
     }, 300); // debounce
 
     return () => {
-      clearTimeout(timeout);
+      clearTimeout(timeout),
       controller.abort();
     };
   }, [search]);
@@ -161,14 +161,14 @@ export default function Inbox() {
   let myUserId = "";
   if (token) {
     try {
-      const decoded = jwtDecode(token);
+      const decoded = jwt_decode(token);
       myUserId = decoded.id || decoded._id || decoded.userId || "";
     } catch (e) {
       myUserId = "";
     }
   }
 
-  // Group messages by date for rendering (pure JS, no date-fns)
+  // Group messages by date for rendering
   function groupMessagesByDate(messages) {
     const groups = [];
     let lastDate = null;
@@ -222,6 +222,15 @@ export default function Inbox() {
     .map((msg, idx) => ({ msg, idx }))
     .filter(({ msg }) => msg.from === myUserId)
     .reduce((maxIdx, { idx }) => Math.max(maxIdx, idx), -1);
+
+  // Count conversations with unread messages
+  useEffect(() => {
+    const unreadConversations = users.filter(u => u.unreadCount > 0).length;
+    // Call a prop function if provided
+    if (typeof props.setUnreadConversations === "function") {
+      props.setUnreadConversations(unreadConversations);
+    }
+  }, [users]);
 
   // If no user selected, show chat list or start messaging UI
   if (!selectedUser) {
@@ -278,15 +287,15 @@ export default function Inbox() {
               >
                 <div className="relative">
                   <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
-                  {user.unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[24px] text-center">
-                      {user.unreadCount > 99 ? "99+" : user.unreadCount}
-                    </span>
-                  )}
+                  {/* Remove unread badge here */}
                 </div>
                 <div className="flex-1 text-left">
-                  <div className="font-bold text-gray-900 dark:text-white">{user.username}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.lastMessage}</div>
+                  <div className={`text-gray-900 dark:text-white ${user.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
+                    {user.username}
+                  </div>
+                  <div className={`text-xs truncate ${user.unreadCount > 0 ? "font-bold text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
+                    {user.lastMessage}
+                  </div>
                 </div>
                 <div className="text-xs text-gray-400">{user.lastTime}</div>
               </button>
@@ -448,48 +457,48 @@ export default function Inbox() {
                 <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
                 <span className="font-bold text-gray-900 dark:text-white">{user.username}</span>
               </li>
-            ))}
-          </ul>
-        )}
-        {search && searchResults.length === 0 && (
-          <div className="absolute left-0 right-0 z-20 bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded shadow-lg mt-1 p-3 text-xs text-gray-500">
-            No users found.
-          </div>
-        )}
+              ))}
+            </ul>
+          )}
+          {search && searchResults.length === 0 && (
+            <div className="absolute left-0 right-0 z-20 bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded shadow-lg mt-1 p-3 text-xs text-gray-500">
+              No users found.
+            </div>
+          )}
+        </div>
+        {/* Conversation list below search */}
+        <div className="flex-1 px-0 py-0 bg-gray-50 dark:bg-gray-900 rounded-b-xl">
+          {users.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 text-lg">
+              Start messaging
+            </div>
+          ) : (
+            users.map(user => (
+              <button
+                key={user.username}
+                className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition relative"
+                onClick={() => {
+                  setSelectedUser(user);
+                  navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
+                }}
+              >
+                <div className="relative">
+                  <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
+                  {/* Remove unread badge here */}
+                </div>
+                <div className="flex-1 text-left">
+                  <div className={`text-gray-900 dark:text-white ${user.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
+                    {user.username}
+                  </div>
+                  <div className={`text-xs truncate ${user.unreadCount > 0 ? "font-bold text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400"}`}>
+                    {user.lastMessage}
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400">{user.lastTime}</div>
+              </button>
+            ))
+          )}
+        </div>
       </div>
-      {/* Conversation list below search */}
-      <div className="flex-1 px-0 py-0 bg-gray-50 dark:bg-gray-900 rounded-b-xl">
-        {users.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 text-lg">
-            Start messaging
-          </div>
-        ) : (
-          users.map(user => (
-            <button
-              key={user.username}
-              className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition relative"
-              onClick={() => {
-                setSelectedUser(user);
-                navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
-              }}
-            >
-              <div className="relative">
-                <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
-                {user.unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[24px] text-center">
-                    {user.unreadCount > 99 ? "99+" : user.unreadCount}
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 text-left">
-                <div className="font-bold text-gray-900 dark:text-white">{user.username}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.lastMessage}</div>
-              </div>
-              <div className="text-xs text-gray-400">{user.lastTime}</div>
-            </button>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
+    );
+  }

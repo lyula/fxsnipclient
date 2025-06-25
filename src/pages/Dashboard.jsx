@@ -46,6 +46,9 @@ const DASHBOARD_LABELS = {
 };
 
 export default function Dashboard() {
+  // All hooks must be inside the function!
+  const [unreadConversations, setUnreadConversations] = useState(0);
+
   const { user, refreshUser } = useAuth();
 
   // Optionally, update user state if localStorage changes (e.g. after login)
@@ -507,12 +510,17 @@ export default function Dashboard() {
               </button>
               {/* Inbox Icon */}
               <button
-                className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
                 title="Inbox"
                 type="button"
                 onClick={() => navigate("/dashboard/inbox")}
               >
                 <FaInbox className="text-base sm:text-xl" />
+                {unreadConversations > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                    {unreadConversations > 99 ? "99+" : unreadConversations}
+                  </span>
+                )}
               </button>
               {/* Theme Toggle */}
               <button
@@ -564,7 +572,7 @@ export default function Dashboard() {
                 <Route path="" element={DashboardMain} />
                 <Route path="community/user/:username" element={<UserProfile />} />
                 <Route path="community/*" element={<Community user={user} />} />
-                <Route path="inbox" element={<Inbox />} />
+                <Route path="inbox" element={<Inbox setUnreadConversations={setUnreadConversations} />} />
                 <Route path="signals" element={<Signals />} />
                 <Route path="journal" element={<Journal />} />
                 <Route path="stats" element={<Stats />} />
