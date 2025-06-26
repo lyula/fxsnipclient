@@ -280,22 +280,34 @@ export default function Dashboard() {
               <FaUser className="text-2xl" />
             </div>
             {!sidebarCollapsed ? (
-              <>
-                <span className="block text-[#1E3A8A] dark:text-white font-semibold text-base text-center truncate w-full" title={user?.username}>
+              // Make name and email clickable to go to user's public profile page and close sidebar
+              <div
+                className="w-full cursor-pointer"
+                onClick={() => {
+                  navigate(`/dashboard/community/user/${encodeURIComponent(user?.username)}`, {
+                    state: { fromSidebar: true }
+                  });
+                  setSidebarOpen(false); // Close sidebar after navigating
+                }}
+                title="View your public profile"
+              >
+                <span className="block text-[#1E3A8A] dark:text-white font-semibold text-base text-center truncate w-full">
                   {user?.username}
                   {user?.verified && <VerifiedBadge />}
                 </span>
-                <span className="block text-gray-500 dark:text-gray-400 text-xs text-center truncate w-full" title={user?.email}>
+                <span className="block text-gray-500 dark:text-gray-400 text-xs text-center truncate w-full">
                   {user?.email}
                 </span>
-                <Link
-                  to="/dashboard/profile"
-                  className="mt-2 text-xs text-[#a99d6b] hover:underline font-medium text-center"
-                >
-                  Update Profile
-                </Link>
-              </>
+              </div>
             ) : null}
+            {!sidebarCollapsed && (
+              <Link
+                to="/dashboard/profile"
+                className="mt-2 text-xs text-[#a99d6b] hover:underline font-medium text-center"
+              >
+                Update Profile
+              </Link>
+            )}
           </div>
         </div>
         <nav className="flex-1 px-1 sm:px-2 py-6 flex flex-col gap-2 min-w-0 w-full items-center md:items-stretch">

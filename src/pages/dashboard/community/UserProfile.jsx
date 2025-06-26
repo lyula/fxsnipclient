@@ -127,8 +127,9 @@ export default function UserProfile() {
   const fromInbox = location.state?.fromInbox;
   const chatUsername = location.state?.chatUsername || username;
 
-  // Check if we came from feed (for example, you can set this in your feed navigation)
+  // Check if we came from feed or sidebar
   const fromFeed = location.state?.fromFeed;
+  const fromSidebar = location.state?.fromSidebar;
 
   if (loading) {
     return (
@@ -162,8 +163,9 @@ export default function UserProfile() {
       ) : (
         <button
           onClick={() => {
-            if (fromFeed) {
-              navigate("/dashboard/feed");
+            // If from sidebar or feed, always go to Vibe section
+            if (fromSidebar || fromFeed) {
+              navigate("/dashboard/community");
             } else {
               navigate(-1); // fallback: go back in history
             }
