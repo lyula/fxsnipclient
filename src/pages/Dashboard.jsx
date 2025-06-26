@@ -21,9 +21,7 @@ import UserProfile from "./dashboard/community/UserProfile";
 import Profile from "./dashboard/Profile";
 import { useAuth } from "../context/auth";
 import VerifiedBadge from "../components/VerifiedBadge";
-
-// Dummy user data for demonstration. Replace with real user data as needed.
-const notificationCount = 3; // Replace with your actual notification count
+import Notifications from "./dashboard/Notifications";
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
@@ -554,13 +552,9 @@ export default function Dashboard() {
                 className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
                 title="Notifications"
                 type="button"
+                onClick={() => navigate("/dashboard/notifications")}
               >
                 <FaBell className="text-base sm:text-xl" />
-                {notificationCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[18px] sm:min-w-[20px] text-center leading-none">
-                    {notificationCount}
-                  </span>
-                )}
               </button>
               {/* Logout */}
               <button
@@ -592,12 +586,14 @@ export default function Dashboard() {
                 <Route path="stats" element={<Stats />} />
                 <Route path="subscriptions" element={<Subscriptions />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="notifications" element={<Notifications />} />
                 {/* Add other routes as needed */}
               </Routes>
               {/* Only show footer if not in any community subpath */}
               {!location.pathname.startsWith("/dashboard/community") &&
- !location.pathname.startsWith("/dashboard/community/user/") &&
- !location.pathname.startsWith("/dashboard/inbox") ? (
+                !location.pathname.startsWith("/dashboard/community/user/") &&
+                !location.pathname.startsWith("/dashboard/inbox") &&
+                !location.pathname.startsWith("/dashboard/notifications") ? (
                 <footer
                   className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0
                     sm:static sm:z-auto"
