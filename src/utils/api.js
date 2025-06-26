@@ -123,3 +123,31 @@ export async function getConversations() {
   });
   return res.json();
 }
+
+// Get notifications
+export async function getNotifications() {
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+  const res = await fetch(`${API_BASE}/user/notifications`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  return res.json();
+}
+
+// Get unread notification count
+export async function getUnreadNotificationCount() {
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+  const res = await fetch(`${API_BASE}/user/notifications/unread-count`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  return res.json();
+}
+
+// Mark all notifications as read
+export async function markNotificationsRead() {
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+  const res = await fetch(`${API_BASE}/user/notifications/mark-read`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  return res.json();
+}

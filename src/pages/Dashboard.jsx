@@ -22,6 +22,7 @@ import Profile from "./dashboard/Profile";
 import { useAuth } from "../context/auth";
 import VerifiedBadge from "../components/VerifiedBadge";
 import Notifications from "./dashboard/Notifications";
+import { getUnreadNotificationCount } from "../utils/api"; // Add this import
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
@@ -47,6 +48,7 @@ const DASHBOARD_LABELS = {
 export default function Dashboard() {
   // All hooks must be inside the function!
   const [unreadConversations, setUnreadConversations] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const { user, refreshUser } = useAuth();
 
@@ -210,6 +212,20 @@ export default function Dashboard() {
       </div>
     </div>
   );
+
+  // Fetch unread notification count
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        const res = await getUnreadNotificationCount();
+        setUnreadNotifications(res.count || 0);
+      } catch {}
+    }
+    fetchUnread();
+    // Optionally, poll every 30s for real-time updates
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Determine which dashboard page to show
   let MainContent;
@@ -539,9 +555,17 @@ export default function Dashboard() {
                 className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
                 title="Notifications"
                 type="button"
-                onClick={() => navigate("/dashboard/notifications")}
+                onClick={() => {
+                  navigate("/dashboard/notifications");
+                  setUnreadNotifications(0); // Optimistically clear badge
+                }}
               >
                 <FaBell className="text-base sm:text-xl" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                  </span>
+                )}
               </button>
               {/* Theme Toggle - moved below notifications */}
               <button
