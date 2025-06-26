@@ -4,12 +4,8 @@ import { FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
 import SHA256 from "crypto-js/sha256";
 import { followUser, unfollowUser } from "../../../utils/api";
-import { hashId } from "../../../utils/hash";
+import { hashId as hashIdFunc } from "../../../utils/hash"; // Make sure this import exists
 import VerifiedBadge from "../../../components/VerifiedBadge";
-
-function hashIdFunc(id) {
-  return SHA256(id.toString()).toString();
-}
 
 export default function UserProfile() {
   const location = useLocation();
@@ -70,26 +66,6 @@ export default function UserProfile() {
     if (activeTab === "following") fetchFollowing();
   }, [activeTab, username]);
 
-  // Check if current user is following this profile
-  useEffect(() => {
-    async function checkFollowing() {
-      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-      const res = await fetch(`${API_BASE}/user/profile`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (res.ok) {
-        const me = await res.json();
-        if (me && me.followingHashed && profile && profile._id) {
-          const hashedProfileId = hashIdFunc(profile._id);
-          setIsFollowing(me.followingHashed.includes(hashedProfileId));
-        }
-      }
-    }
-    if (profile && profile._id) checkFollowing();
-  }, [profile]);
-
   // Fetch current user info
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -107,14 +83,34 @@ export default function UserProfile() {
     fetchCurrentUser();
   }, []);
 
+  // Fetch current user info AND profile before checking isFollowing
+  useEffect(() => {
+    if (
+      currentUser &&
+      profile &&
+      Array.isArray(profile.followersHashed) &&
+      currentUser._id
+    ) {
+      const hashedCurrentUserId = hashIdFunc(currentUser._id);
+      setIsFollowing(profile.followersHashed.includes(hashedCurrentUserId));
+    }
+  }, [currentUser, profile]);
+
   const handleFollow = async () => {
     if (!profile || !profile._id) return;
     setFollowLoading(true);
     try {
       const res = await followUser(profile._id);
       if (res && res.message === "Followed") {
-        setIsFollowing(true);
-        setProfile((p) => ({ ...p, followers: (p.followers ?? 0) + 1 }));
+        // Update profile.followersHashed
+        const hashedCurrentUserId = hashIdFunc(currentUser._id);
+        setProfile((p) => ({
+          ...p,
+          followers: (p.followers ?? 0) + 1,
+          followersHashed: [...(p.followersHashed || []), hashedCurrentUserId],
+        }));
+        // Optionally re-fetch current user
+        // ...
       } else {
         alert(res.message || "Could not follow user.");
       }
@@ -130,8 +126,14 @@ export default function UserProfile() {
     try {
       const res = await unfollowUser(profile._id);
       if (res && res.message === "Unfollowed") {
-        setIsFollowing(false);
-        setProfile((p) => ({ ...p, followers: Math.max((p.followers ?? 1) - 1, 0) }));
+        const hashedCurrentUserId = hashIdFunc(currentUser._id);
+        setProfile((p) => ({
+          ...p,
+          followers: Math.max((p.followers ?? 1) - 1, 0),
+          followersHashed: (p.followersHashed || []).filter(h => h !== hashedCurrentUserId),
+        }));
+        // Optionally re-fetch current user
+        // ...
       } else {
         alert(res.message || "Could not unfollow user.");
       }
@@ -196,7 +198,7 @@ export default function UserProfile() {
         >
           Back to feed
         </button>
-      )}
+  )}
       {/* Profile Header */}
       <div className="flex items-center gap-4 mb-4">
         <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
@@ -243,26 +245,20 @@ export default function UserProfile() {
               >
                 Follow
               </button>
-            ) : isFollowing ? (
-              <button
-                className="flex-1 min-w-0 px-2 py-1 rounded-full font-semibold bg-gray-200 dark:bg-gray-700 text-gray-500 text-sm sm:w-32"
-                disabled={followLoading}
-                onClick={() => {
-                  if (!followLoading) handleUnfollow();
-                }}
-                title="Unfollow"
-                style={{ transition: "background 0.2s, color 0.2s", cursor: followLoading ? "not-allowed" : "pointer" }}
-              >
-                {followLoading ? "..." : "Following"}
-              </button>
             ) : (
               <button
-                className="flex-1 min-w-0 px-2 py-1 rounded-full font-semibold bg-blue-500 text-white text-sm sm:w-32 hover:bg-blue-600 transition"
+                className={`flex-1 min-w-0 px-2 py-1 rounded-full font-semibold text-sm sm:w-32 ${
+                  isFollowing
+                    ? "bg-gray-200 dark:bg-gray-700 text-gray-500 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                } transition`}
                 disabled={followLoading}
-                onClick={handleFollow}
-                title="Follow"
+                onClick={isFollowing ? handleUnfollow : handleFollow}
+                title={isFollowing ? "Unfollow" : "Follow"}
+                style={{ cursor: followLoading ? "not-allowed" : "pointer" }}
               >
-                {followLoading ? "..." : "Follow"}
+                {/* This logic ensures the button renders correctly based on isFollowing */}
+                {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
               </button>
             )}
             <button
