@@ -361,7 +361,9 @@ export default function Inbox(props) {
             className="w-10 h-10 rounded-full"
           />
           <span
-            className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] flex items-center"
+            className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] flex items-center cursor-pointer hover:underline"
+            onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
+            title="View public profile"
           >
             {selectedUser.username}
             {selectedUser.verified && <VerifiedBadge />}
