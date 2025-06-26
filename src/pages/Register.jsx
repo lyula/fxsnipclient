@@ -95,6 +95,8 @@ export default function Register() {
     }
   };
 
+  const usernameRegex = /^(?!.*[_.]{2})[a-zA-Z0-9](?!.*[_.]{2})[a-zA-Z0-9._]{1,28}[a-zA-Z0-9]$/;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     // JavaScript validation for all required fields, with specific error messages
