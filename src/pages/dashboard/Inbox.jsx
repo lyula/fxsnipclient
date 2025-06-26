@@ -409,12 +409,28 @@ export default function Inbox(props) {
                       } ${item.msg.from === myUserId ? "ml-auto" : "mr-auto"}`}
                     >
                       {item.msg.text}
-                      <div className="text-[10px] text-gray-400 mt-1 text-right">
+                    </div>
+                    <div className="flex items-center justify-end gap-2 mt-1 text-[10px]">
+                      <span className="text-gray-400">
                         {new Date(item.msg.createdAt).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                      </div>
+                      </span>
+                      {/* Status badge for messages sent by me */}
+                      {item.msg.from === myUserId && (
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full font-semibold
+        ${
+          item.msg.read
+            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border border-green-300 dark:border-green-700"
+            : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-300 dark:border-gray-700"
+        }
+      `}
+                        >
+                          {item.msg.read ? "Seen" : "Delivered"}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )
