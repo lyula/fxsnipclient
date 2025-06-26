@@ -534,7 +534,16 @@ export default function Dashboard() {
                   </span>
                 )}
               </button>
-              {/* Theme Toggle */}
+              {/* Notifications - moved above theme toggle */}
+              <button
+                className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title="Notifications"
+                type="button"
+                onClick={() => navigate("/dashboard/notifications")}
+              >
+                <FaBell className="text-base sm:text-xl" />
+              </button>
+              {/* Theme Toggle - moved below notifications */}
               <button
                 className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
                 title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
@@ -546,15 +555,6 @@ export default function Dashboard() {
                 ) : (
                   <FaMoon className="text-base sm:text-xl" />
                 )}
-              </button>
-              {/* Notifications */}
-              <button
-                className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-                title="Notifications"
-                type="button"
-                onClick={() => navigate("/dashboard/notifications")}
-              >
-                <FaBell className="text-base sm:text-xl" />
               </button>
               {/* Logout */}
               <button
