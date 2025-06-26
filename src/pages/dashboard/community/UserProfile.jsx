@@ -22,6 +22,7 @@ export default function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -89,6 +90,23 @@ export default function UserProfile() {
     if (profile && profile._id) checkFollowing();
   }, [profile]);
 
+  // Fetch current user info
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      const res = await fetch(`${API_BASE}/user/profile`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (res.ok) {
+        const me = await res.json();
+        setCurrentUser(me);
+      }
+    }
+    fetchCurrentUser();
+  }, []);
+
   const handleFollow = async () => {
     if (!profile || !profile._id) return;
     setFollowLoading(true);
@@ -130,6 +148,9 @@ export default function UserProfile() {
   // Check if we came from feed or sidebar
   const fromFeed = location.state?.fromFeed;
   const fromSidebar = location.state?.fromSidebar;
+
+  // Check if viewing own profile
+  const isOwnProfile = currentUser && profile && currentUser.username === profile.username;
 
   if (loading) {
     return (
@@ -213,7 +234,16 @@ export default function UserProfile() {
             Joined: {profile.joined ? new Date(profile.joined).toLocaleDateString() : ""}
           </div>
           <div className="flex flex-row gap-2 mt-4 w-full max-w-xs sm:max-w-none sm:w-auto sm:mt-4 justify-start">
-            {isFollowing ? (
+            {isOwnProfile ? (
+              <button
+                className="flex-1 min-w-0 px-2 py-1 rounded-full font-semibold bg-gray-200 dark:bg-gray-700 text-gray-400 text-sm sm:w-32 cursor-not-allowed"
+                disabled
+                title="You cannot follow yourself"
+                style={{ transition: "background 0.2s, color 0.2s" }}
+              >
+                Follow
+              </button>
+            ) : isFollowing ? (
               <button
                 className="flex-1 min-w-0 px-2 py-1 rounded-full font-semibold bg-gray-200 dark:bg-gray-700 text-gray-500 text-sm sm:w-32"
                 disabled={followLoading}
