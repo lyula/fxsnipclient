@@ -296,12 +296,20 @@ export default function UserProfile() {
               ) : (
                 <ul className="flex flex-col items-center">
                   {followers.map(f => (
-                    <li key={f._id} className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700 w-full max-w-xs justify-center">
+                    <li
+                      key={f._id}
+                      className="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-700 w-full max-w-xs justify-center"
+                    >
+                      {/* User avatar */}
+                      <span className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                        <FaUser className="text-gray-400 dark:text-gray-500 text-lg" />
+                      </span>
                       <Link
                         to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
-                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline"
+                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline flex items-center gap-1"
                       >
                         {f.username}
+                        {f.verified && <VerifiedBadge />}
                       </Link>
                     </li>
                   ))}
@@ -319,9 +327,10 @@ export default function UserProfile() {
                     <li key={f._id} className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700 w-full max-w-xs justify-center">
                       <Link
                         to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
-                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline"
+                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline flex items-center gap-1"
                       >
                         {f.username}
+                        {f.verified && <VerifiedBadge />}
                       </Link>
                     </li>
                   ))}
