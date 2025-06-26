@@ -420,15 +420,16 @@ export default function Inbox(props) {
                           : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-300 dark:border-gray-600"
                       } ${item.msg.from === myUserId ? "ml-auto" : "mr-auto"}`}
                     >
-                      {item.msg.text}
-                    </div>
-                    <div className="flex items-center justify-end gap-2 mt-1 text-[10px]">
-                      <span className="text-gray-400">
+                      <div>{item.msg.text}</div>
+                      <div className="text-xs text-gray-400 mt-1">
                         {new Date(item.msg.createdAt).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                      </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 mt-1 text-[10px]">
+                     
                       {/* Status badge for messages sent by me */}
                       {item.msg.from === myUserId && (
                         <span
