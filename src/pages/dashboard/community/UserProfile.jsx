@@ -247,9 +247,11 @@ export default function UserProfile() {
               <button
                 className="flex-1 min-w-0 px-2 py-1 rounded-full font-semibold bg-gray-200 dark:bg-gray-700 text-gray-500 text-sm sm:w-32"
                 disabled={followLoading}
-                onClick={handleUnfollow}
+                onClick={() => {
+                  if (!followLoading) handleUnfollow();
+                }}
                 title="Unfollow"
-                style={{ transition: "background 0.2s, color 0.2s" }}
+                style={{ transition: "background 0.2s, color 0.2s", cursor: followLoading ? "not-allowed" : "pointer" }}
               >
                 {followLoading ? "..." : "Following"}
               </button>
