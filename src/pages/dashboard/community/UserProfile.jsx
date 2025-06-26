@@ -196,9 +196,9 @@ export default function UserProfile() {
           className="mb-4 px-4 py-2 rounded font-semibold text-white hover:opacity-90 transition"
           style={{ backgroundColor: "#a99d6b" }}
         >
-          Back to feed
+          Back
         </button>
-  )}
+      )}
       {/* Profile Header */}
       <div className="flex items-center gap-4 mb-4">
         <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">

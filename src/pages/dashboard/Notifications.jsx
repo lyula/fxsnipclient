@@ -49,7 +49,18 @@ export default function Notifications() {
                 <span className="flex-1 text-gray-900 dark:text-white">
                   {n.type === "follow" && n.from ? (
                     <>
-                      {n.from.username}
+                      <span
+                        className="font-semibold"
+                        style={{ color: "#a99d6b", cursor: "pointer" }}
+                        onClick={() =>
+                          (window.location.href = `/dashboard/community/user/${encodeURIComponent(
+                            n.from.username
+                          )}`)
+                        }
+                        title={`View ${n.from.username}'s profile`}
+                      >
+                        {n.from.username}
+                      </span>
                       {n.from.verified && <VerifiedBadge />}
                       {" followed you "}
                       <span className="text-xs text-gray-400">
