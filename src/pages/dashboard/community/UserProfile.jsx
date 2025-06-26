@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
 import SHA256 from "crypto-js/sha256";
@@ -12,8 +12,9 @@ function hashIdFunc(id) {
 }
 
 export default function UserProfile() {
-  const { username } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { username } = useParams();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [followers, setFollowers] = useState([]);
@@ -122,6 +123,13 @@ export default function UserProfile() {
     setFollowLoading(false);
   };
 
+  // Check if we came from inbox
+  const fromInbox = location.state?.fromInbox;
+  const chatUsername = location.state?.chatUsername || username;
+
+  // Check if we came from feed (for example, you can set this in your feed navigation)
+  const fromFeed = location.state?.fromFeed;
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto p-8 text-center text-gray-500 dark:text-gray-300">
@@ -140,15 +148,33 @@ export default function UserProfile() {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
+      {/* Show correct back button depending on where user came from */}
+      {fromInbox ? (
+        <button
+          onClick={() =>
+            navigate(`/dashboard/inbox?chat=${encodeURIComponent(chatUsername)}`)
+          }
+          className="mb-4 px-4 py-2 rounded font-semibold text-white hover:opacity-90 transition"
+          style={{ backgroundColor: "#a99d6b" }}
+        >
+          Back
+        </button>
+      ) : (
+        <button
+          onClick={() => {
+            if (fromFeed) {
+              navigate("/dashboard/feed");
+            } else {
+              navigate(-1); // fallback: go back in history
+            }
+          }}
+          className="mb-4 px-4 py-2 rounded font-semibold text-white hover:opacity-90 transition"
+          style={{ backgroundColor: "#a99d6b" }}
+        >
+          Back to feed
+        </button>
+      )}
       {/* Profile Header */}
-      <button
-        onClick={() => {
-          navigate("/dashboard/community?tab=following");
-        }}
-        className="mb-4 px-4 py-2 rounded bg-[#a99d6b] text-white font-semibold hover:bg-[#8c845c] transition"
-      >
-        &larr; Back to Following
-      </button>
       <div className="flex items-center gap-4 mb-4">
         <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
           <FaUser className="text-3xl text-gray-400 dark:text-gray-500" />
@@ -217,92 +243,93 @@ export default function UserProfile() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-8 mt-8 border-b border-gray-200 dark:border-gray-700">
-        <button
-          className={`pb-2 font-semibold text-base transition ${
-            activeTab === "posts"
-              ? "border-b-2 border-[#1E3A8A] dark:border-[#a99d6b] text-[#1E3A8A] dark:text-[#a99d6b]"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
-          onClick={() => setActiveTab("posts")}
-        >
-          Posts
-        </button>
-        <button
-          className={`pb-2 font-semibold text-base transition ${
-            activeTab === "followers"
-              ? "border-b-2 border-[#1E3A8A] dark:border-[#a99d6b] text-[#1E3A8A] dark:text-[#a99d6b]"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
-          onClick={() => setActiveTab("followers")}
-        >
-          Followers
-        </button>
-        <button
-          className={`pb-2 font-semibold text-base transition ${
-            activeTab === "following"
-              ? "border-b-2 border-[#1E3A8A] dark:border-[#a99d6b] text-[#1E3A8A] dark:text-[#a99d6b]"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
-          onClick={() => setActiveTab("following")}
-        >
-          Following
-        </button>
-      </div>
+      <div className="flex flex-col items-center mt-8">
+        <div className="flex gap-8 border-b border-gray-200 dark:border-gray-700 justify-center w-full">
+          <button
+            className={`pb-2 font-semibold text-base transition ${
+              activeTab === "posts"
+                ? "border-b-2 border-[#1E3A8A] dark:border-[#a99d6b] text-[#1E3A8A] dark:text-[#a99d6b]"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+            onClick={() => setActiveTab("posts")}
+          >
+            Posts
+          </button>
+          <button
+            className={`pb-2 font-semibold text-base transition ${
+              activeTab === "followers"
+                ? "border-b-2 border-[#1E3A8A] dark:border-[#a99d6b] text-[#1E3A8A] dark:text-[#a99d6b]"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+            onClick={() => setActiveTab("followers")}
+          >
+            Followers
+          </button>
+          <button
+            className={`pb-2 font-semibold text-base transition ${
+              activeTab === "following"
+                ? "border-b-2 border-[#1E3A8A] dark:border-[#a99d6b] text-[#1E3A8A] dark:text-[#a99d6b]"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+            onClick={() => setActiveTab("following")}
+          >
+            Following
+          </button>
+        </div>
 
-      {/* Tab Content */}
-      <div className="mt-4">
-        {activeTab === "posts" && (
-          <>
-            <h2 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">Posts</h2>
-            <div className="text-gray-500 dark:text-gray-400 text-center py-8">
-              No posts yet.
-            </div>
-          </>
-        )}
-        {activeTab === "followers" && (
-          <>
-            <h2 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">Followers</h2>
-            {followers.length === 0 ? (
-              <div className="text-gray-500 dark:text-gray-400 text-center">Not followed by anyone</div>
-            ) : (
-              <ul>
-                {followers.map(f => (
-                  <li key={f._id} className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700">
-                    <Link
-                      to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
-                      className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline"
-                    >
-                      {f.username}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-        {activeTab === "following" && (
-          <>
-            <h2 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">Following</h2>
-            {following.length === 0 ? (
-              <div className="text-gray-500 dark:text-gray-400 text-center">Follows no one</div>
-            ) : (
-              <ul>
-                {following.map(f => (
-                  <li key={f._id} className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700">
-                    <Link
-                      to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
-                      className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline"
-                    >
-                      {f.username}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
+        {/* Tab Content: now directly below the tabs */}
+        <div className="w-full mt-4">
+          {activeTab === "posts" && (
+            <>
+              <h2 className="font-bold text-lg mb-2 text-gray-900 dark:text-white text-center">Posts</h2>
+              <div className="text-gray-500 dark:text-gray-400 text-center py-8">
+                No posts yet.
+              </div>
+            </>
+          )}
+          {activeTab === "followers" && (
+            <>
+              {followers.length === 0 ? (
+                <div className="text-gray-500 dark:text-gray-400 text-center">Not followed by anyone</div>
+              ) : (
+                <ul className="flex flex-col items-center">
+                  {followers.map(f => (
+                    <li key={f._id} className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700 w-full max-w-xs justify-center">
+                      <Link
+                        to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
+                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline"
+                      >
+                        {f.username}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+          {activeTab === "following" && (
+            <>
+              {following.length === 0 ? (
+                <div className="text-gray-500 dark:text-gray-400 text-center">Follows no one</div>
+              ) : (
+                <ul className="flex flex-col items-center">
+                  {following.map(f => (
+                    <li key={f._id} className="flex items-center gap-2 py-2 border-b border-gray-100 dark:border-gray-700 w-full max-w-xs justify-center">
+                      <Link
+                        to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
+                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline"
+                      >
+                        {f.username}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
       </div>
+      {/* End Tabs and Tab Content */}
     </div>
   );
 }

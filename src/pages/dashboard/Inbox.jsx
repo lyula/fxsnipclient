@@ -362,7 +362,17 @@ export default function Inbox(props) {
           />
           <span
             className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] flex items-center cursor-pointer hover:underline"
-            onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
+            onClick={() =>
+              navigate(
+                `/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`,
+                {
+                  state: {
+                    fromInbox: true,
+                    chatUsername: selectedUser.username,
+                  },
+                }
+              )
+            }
             title="View public profile"
           >
             {selectedUser.username}
