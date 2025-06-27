@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { FaArrowLeft, FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
-import { useSwipeable } from "react-swipeable";
 import VerifiedBadge from "../../../components/VerifiedBadge";
+import Post from "../../../components/common/Post";
 
 export default function UserProfile() {
   const location = useLocation();
@@ -17,6 +17,7 @@ export default function UserProfile() {
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("posts");
   const [currentUser, setCurrentUser] = useState(null);
+  const [posts, setPosts] = useState([]);
 
   useEffect(() => {
     async function fetchProfileAndCounts() {
@@ -63,46 +64,64 @@ export default function UserProfile() {
   }, [username]);
 
   useEffect(() => {
-    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-    async function fetchFollowers() {
-      const res = await fetch(`${API_BASE}/user/followers/${encodeURIComponent(username)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setFollowers(data.followers || []);
+    async function fetchPosts() {
+      if (!profile?._id) return;
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      try {
+        const res = await fetch(`${API_BASE}/posts/by-userid/${profile._id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPosts(data);
+        }
+      } catch (error) {
+        console.error("Error fetching posts:", error);
       }
     }
-    async function fetchFollowing() {
-      const res = await fetch(`${API_BASE}/user/following/${encodeURIComponent(username)}`, {
+    fetchPosts();
+  }, [profile?._id]);
+
+  const handleLike = async (postId) => {
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    try {
+      await fetch(`${API_BASE}/posts/${postId}/like`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setFollowing(data.following || []);
-      }
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          post._id === postId ? { ...post, likes: [...post.likes, currentUser.id] } : post
+        )
+      );
+    } catch (error) {
+      console.error("Error liking post:", error);
     }
-    if (activeTab === "followers") fetchFollowers();
-    if (activeTab === "following") fetchFollowing();
-  }, [activeTab, username]);
+  };
+
+  const handleComment = async (postId, content) => {
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    try {
+      const res = await fetch(`${API_BASE}/posts/${postId}/comment`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content }),
+      });
+      if (res.ok) {
+        const updatedPost = await res.json();
+        setPosts((prevPosts) =>
+          prevPosts.map((post) => (post._id === postId ? updatedPost : post))
+        );
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    }
+  };
 
   const tabs = ["posts", "followers", "following"];
-
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: () => {
-      const currentIndex = tabs.indexOf(activeTab);
-      if (currentIndex < tabs.length - 1) {
-        setActiveTab(tabs[currentIndex + 1]);
-      }
-    },
-    onSwipedRight: () => {
-      const currentIndex = tabs.indexOf(activeTab);
-      if (currentIndex > 0) {
-        setActiveTab(tabs[currentIndex - 1]);
-      }
-    },
-    trackMouse: true,
-  });
 
   if (loading) {
     return (
@@ -121,16 +140,9 @@ export default function UserProfile() {
   }
 
   return (
-    <div
-      className="fixed inset-0 overflow-hidden"
-      style={{
-        backgroundColor: "inherit",
-        paddingTop: "64px",
-      }}
-      {...swipeHandlers}
-    >
+    <div style={{ backgroundColor: "inherit" }}>
       {/* Main Content */}
-      <div className="max-w-2xl mx-auto p-4">{/* <-- overflow-hidden removed here */}
+      <div className="max-w-2xl mx-auto p-4">
         {/* Profile Header */}
         <div className="flex flex-col items-center gap-2 mb-4" style={{ marginTop: "32px" }}>
           {/* First Row: Back Button, User Icon, and Username */}
@@ -151,7 +163,6 @@ export default function UserProfile() {
               </span>
             </div>
           </div>
-
           {/* Second Row: Followers and Following Counts */}
           <div className="flex gap-8" style={{ marginRight: "calc(50% - 220px)" }}>
             <div className="flex flex-col items-center">
@@ -183,98 +194,67 @@ export default function UserProfile() {
           </div>
           {/* Tab Content */}
           <div className="w-full mt-4">
-            {activeTab === "posts" && (
-              <>
-                <h2 className="font-bold text-lg mb-2 text-gray-900 dark:text-white text-center">Posts</h2>
-                <div className="text-gray-500 dark:text-gray-400 text-center py-8">
-                  No posts yet.
-                </div>
-              </>
-            )}
-            {activeTab === "followers" && (
-              <>
-                {followers.length === 0 ? (
-                  <div className="text-gray-500 dark:text-gray-400 text-center">Not followed by anyone</div>
-                ) : (
-                  <div
-                    className="mobile-scroll-container"
-                    style={{
-                      height: "calc(100vh - 260px)", // Use height for reliable scrolling
-                      overflowY: "auto",
-                      scrollbarWidth: "none",
-                      WebkitOverflowScrolling: "touch",
-                      backgroundColor: "inherit",
-                    }}
-                  >
-                    <style>
-                      {`
-                        .mobile-scroll-container::-webkit-scrollbar {
-                          display: none;
-                        }
-                      `}
-                    </style>
+            <div
+              className="max-h-[400px] overflow-y-auto hide-scrollbar"
+            >
+              {activeTab === "posts" && (
+                        <>
+                          {posts.length === 0 ? (
+                            <div className="text-gray-500 dark:text-gray-400 text-center py-8">No posts yet.</div>
+                          ) : (
+                            posts.slice(0, 70).map((post) => (
+                              <Link
+                                key={post._id}
+                                to={`/dashboard/community?postId=${post._id}`}
+                                style={{ display: "block", textDecoration: "none" }}
+                              >
+                                <Post post={post} onLike={handleLike} onComment={handleComment} />
+                              </Link>
+                            ))
+                          )}
+                        </>
+                      )}
+              {activeTab === "followers" && (
+                <>
+                  {followers.length === 0 ? (
+                    <div className="text-gray-500 dark:text-gray-400 text-center py-8">No followers yet.</div>
+                  ) : (
                     <div className="flex flex-col gap-4 items-center">
-                      {followers.map((follower) => (
+                      {followers.slice(0, 70).map((follower) => (
                         <button
                           key={follower._id}
-                          className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                          style={{ cursor: "pointer", marginBottom: "8px" }}
-                          onClick={() =>
-                            navigate(`/dashboard/community/user/${encodeURIComponent(follower.username)}`)
-                          }
-                          title={`View ${follower.username}'s profile`}
+                          className="w-3/4 md:w-1/2 rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition"
+                          style={{ outline: "none", border: "none" }}
                         >
                           {follower.username}
                           {follower.verified && <VerifiedBadge />}
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
-              </>
-            )}
-            {activeTab === "following" && (
-              <>
-                {following.length === 0 ? (
-                  <div className="text-gray-500 dark:text-gray-400 text-center">Follows no one</div>
-                ) : (
-                  <div
-                    className="mobile-scroll-container"
-                    style={{
-                      height: "calc(100vh - 260px)", // Use height for reliable scrolling
-                      overflowY: "auto",
-                      scrollbarWidth: "none",
-                      WebkitOverflowScrolling: "touch",
-                      backgroundColor: "inherit",
-                    }}
-                  >
-                    <style>
-                      {`
-                        .mobile-scroll-container::-webkit-scrollbar {
-                          display: none;
-                        }
-                      `}
-                    </style>
+                  )}
+                </>
+              )}
+              {activeTab === "following" && (
+                <>
+                  {following.length === 0 ? (
+                    <div className="text-gray-500 dark:text-gray-400 text-center py-8">Not following anyone yet.</div>
+                  ) : (
                     <div className="flex flex-col gap-4 items-center">
-                      {following.map((followedUser) => (
+                      {following.slice(0, 70).map((user) => (
                         <button
-                          key={followedUser._id}
-                          className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                          style={{ cursor: "pointer", marginBottom: "8px" }}
-                          onClick={() =>
-                            navigate(`/dashboard/community/user/${encodeURIComponent(followedUser.username)}`)
-                          }
-                          title={`View ${followedUser.username}'s profile`}
+                          key={user._id}
+                          className="w-3/4 md:w-1/2 rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition"
+                          style={{ outline: "none", border: "none" }}
                         >
-                          {followedUser.username}
-                          {followedUser.verified && <VerifiedBadge />}
+                          {user.username}
+                          {user.verified && <VerifiedBadge />}
                         </button>
                       ))}
                     </div>
-                  </div>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>

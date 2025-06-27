@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import ChatReply from "./ChatReply";
-import { FaHeart, FaRegHeart, FaChartBar, FaCheckCircle } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaChartBar, FaCheckCircle, FaUser } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import VerifiedBadge from "../../../components/VerifiedBadge";
 
-export default function ChatPost({ post, onReply, onComment, onLike, onView }) {
+// Remove the liked state entirely
+export default function ChatPost({ post, onReply, onComment, onLike, onView, currentUserId }) {
   const [activeInput, setActiveInput] = useState(null);
-  const [liked, setLiked] = useState(false);
 
   useEffect(() => {
     onView(post.id);
@@ -13,21 +14,29 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView }) {
     // eslint-disable-next-line
   }, []);
 
+  // Always compute liked from props
+  const liked = Array.isArray(post.likes) && currentUserId
+    ? post.likes.map(String).includes(String(currentUserId))
+    : false;
+
   return (
     <div
       className={`rounded-lg p-4 shadow ${post.isAd ? "bg-yellow-100 dark:bg-yellow-900" : "bg-white dark:bg-gray-800"}`}
     >
       <div className="flex items-center mb-2">
         <span className="text-2xl mr-2">{post.avatar}</span>
-        <span className="font-bold text-gray-800 dark:text-white flex items-center gap-1">
-          {post.user}
-          {post.verified === "blue" && (
-            <FaCheckCircle className="text-blue-500 ml-1" title="Blue verified" />
+        <Link
+          to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
+          className="font-bold text-gray-800 dark:text-white flex items-center gap-1 hover:underline"
+        >
+          <span className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+            <FaUser className="text-gray-400 text-base" />
+          </span>
+          {post.author?.username || post.user}
+          {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
+            <VerifiedBadge />
           )}
-          {post.verified === "grey" && (
-            <FaCheckCircle className="text-gray-400 ml-1" title="Grey verified" />
-          )}
-        </span>
+        </Link>
         <span className="ml-2 text-xs text-gray-400">{post.timestamp}</span>
         {post.isAd && <span className="ml-2 px-2 py-0.5 bg-yellow-300 text-xs rounded">Ad</span>}
       </div>
@@ -51,7 +60,6 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView }) {
           onClick={() => {
             if (!liked) {
               onLike(post.id);
-              setLiked(true);
             }
           }}
           className={`flex items-center gap-1 transition-colors ${
@@ -60,7 +68,9 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView }) {
           aria-label="Like"
         >
           {liked ? <FaHeart className="text-red-500" /> : <FaRegHeart />}
-          <span className={liked ? "text-red-500" : ""}>{post.likes || 0}</span>
+          <span className={liked ? "text-red-500" : ""}>
+            {Array.isArray(post.likes) ? post.likes.length : post.likes || 0}
+          </span>
         </button>
         <button
           onClick={() => setActiveInput(activeInput === "reply" ? null : "reply")}
@@ -96,7 +106,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView }) {
           placeholder="Write a comment..."
         />
       )}
-      {post.replies.length > 0 && (
+      {post.replies?.length > 0 ? (
         <div className="mt-2 ml-4 border-l pl-2 border-blue-200">
           <div className="font-semibold text-xs text-blue-700 mb-1">Replies:</div>
           {post.replies.map((r, i) => (
@@ -105,17 +115,24 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView }) {
             </div>
           ))}
         </div>
+      ) : (
+        <div className="mt-2 ml-4 text-sm text-gray-500">
+          No replies
+        </div>
       )}
-      {post.comments.length > 0 && (
+      {post.comments && post.comments.length > 0 ? (
         <div className="mt-2 ml-4 border-l pl-2 border-green-200">
           <div className="font-semibold text-xs text-green-700 mb-1">Comments:</div>
-          {post.comments.map((c, i) => (
-            <div key={i} className="text-sm mb-1">
-              <span className="font-bold">{c.user}:</span> {c.content} <span className="text-xs text-gray-400">{c.timestamp}</span>
-            </div>
+          {(post.comments || []).map(comment => (
+            <div key={comment._id || comment.id}>{comment.text || comment.content}</div>
           ))}
+        </div>
+      ) : (
+        <div className="mt-2 ml-4 text-sm text-gray-500">
+          No comments
         </div>
       )}
     </div>
   );
 }
+

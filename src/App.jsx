@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import PublicLayout from "./components/layout/PublicLayout";
 import PrivateLayout from "./components/layout/PrivateLayout";
 import Landing from "./pages/Landing";
@@ -11,7 +11,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Terms from "./pages/Terms";
-import { useTheme } from "./hooks/useTheme"; // <-- Make sure this exists
+import UserProfile from "./pages/dashboard/community/UserProfile";
+import MobileUserProfile from "./pages/dashboard/community/MobileUserProfile";
+import { useTheme } from "./hooks/useTheme";
 
 function Placeholder({ title }) {
   return (
@@ -24,6 +26,7 @@ function Placeholder({ title }) {
 
 function App() {
   const [darkMode] = useTheme();
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -32,6 +35,19 @@ function App() {
       document.documentElement.classList.remove("dark");
     }
   }, [darkMode]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768); // Adjust breakpoint as needed
+    };
+
+    handleResize(); // Check on initial load
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   return (
     <Router>
@@ -51,6 +67,10 @@ function App() {
         <Route element={<PrivateLayout />}>
           <Route path="/tsr" element={<Placeholder title="TSR" />} />
           <Route path="/stats" element={<Placeholder title="Stats" />} />
+          <Route
+            path="/user-profile"
+            element={isMobile ? <MobileUserProfile /> : <UserProfile />}
+          />
         </Route>
       </Routes>
     </Router>
