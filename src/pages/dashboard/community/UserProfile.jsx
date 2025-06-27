@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { FaArrowLeft, FaEnvelope, FaUser } from "react-icons/fa"; // Import the arrow icon
+import { FaArrowLeft, FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
-import { useSwipeable } from "react-swipeable"; // Import react-swipeable
+import { useSwipeable } from "react-swipeable";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 
 export default function UserProfile() {
@@ -18,51 +18,49 @@ export default function UserProfile() {
   const [activeTab, setActiveTab] = useState("posts");
   const [currentUser, setCurrentUser] = useState(null);
 
- useEffect(() => {
-  async function fetchProfileAndCounts() {
-    setLoading(true);
-    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-    
-    try {
-      // Fetch profile data
-      const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setProfile(profileData);
-      } else {
-        setProfile(null);
-      }
+  useEffect(() => {
+    async function fetchProfileAndCounts() {
+      setLoading(true);
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      try {
+        // Fetch profile data
+        const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setProfile(profileData);
+        } else {
+          setProfile(null);
+        }
 
-      // Fetch followers
-      const followersRes = await fetch(`${API_BASE}/user/followers/${encodeURIComponent(username)}`);
-      if (followersRes.ok) {
-        const followersData = await followersRes.json();
-        setFollowers(followersData.followers || []);
-      }
+        // Fetch followers
+        const followersRes = await fetch(`${API_BASE}/user/followers/${encodeURIComponent(username)}`);
+        if (followersRes.ok) {
+          const followersData = await followersRes.json();
+          setFollowers(followersData.followers || []);
+        }
 
-      // Fetch following
-      const followingRes = await fetch(`${API_BASE}/user/following/${encodeURIComponent(username)}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (followingRes.ok) {
-        const followingData = await followingRes.json();
-        setFollowing(followingData.following || []);
+        // Fetch following
+        const followingRes = await fetch(`${API_BASE}/user/following/${encodeURIComponent(username)}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        if (followingRes.ok) {
+          const followingData = await followingRes.json();
+          setFollowing(followingData.following || []);
+        }
+      } catch (error) {
+        console.error("Error fetching profile or counts:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching profile or counts:", error);
-    } finally {
-      setLoading(false);
     }
-  }
-
-  fetchProfileAndCounts();
-}, [username]);
+    fetchProfileAndCounts();
+  }, [username]);
 
   useEffect(() => {
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -103,7 +101,7 @@ export default function UserProfile() {
         setActiveTab(tabs[currentIndex - 1]);
       }
     },
-    trackMouse: true, // Enable swipe detection with mouse for PC
+    trackMouse: true,
   });
 
   if (loading) {
@@ -129,10 +127,10 @@ export default function UserProfile() {
         backgroundColor: "inherit",
         paddingTop: "64px",
       }}
-      {...swipeHandlers} // Attach swipe handlers to the main container
+      {...swipeHandlers}
     >
       {/* Main Content */}
-      <div className="max-w-2xl mx-auto p-4 overflow-hidden">
+      <div className="max-w-2xl mx-auto p-4">{/* <-- overflow-hidden removed here */}
         {/* Profile Header */}
         <div className="flex flex-col items-center gap-2 mb-4" style={{ marginTop: "32px" }}>
           {/* First Row: Back Button, User Icon, and Username */}
@@ -166,7 +164,6 @@ export default function UserProfile() {
             </div>
           </div>
         </div>
-
         {/* Tabs */}
         <div className="flex flex-col items-center mt-8">
           <div className="flex gap-8 border-b border-gray-200 dark:border-gray-700 justify-center w-full">
@@ -185,7 +182,7 @@ export default function UserProfile() {
             ))}
           </div>
           {/* Tab Content */}
-          <div className="w-full mt-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
+          <div className="w-full mt-4">
             {activeTab === "posts" && (
               <>
                 <h2 className="font-bold text-lg mb-2 text-gray-900 dark:text-white text-center">Posts</h2>
@@ -200,36 +197,38 @@ export default function UserProfile() {
                   <div className="text-gray-500 dark:text-gray-400 text-center">Not followed by anyone</div>
                 ) : (
                   <div
-                    className="flex flex-col gap-4 items-center"
+                    className="mobile-scroll-container"
                     style={{
-                      maxHeight: "calc(100vh - 200px)",
+                      height: "calc(100vh - 260px)", // Use height for reliable scrolling
                       overflowY: "auto",
                       scrollbarWidth: "none",
-                      WebkitOverflowScrolling: "touch", // Enables smooth scrolling on mobile
+                      WebkitOverflowScrolling: "touch",
                       backgroundColor: "inherit",
                     }}
                   >
                     <style>
                       {`
-                        div::-webkit-scrollbar {
-                          display: none; // Hides scrollbar for better mobile experience
+                        .mobile-scroll-container::-webkit-scrollbar {
+                          display: none;
                         }
                       `}
                     </style>
-                    {followers.map((follower) => (
-                      <button
-                        key={follower._id}
-                        className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                        style={{ cursor: "pointer", marginBottom: "8px" }}
-                        onClick={() =>
-                          navigate(`/dashboard/community/user/${encodeURIComponent(follower.username)}`)
-                        }
-                        title={`View ${follower.username}'s profile`}
-                      >
-                        {follower.username}
-                        {follower.verified && <VerifiedBadge />}
-                      </button>
-                    ))}
+                    <div className="flex flex-col gap-4 items-center">
+                      {followers.map((follower) => (
+                        <button
+                          key={follower._id}
+                          className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                          style={{ cursor: "pointer", marginBottom: "8px" }}
+                          onClick={() =>
+                            navigate(`/dashboard/community/user/${encodeURIComponent(follower.username)}`)
+                          }
+                          title={`View ${follower.username}'s profile`}
+                        >
+                          {follower.username}
+                          {follower.verified && <VerifiedBadge />}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </>
@@ -240,36 +239,38 @@ export default function UserProfile() {
                   <div className="text-gray-500 dark:text-gray-400 text-center">Follows no one</div>
                 ) : (
                   <div
-                    className="flex flex-col gap-4 items-center"
+                    className="mobile-scroll-container"
                     style={{
-                      maxHeight: "calc(100vh - 200px)",
+                      height: "calc(100vh - 260px)", // Use height for reliable scrolling
                       overflowY: "auto",
                       scrollbarWidth: "none",
-                      WebkitOverflowScrolling: "touch", // Enables smooth scrolling on mobile
+                      WebkitOverflowScrolling: "touch",
                       backgroundColor: "inherit",
                     }}
                   >
                     <style>
                       {`
-                        div::-webkit-scrollbar {
-                          display: none; // Hides scrollbar for better mobile experience
+                        .mobile-scroll-container::-webkit-scrollbar {
+                          display: none;
                         }
                       `}
                     </style>
-                    {following.map((followedUser) => (
-                      <button
-                        key={followedUser._id}
-                        className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-                        style={{ cursor: "pointer", marginBottom: "8px" }}
-                        onClick={() =>
-                          navigate(`/dashboard/community/user/${encodeURIComponent(followedUser.username)}`)
-                        }
-                        title={`View ${followedUser.username}'s profile`}
-                      >
-                        {followedUser.username}
-                        {followedUser.verified && <VerifiedBadge />}
-                      </button>
-                    ))}
+                    <div className="flex flex-col gap-4 items-center">
+                      {following.map((followedUser) => (
+                        <button
+                          key={followedUser._id}
+                          className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                          style={{ cursor: "pointer", marginBottom: "8px" }}
+                          onClick={() =>
+                            navigate(`/dashboard/community/user/${encodeURIComponent(followedUser.username)}`)
+                          }
+                          title={`View ${followedUser.username}'s profile`}
+                        >
+                          {followedUser.username}
+                          {followedUser.verified && <VerifiedBadge />}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </>
