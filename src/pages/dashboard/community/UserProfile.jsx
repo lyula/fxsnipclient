@@ -257,7 +257,6 @@ export default function UserProfile() {
                 title={isFollowing ? "Unfollow" : "Follow"}
                 style={{ cursor: followLoading ? "not-allowed" : "pointer" }}
               >
-                {/* This logic ensures the button renders correctly based on isFollowing */}
                 {followLoading ? "..." : isFollowing ? "Following" : "Follow"}
               </button>
             )}
@@ -306,9 +305,8 @@ export default function UserProfile() {
             Following
           </button>
         </div>
-
         {/* Tab Content: now directly below the tabs */}
-        <div className="w-full mt-4">
+        <div className="w-full mt-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 200px)" }}>
           {activeTab === "posts" && (
             <>
               <h2 className="font-bold text-lg mb-2 text-gray-900 dark:text-white text-center">Posts</h2>
@@ -322,29 +320,38 @@ export default function UserProfile() {
               {followers.length === 0 ? (
                 <div className="text-gray-500 dark:text-gray-400 text-center">Not followed by anyone</div>
               ) : (
-                <ul className="flex flex-col items-center">
-                  {followers.map(f => (
-                    <li
-                      key={f._id}
-                      className="flex flex-row items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-700 w-full max-w-xs justify-center"
+                <div
+                  className="flex flex-col gap-4 items-center"
+                  style={{
+                    maxHeight: "calc(100vh - 200px)",
+                    overflowY: "auto",
+                    scrollbarWidth: "none", // For Firefox
+                    backgroundColor: "inherit",
+                  }}
+                >
+                  <style>
+                    {`
+                      /* Hide scrollbar for Webkit browsers */
+                      div::-webkit-scrollbar {
+                        display: none;
+                      }
+                    `}
+                  </style>
+                  {followers.map((follower) => (
+                    <button
+                      key={follower._id}
+                      className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                      style={{ cursor: "pointer", marginBottom: "8px" }}
+                      onClick={() =>
+                        navigate(`/dashboard/community/user/${encodeURIComponent(follower.username)}`)
+                      }
+                      title={`View ${follower.username}'s profile`}
                     >
-                      {/* User avatar */}
-                      <span className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <FaUser className="text-gray-400 dark:text-gray-500 text-lg" />
-                      </span>
-                      <Link
-                        to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
-                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline flex items-center gap-1 min-w-0"
-                        style={{ wordBreak: "break-all", maxWidth: "120px" }}
-                      >
-                        <span className="truncate block" style={{ maxWidth: "80px" }}>
-                          {f.username.length > 8 ? f.username.slice(0, 8) + "..." : f.username}
-                        </span>
-                        {f.verified && <VerifiedBadge />}
-                      </Link>
-                    </li>
+                      {follower.username}
+                      {follower.verified && <VerifiedBadge />}
+                    </button>
                   ))}
-                </ul>
+                </div>
               )}
             </>
           )}
@@ -353,25 +360,38 @@ export default function UserProfile() {
               {following.length === 0 ? (
                 <div className="text-gray-500 dark:text-gray-400 text-center">Follows no one</div>
               ) : (
-                <ul className="flex flex-col items-center">
-                  {following.map(f => (
-                    <li key={f._id} className="flex flex-row items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-700 w-full max-w-xs justify-center">
-                      <span className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <FaUser className="text-gray-400 dark:text-gray-500 text-lg" />
-                      </span>
-                      <Link
-                        to={`/dashboard/community/user/${encodeURIComponent(f.username)}`}
-                        className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline flex items-center gap-1 min-w-0"
-                        style={{ wordBreak: "break-all", maxWidth: "120px" }}
-                      >
-                        <span className="truncate block" style={{ maxWidth: "80px" }}>
-                          {f.username.length > 8 ? f.username.slice(0, 8) + "..." : f.username}
-                        </span>
-                        {f.verified && <VerifiedBadge />}
-                      </Link>
-                    </li>
+                <div
+                  className="flex flex-col gap-4 items-center"
+                  style={{
+                    maxHeight: "calc(100vh - 200px)",
+                    overflowY: "auto",
+                    scrollbarWidth: "none", // For Firefox
+                    backgroundColor: "inherit",
+                  }}
+                >
+                  <style>
+                    {`
+                      /* Hide scrollbar for Webkit browsers */
+                      div::-webkit-scrollbar {
+                        display: none;
+                      }
+                    `}
+                  </style>
+                  {following.map((followedUser) => (
+                    <button
+                      key={followedUser._id}
+                      className="w-full max-w-xs px-4 py-2 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                      style={{ cursor: "pointer", marginBottom: "8px" }}
+                      onClick={() =>
+                        navigate(`/dashboard/community/user/${encodeURIComponent(followedUser.username)}`)
+                      }
+                      title={`View ${followedUser.username}'s profile`}
+                    >
+                      {followedUser.username}
+                      {followedUser.verified && <VerifiedBadge />}
+                    </button>
                   ))}
-                </ul>
+                </div>
               )}
             </>
           )}

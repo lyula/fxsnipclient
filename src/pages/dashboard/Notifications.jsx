@@ -47,13 +47,18 @@ export default function NotificationsPage() {
 
   return (
     <div className="w-full max-w-lg mx-auto flex flex-col h-[calc(100vh-0px)] bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow p-0">
-      <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky top-0 z-30">
-        <h2 className="font-bold text-xl text-[#1E3A8A] dark:text-[#a99d6b]">
-          Notifications
-        </h2>
+      <div className="sticky top-0 z-30 bg-gray-50 dark:bg-gray-900">
+        <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-bold text-xl text-[#1E3A8A] dark:text-[#a99d6b]">
+            Notifications
+          </h2>
+        </div>
       </div>
-      {/* Only this div is scrollable */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Scrollable container with max height */}
+      <div
+        className="overflow-y-auto"
+        style={{ maxHeight: "calc(100vh - 64px)" }}
+      >
         {notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-lg">
             No notifications yet.
