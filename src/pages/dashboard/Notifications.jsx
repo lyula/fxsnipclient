@@ -12,7 +12,30 @@ function timeAgo(date) {
   return `${Math.floor(diff / 86400)} days ago`;
 }
 
-export default function Notifications() {
+const NotificationItem = ({ message, time }) => {
+  return (
+    <div className="notification-item flex justify-between items-center p-4 border-b">
+      <span className="message">{message}</span>
+      <span className="time text-gray-500 text-sm">{time}</span>
+    </div>
+  );
+};
+
+const Notifications = ({ notifications }) => {
+  return (
+    <div className="notifications-container">
+      {notifications.map((notification, index) => (
+        <NotificationItem
+          key={index}
+          message={notification.message}
+          time={notification.time}
+        />
+      ))}
+    </div>
+  );
+};
+
+export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
@@ -40,13 +63,13 @@ export default function Notifications() {
             {notifications.map((n) => (
               <li
                 key={n._id}
-                className={`px-4 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3 ${
+                className={`px-4 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-3 ${
                   n.read
                     ? "bg-white dark:bg-gray-800"
                     : "bg-blue-50 dark:bg-gray-900"
                 }`}
               >
-                <span className="flex-1 text-gray-900 dark:text-white">
+                <span className="flex items-center gap-2 text-gray-900 dark:text-white flex-1">
                   {n.type === "follow" && n.from ? (
                     <>
                       <span
@@ -63,18 +86,13 @@ export default function Notifications() {
                       </span>
                       {n.from.verified && <VerifiedBadge />}
                       {" followed you "}
-                      <span className="text-xs text-gray-400">
-                        {timeAgo(n.createdAt)}
-                      </span>
                     </>
                   ) : (
-                    <>
-                      {n.text}{" "}
-                      <span className="text-xs text-gray-400">
-                        {timeAgo(n.createdAt)}
-                      </span>
-                    </>
+                    <>{n.text}</>
                   )}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {timeAgo(n.createdAt)}
                 </span>
               </li>
             ))}
