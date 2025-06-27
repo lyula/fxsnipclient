@@ -18,25 +18,51 @@ export default function UserProfile() {
   const [activeTab, setActiveTab] = useState("posts");
   const [currentUser, setCurrentUser] = useState(null);
 
-  useEffect(() => {
-    async function fetchProfile() {
-      setLoading(true);
-      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-      const res = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
+ useEffect(() => {
+  async function fetchProfileAndCounts() {
+    setLoading(true);
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    
+    try {
+      // Fetch profile data
+      const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      if (res.ok) {
-        const profileData = await res.json();
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
         setProfile(profileData);
       } else {
         setProfile(null);
       }
+
+      // Fetch followers
+      const followersRes = await fetch(`${API_BASE}/user/followers/${encodeURIComponent(username)}`);
+      if (followersRes.ok) {
+        const followersData = await followersRes.json();
+        setFollowers(followersData.followers || []);
+      }
+
+      // Fetch following
+      const followingRes = await fetch(`${API_BASE}/user/following/${encodeURIComponent(username)}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (followingRes.ok) {
+        const followingData = await followingRes.json();
+        setFollowing(followingData.following || []);
+      }
+    } catch (error) {
+      console.error("Error fetching profile or counts:", error);
+    } finally {
       setLoading(false);
     }
-    fetchProfile();
-  }, [username]);
+  }
+
+  fetchProfileAndCounts();
+}, [username]);
 
   useEffect(() => {
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -108,46 +134,35 @@ export default function UserProfile() {
       {/* Main Content */}
       <div className="max-w-2xl mx-auto p-4 overflow-hidden">
         {/* Profile Header */}
-        <div
-          className="flex items-center gap-4 mb-4"
-          style={{
-            marginTop: "32px", // Add margin to move the profile header down
-          }}
-        >
-          {/* Back Button as Arrow Icon */}
-          <div className="hidden sm:block cursor-pointer" onClick={() => navigate(-1)}>
-            <FaArrowLeft className="text-xl text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition" />
-          </div>
-          <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-            <FaUser className="text-3xl text-gray-400 dark:text-gray-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col items-center gap-2 mb-4" style={{ marginTop: "32px" }}>
+          {/* First Row: Back Button, User Icon, and Username */}
+          <div className="flex items-center gap-4 justify-start" style={{ marginRight: "calc(50% - 150px)" }}>
+            {/* Back Button */}
+            <div className="cursor-pointer" onClick={() => navigate(-1)}>
+              <FaArrowLeft className="text-xl text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition" />
+            </div>
+            {/* User Icon */}
+            <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+              <FaUser className="text-3xl text-gray-400 dark:text-gray-500" />
+            </div>
+            {/* Username */}
+            <div className="flex items-center gap-2">
               <span className="font-bold text-xl text-gray-900 dark:text-white break-all">
                 {profile.username}
                 {profile.verified && <VerifiedBadge />}
               </span>
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400 break-all">
-              {profile.country || ""}
+          </div>
+
+          {/* Second Row: Followers and Following Counts */}
+          <div className="flex gap-8" style={{ marginRight: "calc(50% - 220px)" }}>
+            <div className="flex flex-col items-center">
+              <span className="font-bold text-lg text-gray-900 dark:text-white">{followers.length}</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Followers</span>
             </div>
-            <div className="flex gap-6 mt-2">
-              <div className="flex flex-col items-center">
-                <span className="font-bold text-lg text-[#1E3A8A] dark:text-[#a99d6b] underline">
-                  {formatCount(profile.followers ?? 0)}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Followers
-                </span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="font-bold text-lg text-[#1E3A8A] dark:text-[#a99d6b]">
-                  {formatCount(profile.following ?? 0)}
-                </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Following
-                </span>
-              </div>
+            <div className="flex flex-col items-center">
+              <span className="font-bold text-lg text-gray-900 dark:text-white">{following.length}</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Following</span>
             </div>
           </div>
         </div>
