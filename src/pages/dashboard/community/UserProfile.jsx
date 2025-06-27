@@ -205,13 +205,14 @@ export default function UserProfile() {
                       maxHeight: "calc(100vh - 200px)",
                       overflowY: "auto",
                       scrollbarWidth: "none",
+                      WebkitOverflowScrolling: "touch", // Enables smooth scrolling on mobile
                       backgroundColor: "inherit",
                     }}
                   >
                     <style>
                       {`
                         div::-webkit-scrollbar {
-                          display: none;
+                          display: none; // Hides scrollbar for better mobile experience
                         }
                       `}
                     </style>
@@ -244,13 +245,14 @@ export default function UserProfile() {
                       maxHeight: "calc(100vh - 200px)",
                       overflowY: "auto",
                       scrollbarWidth: "none",
+                      WebkitOverflowScrolling: "touch", // Enables smooth scrolling on mobile
                       backgroundColor: "inherit",
                     }}
                   >
                     <style>
                       {`
                         div::-webkit-scrollbar {
-                          display: none;
+                          display: none; // Hides scrollbar for better mobile experience
                         }
                       `}
                     </style>
