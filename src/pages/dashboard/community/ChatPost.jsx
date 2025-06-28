@@ -3,6 +3,7 @@ import ChatReply from "./ChatReply";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
+import { addCommentToPost, likePost } from "../../../utils/api"; // adjust path if needed
 
 export default function ChatPost({ post, onReply, onComment, onLike, onView, currentUserId }) {
   const [showComments, setShowComments] = useState(false);
@@ -26,18 +27,20 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
     if (!comment.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/posts/${post._id}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: comment }),
-      });
-      if (res.ok) {
+      const res = await addCommentToPost(post._id, comment);
+      if (res && !res.error) {
         setComment("");
         if (onComment) onComment(); // Optionally refresh comments
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLike = async () => {
+    // Optimistically update UI if desired
+    await likePost(post._id);
+    if (onLike) onLike(post._id); // Optionally refresh post data
   };
 
   return (
@@ -81,11 +84,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
       <div className="flex items-center gap-6 text-base mb-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-900 shadow-sm">
         {/* Like */}
         <button
-          onClick={() => {
-            if (!liked) {
-              onLike(post._id); // Use _id, not id
-            }
-          }}
+          onClick={handleLike}
           className={`flex items-center gap-1 transition-colors ${
             liked ? "text-red-500" : "text-gray-500 hover:text-red-500"
           }`}

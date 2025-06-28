@@ -89,6 +89,7 @@ export async function searchUsers(query) {
   return res.json();
 }
 
+// Use the same API_BASE for all post/comment endpoints
 const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
 
 // Send a message
@@ -148,6 +149,31 @@ export async function markNotificationsRead() {
   const res = await fetch(`${API_BASE}/user/notifications/mark-read`, {
     method: "POST",
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  return res.json();
+}
+
+// Add a comment to a post
+export async function addCommentToPost(postId, content) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ content }), // <-- use content, not text
+  });
+  return res.json();
+}
+
+// Like a post
+export async function likePost(postId) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
   });
   return res.json();
 }

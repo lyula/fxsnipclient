@@ -84,10 +84,9 @@ export default function Community({ user }) {
         body: JSON.stringify({ content: commentContent }),
       });
       if (res.ok) {
-        if (activeTab === "forYou") {
-          const refreshed = await fetch(`${API_BASE}/posts`);
-          if (refreshed.ok) setPostsForYou(await refreshed.json());
-        }
+        // Always refresh posts after commenting
+        const refreshed = await fetch(`${API_BASE}/posts`);
+        if (refreshed.ok) setPostsForYou(await refreshed.json());
       } else {
         console.error("Failed to add comment");
       }
