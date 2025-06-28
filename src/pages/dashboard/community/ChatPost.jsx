@@ -8,6 +8,8 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
   const [showComments, setShowComments] = useState(false);
   const [activeReply, setActiveReply] = useState(null);
   const [expandedReplies, setExpandedReplies] = useState(null); // Track which comment's replies are expanded
+  const [comment, setComment] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     onView(post.id);
@@ -18,6 +20,25 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
   const liked = Array.isArray(post.likes) && currentUserId
     ? post.likes.map(String).includes(String(currentUserId))
     : false;
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!comment.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/posts/${post._id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: comment }),
+      });
+      if (res.ok) {
+        setComment("");
+        if (onComment) onComment(); // Optionally refresh comments
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className={`rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all`}>
@@ -222,12 +243,22 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
           </div>
           {/* Add new comment */}
           <div className="mt-2">
-            <ChatReply
-              onSubmit={comment => {
-                onComment(post._id, comment);
-              }}
-              placeholder="Add a comment..."
-            />
+            <form onSubmit={handleCommentSubmit} className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                placeholder="Write a comment..."
+                className="flex-1 border rounded px-2 py-1"
+              />
+              <button
+                type="submit"
+                disabled={loading || !comment.trim()}
+                className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
+              >
+                {loading ? "Sending..." : "Send"}
+              </button>
+            </form>
           </div>
         </div>
       )}
