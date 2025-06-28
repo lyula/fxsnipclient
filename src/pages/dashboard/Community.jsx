@@ -199,11 +199,7 @@ export default function Community({ user }) {
         />
       )}
       <div className="flex-1 overflow-y-auto px-2 py-4 bg-gray-50 dark:bg-gray-800 scrollbar-hide">
-        {activeTab === "following" && (
-          <div className="mb-4">
-            <UserSearch currentUser={user} />
-          </div>
-        )}
+        {activeTab === "following" && <UserSearch currentUser={user} />}
         <ChatList
           posts={
             activeTab === "forYou"

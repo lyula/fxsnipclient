@@ -106,15 +106,17 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
       {showComments && (
         <div className="mt-4 relative">
           {/* Close button */}
-          <button
-            className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white dark:bg-gray-800 rounded-full p-2 shadow text-gray-700 dark:text-white text-2xl sm:text-lg font-bold z-20 border border-gray-200 dark:border-gray-700"
-            onClick={() => setShowComments(false)}
-            aria-label="Close comments"
-            type="button"
-          >
-            ×
-          </button>
-          <div className="font-semibold text-sm text-blue-700 mb-2 pr-6">Comments</div>
+          <div className="flex justify-between items-center mb-2">
+            <div className="font-semibold text-sm text-blue-700">Comments</div>
+            <button
+              className="text-gray-500 hover:text-red-500 text-xl font-bold px-2 py-0.5 rounded transition"
+              onClick={() => setShowComments(false)}
+              aria-label="Close comments"
+              type="button"
+            >
+              ×
+            </button>
+          </div>
           <div className="max-h-80 overflow-y-auto pr-2">
             {post.comments && post.comments.length > 0 ? (
               post.comments.slice(0, 5).map((comment, idx) => {
@@ -230,31 +232,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
         </div>
       )}
 
-      {/* Modal for showing all comments */}
-      {showComments && (
-        <div
-          className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50"
-          onClick={() => setShowComments(false)}
-        >
-          <div
-            className="relative w-full max-w-full sm:max-w-md mx-2 sm:mx-0 max-h-[90vh]"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Close button and modal content */}
-            <button
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white dark:bg-gray-800 rounded-full p-2 shadow text-gray-700 dark:text-white text-2xl sm:text-lg font-bold z-20 border border-gray-200 dark:border-gray-700"
-              onClick={() => setShowComments(false)}
-              aria-label="Close comments"
-              type="button"
-            >
-              ×
-            </button>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-full relative overflow-y-auto max-h-[90vh]">
-              {/* ...modal content... */}
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }

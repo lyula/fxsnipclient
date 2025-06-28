@@ -5,16 +5,25 @@ export default function ChatList({ posts, onReply, onComment, onLike, onView, po
   return (
     <div className="space-y-6">
       {posts.map(post => (
-        <div ref={el => postRefs && postRefs.current && (postRefs.current[post._id] = el)} key={post._id || post._id}>
-          <ChatPost
-            key={post._id}
-            post={post}
-            onReply={onReply}
-            onComment={onComment}
-            onLike={onLike}
-            onView={onView}
-            currentUserId={currentUserId}
-          />
+        <div
+          ref={el => postRefs && postRefs.current && (postRefs.current[post._id] = el)}
+          key={post._id}
+        >
+          <div className="w-full flex flex-col gap-2 p-2 rounded bg-white dark:bg-gray-900 shadow mb-2">
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex-1">
+                <ChatPost
+                  key={post._id}
+                  post={post}
+                  onReply={onReply}
+                  onComment={onComment}
+                  onLike={onLike}
+                  onView={onView}
+                  currentUserId={currentUserId}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       ))}
     </div>
