@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from "react";
-import ChatReply from "./ChatReply";
+import React, { useState, useEffect, useRef } from "react";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
-import { addCommentToPost, likePost } from "../../../utils/api"; // adjust path if needed
+import { addCommentToPost, likePost } from "../../../utils/api"; // Adjust path if needed
+import { formatPostDate } from '../../../utils/formatDate'; // Adjust path if needed
 
-function ReplyInput({ onSubmit }) {
+function ReplyInput({ onSubmit, loading, postId, commentId }) {
   const [reply, setReply] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!reply.trim()) return;
-    setLoading(true);
-    await onSubmit(reply);
+    await onSubmit(postId, reply, commentId);
     setReply("");
-    setLoading(false);
   };
 
   return (
@@ -26,6 +23,7 @@ function ReplyInput({ onSubmit }) {
         onChange={e => setReply(e.target.value)}
         placeholder="Write a reply..."
         className="flex-1 border rounded px-2 py-1"
+        disabled={loading}
       />
       <button
         type="submit"
@@ -38,43 +36,212 @@ function ReplyInput({ onSubmit }) {
   );
 }
 
-export default function ChatPost({ post, onReply, onComment, onLike, onView, currentUserId }) {
+export default function ChatPost({
+  post,
+  onReply,
+  onComment,
+  onLike,
+  onView,
+  currentUserId,
+  currentUsername,
+  currentUserVerified
+}) {
   const [showComments, setShowComments] = useState(false);
   const [activeReply, setActiveReply] = useState(null);
-  const [expandedReplies, setExpandedReplies] = useState(null); // Track which comment's replies are expanded
+  const [expandedReplies, setExpandedReplies] = useState(null);
   const [comment, setComment] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingComment, setLoadingComment] = useState(false);
+  const [loadingReply, setLoadingReply] = useState({});
+  const [localPost, setLocalPost] = useState(post); // Local state for optimistic updates
+  const [error, setError] = useState(null);
+  const commentsRef = useRef(null);
 
   useEffect(() => {
-    onView(post.id);
-    // Only count view once per mount
+    setLocalPost(post); // Sync with prop if post changes
+  }, [post]);
+
+  useEffect(() => {
+    try {
+      onView(localPost.id);
+    } catch (err) {
+      console.error("Error in onView:", err);
+      setError("Failed to record view");
+    }
     // eslint-disable-next-line
   }, []);
 
-  const liked = Array.isArray(post.likes) && currentUserId
-    ? post.likes.map(String).includes(String(currentUserId))
+  const liked = Array.isArray(localPost.likes) && currentUserId
+    ? localPost.likes.map(String).includes(String(currentUserId))
     : false;
 
+  // Optimistic comment submit
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
-    setLoading(true);
+    setLoadingComment(true);
+    setError(null);
+
+    // Create a temporary comment object with user data
+    const tempComment = {
+      _id: `temp-comment-${Date.now()}`,
+      content: comment,
+      user: currentUserId,
+      author: { username: currentUsername, verified: currentUserVerified },
+      createdAt: new Date().toISOString(),
+      replies: [],
+    };
+
+    // Optimistically update local state
+    setLocalPost(prev => ({
+      ...prev,
+      comments: [tempComment, ...(prev.comments || [])],
+    }));
+
     try {
-      const res = await addCommentToPost(post._id, comment);
-      if (res && !res.error) {
-        setComment("");
-        if (onComment) onComment(); // Optionally refresh comments
+      const res = await addCommentToPost(localPost._id, comment);
+      // Even if backend returns 500, assume comment is saved (since it appears after refresh)
+      if (res && res.comment && !res.error) {
+        // Update with actual comment from backend if available
+        setLocalPost(prev => ({
+          ...prev,
+          comments: [res.comment, ...prev.comments.filter(c => !c._id.startsWith('temp-comment'))],
+        }));
+      } else {
+        // If backend fails (e.g., 500), try to fetch updated post via onComment
+        if (onComment) {
+          const updatedPost = await onComment();
+          if (updatedPost) {
+            setLocalPost(updatedPost); // Update with backend data
+          }
+        }
+        // Keep optimistic comment in UI since backend saves it
+      }
+    } catch (e) {
+      console.error("Error adding comment:", e);
+      // Only set error for critical failures (e.g., network errors), not 500
+      if (e.message.includes("Network Error")) {
+        setError("Network error: Failed to post comment");
+      }
+      // Try to fetch updated post to get actual comment
+      if (onComment) {
+        try {
+          const updatedPost = await onComment();
+          if (updatedPost) {
+            setLocalPost(updatedPost); // Update with backend data
+          }
+        } catch (fetchError) {
+          console.error("Error fetching updated post:", fetchError);
+          // Keep optimistic comment since backend likely saved it
+        }
       }
     } finally {
-      setLoading(false);
+      setLoadingComment(false);
+      setComment("");
+      // Scroll to the new comment
+      if (commentsRef.current) {
+        const newComment = commentsRef.current.querySelector(`[data-id="${tempComment._id}"]`);
+        if (newComment) {
+          newComment.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }
     }
   };
 
-  const handleLike = async () => {
-    // Optimistically update UI if desired
-    await likePost(post._id);
-    if (onLike) onLike(post._id); // Optionally refresh post data
+  // Optimistic reply submit
+  const handleReply = async (postId, replyText, commentId) => {
+    setLoadingReply(prev => ({ ...prev, [commentId]: true }));
+    setError(null);
+
+    // Create a temporary reply object with user data
+    const tempReply = {
+      _id: `temp-reply-${Date.now()}`,
+      content: replyText,
+      user: currentUserId,
+      author: { username: currentUsername, verified: currentUserVerified }, // <-- CORRECT
+      createdAt: new Date().toISOString(),
+    };
+
+    // Optimistically update local state
+    setLocalPost(prev => ({
+      ...prev,
+      comments: prev.comments.map(c =>
+        c._id === commentId
+          ? { ...c, replies: [tempReply, ...(c.replies || [])] }
+          : c
+      ),
+    }));
+
+    try {
+      if (onReply) {
+        const updatedPost = await onReply(postId, replyText, commentId); // Assume onReply returns updated post
+        if (updatedPost) {
+          setLocalPost(updatedPost); // Update with backend data
+        }
+      }
+    } catch (e) {
+      console.error("Error adding reply:", e);
+      if (e.message.includes("Network Error")) {
+        setError("Network error: Failed to post reply");
+      }
+      // Keep optimistic reply in UI since backend likely saves it
+      if (onComment) {
+        try {
+          const updatedPost = await onComment();
+          if (updatedPost) {
+            setLocalPost(updatedPost); // Update with backend data
+          }
+        } catch (fetchError) {
+          console.error("Error fetching updated post:", fetchError);
+        }
+      }
+    } finally {
+      setLoadingReply(prev => ({ ...prev, [commentId]: false }));
+    }
   };
+
+  // Optimistic like handler
+  const handleLike = async () => {
+    setError(null);
+    // Optimistically update local state
+    setLocalPost(prev => {
+      const alreadyLiked = Array.isArray(prev.likes) && currentUserId
+        ? prev.likes.map(String).includes(String(currentUserId))
+        : false;
+      let newLikes;
+      if (alreadyLiked) {
+        newLikes = prev.likes.filter(like => String(like) !== String(currentUserId));
+      } else {
+        newLikes = [...(prev.likes || []), currentUserId];
+      }
+      return { ...prev, likes: newLikes };
+    });
+
+    // Send to backend
+    try {
+      await likePost(localPost._id);
+      if (onLike) onLike(localPost._id);
+    } catch (e) {
+      console.error("Error liking post:", e);
+      if (e.message.includes("Network Error")) {
+        setError("Network error: Failed to like post");
+      }
+      // Revert optimistic update only for critical errors
+      if (e.message.includes("Network Error")) {
+        setLocalPost(prev => ({
+          ...prev,
+          likes: prev.likes.filter(like => String(like) !== String(currentUserId)),
+        }));
+      }
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="text-red-500 p-6">
+        {error}. Please try again later.
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all`}>
@@ -93,7 +260,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
             <VerifiedBadge />
           )}
         </Link>
-        <span className="ml-3 text-xs text-gray-400">{post.timestamp}</span>
+        <span className="ml-3 text-xs text-gray-400">{formatPostDate(post.createdAt)}</span>
         {post.isAd && <span className="ml-3 px-2 py-0.5 bg-yellow-300 text-xs rounded">Ad</span>}
       </div>
 
@@ -125,7 +292,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
         >
           {liked ? <FaHeart className="text-red-500" /> : <FaRegHeart />}
           <span className={liked ? "text-red-500" : ""}>
-            {Array.isArray(post.likes) ? post.likes.length : post.likes || 0}
+            {Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0}
           </span>
         </button>
 
@@ -137,8 +304,8 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
         >
           <FaRegCommentDots />
           <span>
-            {Array.isArray(post.comments)
-              ? post.comments.reduce(
+            {Array.isArray(localPost.comments)
+              ? localPost.comments.reduce(
                   (total, comment) =>
                     total +
                     1 +
@@ -157,7 +324,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
 
       {/* Comments Section */}
       {showComments && (
-        <div className="mt-4 relative">
+        <div className="mt-4 relative" ref={commentsRef}>
           {/* Close button */}
           <div className="flex justify-between items-center mb-2">
             <div className="font-semibold text-sm text-blue-700">Comments</div>
@@ -170,9 +337,9 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
               ×
             </button>
           </div>
-          <div className="max-h-80 overflow-y-auto pr-2">
-            {post.comments && post.comments.length > 0 ? (
-              post.comments.slice(0, 5).map((comment, idx) => {
+          <div className="max-h-80 overflow-y-auto pr-2 hide-scrollbar">
+            {localPost.comments && localPost.comments.length > 0 ? (
+              localPost.comments.slice(0, 5).map((comment, idx) => {
                 const replies = comment.replies || [];
                 const isExpanded = expandedReplies === (comment._id || idx);
                 const repliesToShow = isExpanded ? replies.slice(0, 20) : replies.slice(0, 1);
@@ -181,6 +348,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
                   <div
                     key={comment._id || comment.id || idx}
                     className="mb-3 pl-2 border-l-2 border-blue-100 dark:border-gray-700"
+                    data-id={comment._id}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-gray-800 dark:text-white flex items-center gap-1">
@@ -197,35 +365,41 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
                             comment.verified === "grey") && <VerifiedBadge />}
                         </Link>
                       </span>
-                      <span className="text-gray-900 dark:text-gray-100">{comment.text || comment.content}</span>
-                      <span className="text-xs text-gray-400">{comment.timestamp}</span>
+                      <span className="text-xs text-gray-400">{formatPostDate(comment.createdAt || comment.timestamp)}</span>
+                    </div>
+                    <div className="text-gray-900 dark:text-gray-100 break-words w-full">
+                      {comment.text || comment.content}
                     </div>
                     {/* Replies to this comment */}
                     {repliesToShow.length > 0 && (
-                      <div className="ml-4 mt-1">
+                      <div className="mt-1">
                         {repliesToShow.map((reply, ridx) => (
-                          <div key={ridx} className="flex items-center gap-2 text-sm mb-1">
-                            <span className="font-semibold text-gray-800 dark:text-white flex items-center gap-1">
-                              {/* Replying to label */}
-                              <span className="text-xs text-blue-500 mr-1">
-                                Replying to&nbsp;
+                          <div key={ridx} className="mb-1 w-full">
+                            <div className="flex flex-col w-full">
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-blue-500 mr-1">
+                                  Replied to 
+                                  <Link
+                                    to={`/dashboard/community/user/${encodeURIComponent(comment.author?.username || comment.user)}`}
+                                    className="hover:underline text-blue-600"
+                                  >
+                                    {comment.author?.username || comment.user}
+                                  </Link>
+                                </span>
                                 <Link
-                                  to={`/dashboard/community/user/${encodeURIComponent(comment.author?.username || comment.user)}`}
+                                  to={`/dashboard/community/user/${encodeURIComponent(reply.author?.username || reply.user)}`}
                                   className="hover:underline text-blue-600"
                                 >
-                                  {comment.author?.username || comment.user}
+                                  {reply.author?.username || reply.user}
+                                  {reply.author?.verified && <VerifiedBadge />}
                                 </Link>
-                              </span>
-                              <Link
-                                to={`/dashboard/community/user/${encodeURIComponent(reply.author?.username || reply.user)}`}
-                                className="hover:underline text-blue-600"
-                              >
-                                {reply.author?.username || reply.user}
-                                {reply.author?.verified && <VerifiedBadge />}
-                              </Link>
-                            </span>
-                            <span className="text-gray-900 dark:text-gray-100">{reply.content}</span>
-                            <span className="text-xs text-gray-400 ml-2">{reply.timestamp}</span>
+                                <span className="font-bold mx-1 text-gray-400">·</span>
+                                <span className="text-xs text-gray-400">{formatPostDate(reply.createdAt || reply.timestamp)}</span>
+                              </div>
+                              <div className="text-gray-900 dark:text-gray-100 break-words w-full">
+                                {reply.content}
+                              </div>
+                            </div>
                           </div>
                         ))}
                         {/* Show more/less replies link */}
@@ -258,10 +432,10 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
                     {activeReply === idx && (
                       <div className="ml-4 mt-2">
                         <ReplyInput
-                          onSubmit={reply => {
-                            onReply(post._id, reply, comment._id);
-                            setActiveReply(null);
-                          }}
+                          onSubmit={handleReply}
+                          loading={loadingReply[comment._id || idx] || false}
+                          postId={localPost._id}
+                          commentId={comment._id || idx}
                         />
                       </div>
                     )}
@@ -281,21 +455,19 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
                 onChange={e => setComment(e.target.value)}
                 placeholder="Write a comment..."
                 className="flex-1 border rounded px-2 py-1"
+                disabled={loadingComment}
               />
               <button
                 type="submit"
-                disabled={loading || !comment.trim()}
+                disabled={loadingComment || !comment.trim()}
                 className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
               >
-                {loading ? "Sending..." : "Send"}
+                {loadingComment ? "Sending..." : "Send"}
               </button>
             </form>
           </div>
         </div>
       )}
-
-      
     </div>
   );
 }
-

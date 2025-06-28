@@ -1,7 +1,7 @@
 import React from "react";
 import ChatPost from "./ChatPost";
 
-export default function ChatList({ posts, onReply, onComment, onLike, onView, postRefs, currentUserId }) {
+export default function ChatList({ posts, onReply, onComment, onLike, onView, postRefs, currentUserId, currentUsername, currentUserVerified }) {
   return (
     <div className="space-y-6">
       {posts.map(post => (
@@ -20,6 +20,8 @@ export default function ChatList({ posts, onReply, onComment, onLike, onView, po
                   onLike={onLike}
                   onView={onView}
                   currentUserId={currentUserId}
+                  currentUsername={currentUsername}
+                  currentUserVerified={currentUserVerified}
                 />
               </div>
             </div>

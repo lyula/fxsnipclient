@@ -219,7 +219,7 @@ export default function Community({ user }) {
           onClose={() => setShowCreate(false)}
         />
       )}
-      <div className="flex-1 overflow-y-auto px-2 py-4 bg-gray-50 dark:bg-gray-800 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-2 py-4 bg-gray-50 dark:bg-gray-800 hide-scrollbar">
         {activeTab === "following" && <UserSearch currentUser={user} />}
         <ChatList
           posts={
@@ -235,6 +235,8 @@ export default function Community({ user }) {
           onLike={handleLike}
           onView={handleView}
           currentUserId={user?._id}
+          currentUsername={user?.username}
+          currentUserVerified={user?.verified}
         />
       </div>
 
