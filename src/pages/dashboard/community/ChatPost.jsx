@@ -5,6 +5,39 @@ import { Link } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import { addCommentToPost, likePost } from "../../../utils/api"; // adjust path if needed
 
+function ReplyInput({ onSubmit }) {
+  const [reply, setReply] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!reply.trim()) return;
+    setLoading(true);
+    await onSubmit(reply);
+    setReply("");
+    setLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex gap-2">
+      <input
+        type="text"
+        value={reply}
+        onChange={e => setReply(e.target.value)}
+        placeholder="Write a reply..."
+        className="flex-1 border rounded px-2 py-1"
+      />
+      <button
+        type="submit"
+        disabled={loading || !reply.trim()}
+        className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
+      >
+        {loading ? "Sending..." : "Send"}
+      </button>
+    </form>
+  );
+}
+
 export default function ChatPost({ post, onReply, onComment, onLike, onView, currentUserId }) {
   const [showComments, setShowComments] = useState(false);
   const [activeReply, setActiveReply] = useState(null);
@@ -224,12 +257,11 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
                     {/* Reply input for this comment */}
                     {activeReply === idx && (
                       <div className="ml-4 mt-2">
-                        <ChatReply
+                        <ReplyInput
                           onSubmit={reply => {
                             onReply(post._id, reply, comment._id);
                             setActiveReply(null);
                           }}
-                          placeholder="Write a reply..."
                         />
                       </div>
                     )}

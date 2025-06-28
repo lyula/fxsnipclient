@@ -61,7 +61,9 @@ export default function Community({ user }) {
         body: JSON.stringify({ content, image }),
       });
       if (res.ok) {
-        setActiveTab("forYou"); // This will trigger the useEffect to refetch posts
+        const newPost = await res.json();
+        setPostsForYou((prevPosts) => [newPost, ...prevPosts]);
+        setActiveTab("forYou");
         setShowCreate(false);
       } else {
         console.error("Failed to create post");
@@ -84,9 +86,16 @@ export default function Community({ user }) {
         body: JSON.stringify({ content: commentContent }),
       });
       if (res.ok) {
-        // Always refresh posts after commenting
-        const refreshed = await fetch(`${API_BASE}/posts`);
-        if (refreshed.ok) setPostsForYou(await refreshed.json());
+        const data = await res.json();
+        // Find the new comment (usually the last in the array)
+        const newComment = data.comments[data.comments.length - 1];
+        setPostsForYou((prevPosts) =>
+          prevPosts.map((post) =>
+            post._id === postId
+              ? { ...post, comments: [...post.comments, newComment] }
+              : post
+          )
+        );
       } else {
         console.error("Failed to add comment");
       }
@@ -108,10 +117,23 @@ export default function Community({ user }) {
         body: JSON.stringify({ content: replyContent }),
       });
       if (res.ok) {
-        if (activeTab === "forYou") {
-          const refreshed = await fetch(`${API_BASE}/posts`);
-          if (refreshed.ok) setPostsForYou(await refreshed.json());
-        }
+        const data = await res.json();
+        // Find the updated comment with new replies
+        const updatedComment = data.comments.find((c) => c._id === commentId);
+        setPostsForYou((prevPosts) =>
+          prevPosts.map((post) =>
+            post._id === postId
+              ? {
+                  ...post,
+                  comments: post.comments.map((comment) =>
+                    comment._id === commentId
+                      ? { ...comment, replies: updatedComment.replies }
+                      : comment
+                  ),
+                }
+              : post
+          )
+        );
       } else {
         console.error("Failed to add reply");
       }
