@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { FaPlus } from "react-icons/fa";
 import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
 import CreatePostBox from "./community/CreatePostBox";
@@ -219,6 +220,26 @@ export default function Community({ user }) {
           currentUserId={user?._id}
         />
       </div>
+
+      {/* Floating Create Post Button */}
+      <button
+        className="fixed bottom-20 sm:bottom-8 right-8 md:right-24 z-50 flex items-center gap-2 px-5 py-3 bg-[#a99d6b] text-white rounded-full font-semibold shadow-lg hover:bg-[#c2b77a] transition"
+        onClick={() => setShowCreate(true)}
+      >
+        <FaPlus className="text-lg" />
+        <span className="hidden sm:inline">Create Post</span>
+      </button>
+
+      {/* Post Modal */}
+      {showCreate && (
+        <CreatePostBox
+          onPost={(content, image, video) => {
+            handleNewPost(content, image, video);
+            setShowCreate(false);
+          }}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
     </div>
   );
 }

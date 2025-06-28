@@ -25,12 +25,6 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost })
           Following
         </button>
       </div>
-      <button
-        className="flex items-center gap-2 px-4 py-1 bg-[#a99d6b] text-white rounded-full font-semibold shadow hover:bg-[#c2b77a] transition"
-        onClick={onCreatePost}
-      >
-        <FaPlus /> Create Post
-      </button>
     </div>
   );
 }

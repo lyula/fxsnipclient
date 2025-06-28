@@ -107,7 +107,7 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
         <div className="mt-4 relative">
           {/* Close button */}
           <button
-            className="absolute top-0 right-0 text-gray-400 hover:text-red-500 text-lg font-bold px-2 py-1 z-10"
+            className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white dark:bg-gray-800 rounded-full p-2 shadow text-gray-700 dark:text-white text-2xl sm:text-lg font-bold z-20 border border-gray-200 dark:border-gray-700"
             onClick={() => setShowComments(false)}
             aria-label="Close comments"
             type="button"
@@ -226,6 +226,32 @@ export default function ChatPost({ post, onReply, onComment, onLike, onView, cur
               }}
               placeholder="Add a comment..."
             />
+          </div>
+        </div>
+      )}
+
+      {/* Modal for showing all comments */}
+      {showComments && (
+        <div
+          className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowComments(false)}
+        >
+          <div
+            className="relative w-full max-w-full sm:max-w-md mx-2 sm:mx-0 max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close button and modal content */}
+            <button
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-white dark:bg-gray-800 rounded-full p-2 shadow text-gray-700 dark:text-white text-2xl sm:text-lg font-bold z-20 border border-gray-200 dark:border-gray-700"
+              onClick={() => setShowComments(false)}
+              aria-label="Close comments"
+              type="button"
+            >
+              ×
+            </button>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-full relative overflow-y-auto max-h-[90vh]">
+              {/* ...modal content... */}
+            </div>
           </div>
         </div>
       )}
