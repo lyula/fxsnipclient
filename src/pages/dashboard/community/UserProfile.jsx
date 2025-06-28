@@ -327,7 +327,7 @@ export default function UserProfile() {
                           style={{ width: "75%", maxWidth: 400, textDecoration: "none" }}
                         >
                           <div
-                            className="w-full rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition cursor-pointer"
+                            className="w-full rounded-full bg-gray-100 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-gray-900 dark:text-white font-semibold text-lg shadow hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
                             style={{ outline: "none", border: "none" }}
                           >
                             {follower.username}
@@ -353,7 +353,7 @@ export default function UserProfile() {
                           style={{ width: "75%", maxWidth: 400, textDecoration: "none" }}
                         >
                           <div
-                            className="w-full rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition cursor-pointer"
+                            className="w-full rounded-full bg-gray-100 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-gray-900 dark:text-white font-semibold text-lg shadow hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
                             style={{ outline: "none", border: "none" }}
                           >
                             {user.username}
