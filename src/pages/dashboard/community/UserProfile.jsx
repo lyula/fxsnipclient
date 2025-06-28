@@ -4,6 +4,7 @@ import { FaArrowLeft, FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import Post from "../../../components/common/Post";
+import { useAuth } from "../../../context/auth";
 
 export default function UserProfile() {
   const location = useLocation();
@@ -16,9 +17,11 @@ export default function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState(location.state?.defaultTab || "posts");
-  const [currentUser, setCurrentUser] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [buttonLoading, setButtonLoading] = useState(true); // Managed by both data sources
+  const [buttonLoading, setButtonLoading] = useState(true);
+
+  // Use Auth context for current user
+  const { user: currentUser } = useAuth();
 
   // Fetch profile, followers, and following
   useEffect(() => {
@@ -54,11 +57,11 @@ export default function UserProfile() {
         console.error("Error fetching profile or counts:", error);
       } finally {
         setLoading(false);
-        if (profile && currentUser) setButtonLoading(false); // Only clear if both are ready
+        if (profile && currentUser) setButtonLoading(false);
       }
     }
     fetchProfileAndCounts();
-  }, [username, currentUser]); // Add currentUser as dependency
+  }, [username, currentUser]);
 
   // Fetch posts for this user
   useEffect(() => {
@@ -78,26 +81,6 @@ export default function UserProfile() {
     fetchPosts();
   }, [profile?._id]);
 
-  // Set current user from localStorage
-  useEffect(() => {
-    const userStr = localStorage.getItem("user");
-    console.log("User data from localStorage:", userStr); // Debug log
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        console.log("Parsed currentUser:", user); // Debug log
-        setCurrentUser(user || null);
-      } catch (e) {
-        console.error("Error parsing user data:", e);
-        setCurrentUser(null);
-      }
-    } else {
-      console.log("No user data in localStorage");
-      setCurrentUser(null);
-    }
-    if (!userStr || !JSON.parse(userStr)?.id) setButtonLoading(false); // Clear loading if no user
-  }, []);
-
   // Check if current user is following the profile user
   useEffect(() => {
     if (!currentUser || !profile) {
@@ -108,7 +91,6 @@ export default function UserProfile() {
       ? profile.followers.map(f => String(f._id || f.id))
       : [];
     const currentUserId = String(currentUser._id || currentUser.id);
-    console.log("Follower IDs:", followerIds, "Current User ID:", currentUserId); // Debug log
     setIsFollowing(followerIds.includes(currentUserId));
   }, [profile, currentUser]);
 
@@ -253,38 +235,39 @@ export default function UserProfile() {
               <span className="text-sm text-gray-500 dark:text-gray-400">Following</span>
             </div>
           </div>
-          <div className="flex gap-4 mt-2 w-full justify-start">
-            {buttonLoading || !currentUser || !profile?._id ? (
-              <div className="h-10 w-40 bg-gray-200 animate-pulse rounded-full"></div>
-            ) : String(currentUserId) === String(profile._id) ? (
-              <div className="h-10"></div>
-            ) : (
-              <>
-                {isFollowing ? (
+          <div className="flex w-full justify-center mt-2">
+            <div className="flex gap-4">
+              {buttonLoading || !currentUser || !profile?._id ? (
+                <div className="h-10 w-40 bg-gray-200 animate-pulse rounded-full"></div>
+              ) : String(currentUserId) === String(profile._id) ? (
+                <div className="h-10"></div>
+              ) : (
+                <>
+                  {isFollowing ? (
+                    <button
+                      className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition"
+                      disabled={followLoading}
+                      onClick={handleUnfollow}
+                    >
+                      {followLoading ? "..." : "Following"}
+                    </button>
+                  ) : (
+                    <button
+                      className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+                      disabled={followLoading}
+                      onClick={handleFollow}
+                    >
+                      {followLoading ? "..." : "Follow"}
+                    </button>
+                  )}
                   <button
-                    className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition"
-                    disabled={followLoading}
-                    onClick={handleUnfollow}
+                    className="px-6 py-1 rounded-full bg-blue-600 text-white font-semibold hover:bg-gray-700 transition"
                   >
-                    {followLoading ? "..." : "Following"}
+                    Message
                   </button>
-                ) : (
-                  <button
-                    className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
-                    disabled={followLoading}
-                    onClick={handleFollow}
-                  >
-                    {followLoading ? "..." : "Follow"}
-                  </button>
-                )}
-                <button
-                  className="px-6 py-2 rounded-full bg-gray-600 text-white font-semibold hover:bg-gray-700 transition"
-                >
-                  <FaEnvelope className="inline mr-2" />
-                  Message
-                </button>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex flex-col items-center mt-4">
