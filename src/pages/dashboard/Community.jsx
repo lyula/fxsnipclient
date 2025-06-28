@@ -47,7 +47,7 @@ export default function Community({ user }) {
     }
   }, [location.search, postsForYou]);
 
-  // Handlers for posts
+  // Create a new post
   const handleNewPost = async (content, image) => {
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
     try {
@@ -70,56 +70,118 @@ export default function Community({ user }) {
     }
   };
 
-  const handleReply = (postId, replyContent) => {
-    const updatePosts = (posts) =>
-      posts.map((post) =>
-        post.id === postId
+  // Add a comment to a post
+  const handleComment = async (postId, commentContent) => {
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    try {
+      const res = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: commentContent }),
+      });
+      if (res.ok) {
+        if (activeTab === "forYou") {
+          const refreshed = await fetch(`${API_BASE}/posts`);
+          if (refreshed.ok) setPostsForYou(await refreshed.json());
+        }
+      } else {
+        console.error("Failed to add comment");
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    }
+  };
+
+  // Add a reply to a comment
+  const handleReply = async (postId, replyContent, commentId) => {
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    try {
+      const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: replyContent }),
+      });
+      if (res.ok) {
+        if (activeTab === "forYou") {
+          const refreshed = await fetch(`${API_BASE}/posts`);
+          if (refreshed.ok) setPostsForYou(await refreshed.json());
+        }
+      } else {
+        console.error("Failed to add reply");
+      }
+    } catch (error) {
+      console.error("Error adding reply:", error);
+    }
+  };
+
+  // Like a post
+  const handleLike = async (postId) => {
+    // Optimistically update the UI
+    setPostsForYou((prevPosts) =>
+      prevPosts.map((post) =>
+        post._id === postId
           ? {
               ...post,
-              replies: [
-                ...post.replies,
-                { user: user?.username || "You", content: replyContent, timestamp: "Now" },
-              ],
+              likes: Array.isArray(post.likes)
+                ? [...post.likes, user._id] // Add current user's ID
+                : [user._id],
             }
           : post
+      )
+    );
+
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    try {
+      const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (!res.ok) {
+        // If backend fails, revert the optimistic update
+        setPostsForYou((prevPosts) =>
+          prevPosts.map((post) =>
+            post._id === postId
+              ? {
+                  ...post,
+                  likes: Array.isArray(post.likes)
+                    ? post.likes.filter((id) => id !== user._id)
+                    : [],
+                }
+              : post
+          )
+        );
+        console.error("Failed to like post");
+      }
+      // Optionally, you can refetch posts here if you want to ensure full sync
+    } catch (error) {
+      // Revert optimistic update on error
+      setPostsForYou((prevPosts) =>
+        prevPosts.map((post) =>
+          post._id === postId
+            ? {
+                ...post,
+                likes: Array.isArray(post.likes)
+                  ? post.likes.filter((id) => id !== user._id)
+                  : [],
+              }
+            : post
+        )
       );
-    if (activeTab === "forYou") setPostsForYou(updatePosts(postsForYou));
-    else setPostsFollowing(updatePosts(postsFollowing));
+      console.error("Error liking post:", error);
+    }
   };
 
-  const handleComment = (postId, commentContent) => {
-    const updatePosts = (posts) =>
-      posts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              comments: [
-                ...post.comments,
-                { user: user?.username || "You", content: commentContent, timestamp: "Now" },
-              ],
-            }
-          : post
-      );
-    if (activeTab === "forYou") setPostsForYou(updatePosts(postsForYou));
-    else setPostsFollowing(updatePosts(postsFollowing));
-  };
-
-  const handleLike = (postId) => {
-    const updatePosts = (posts) =>
-      posts.map((post) =>
-        post.id === postId ? { ...post, likes: (post.likes || 0) + 1 } : post
-      );
-    if (activeTab === "forYou") setPostsForYou(updatePosts(postsForYou));
-    else setPostsFollowing(updatePosts(postsFollowing));
-  };
-
+  // View a post (local state only)
   const handleView = (postId) => {
-    const updatePosts = (posts) =>
-      posts.map((post) =>
-        post.id === postId ? { ...post, views: (post.views || 0) + 1 } : post
-      );
-    if (activeTab === "forYou") setPostsForYou(updatePosts(postsForYou));
-    else setPostsFollowing(updatePosts(postsFollowing));
+    // Optionally implement view tracking logic here
   };
 
   return (
@@ -142,12 +204,19 @@ export default function Community({ user }) {
           </div>
         )}
         <ChatList
-          posts={activeTab === "forYou" ? postsForYou : postsFollowing}
+          posts={
+            activeTab === "forYou"
+              ? [...postsForYou]
+                  .filter((post) => post.createdAt)
+                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+              : postsFollowing
+          }
           postRefs={postRefs}
           onReply={handleReply}
           onComment={handleComment}
           onLike={handleLike}
           onView={handleView}
+          currentUserId={user?._id}
         />
       </div>
     </div>

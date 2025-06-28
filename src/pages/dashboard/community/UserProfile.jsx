@@ -15,16 +15,17 @@ export default function UserProfile() {
   const [following, setFollowing] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("posts");
+  const [activeTab, setActiveTab] = useState(location.state?.defaultTab || "posts");
   const [currentUser, setCurrentUser] = useState(null);
   const [posts, setPosts] = useState([]);
 
+  // Fetch profile, followers, and following
   useEffect(() => {
     async function fetchProfileAndCounts() {
       setLoading(true);
       const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
       try {
-        // Fetch profile data
+        // Profile
         const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -37,14 +38,14 @@ export default function UserProfile() {
           setProfile(null);
         }
 
-        // Fetch followers
+        // Followers
         const followersRes = await fetch(`${API_BASE}/user/followers/${encodeURIComponent(username)}`);
         if (followersRes.ok) {
           const followersData = await followersRes.json();
           setFollowers(followersData.followers || []);
         }
 
-        // Fetch following
+        // Following
         const followingRes = await fetch(`${API_BASE}/user/following/${encodeURIComponent(username)}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -63,6 +64,7 @@ export default function UserProfile() {
     fetchProfileAndCounts();
   }, [username]);
 
+  // Fetch posts for this user
   useEffect(() => {
     async function fetchPosts() {
       if (!profile?._id) return;
@@ -80,6 +82,31 @@ export default function UserProfile() {
     fetchPosts();
   }, [profile?._id]);
 
+  // Set current user from localStorage
+  useEffect(() => {
+    const userStr = localStorage.getItem("user");
+    const token = localStorage.getItem("token");
+    if (!userStr || !token) {
+      setCurrentUser(null);
+      return;
+    }
+    try {
+      const user = JSON.parse(userStr);
+      setCurrentUser(user);
+
+      // Check if current user is following this profile
+      if (user && profile && Array.isArray(profile.followers)) {
+        const isUserFollowing = profile.followers.map(String).includes(String(user.id));
+        setIsFollowing(isUserFollowing);
+      } else {
+        setIsFollowing(false);
+      }
+    } catch (e) {
+      setCurrentUser(null);
+    }
+  }, [profile, navigate]);
+
+  // Like a post
   const handleLike = async (postId) => {
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
     try {
@@ -99,6 +126,7 @@ export default function UserProfile() {
     }
   };
 
+  // Comment on a post
   const handleComment = async (postId, content) => {
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
     try {
@@ -119,6 +147,60 @@ export default function UserProfile() {
     } catch (error) {
       console.error("Error adding comment:", error);
     }
+  };
+
+  // Follow user
+  const handleFollow = async () => {
+    setFollowLoading(true);
+    try {
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      await fetch(`${API_BASE}/user/follow/${profile._id}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      // Re-fetch profile to update followers
+      const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setProfile(profileData);
+      }
+    } catch (e) {
+      console.error("Error following user:", e);
+    }
+    setFollowLoading(false);
+  };
+
+  // Unfollow user
+  const handleUnfollow = async () => {
+    setFollowLoading(true);
+    try {
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      await fetch(`${API_BASE}/user/unfollow/${profile._id}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      // Re-fetch profile to update followers
+      const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        setProfile(profileData);
+      }
+    } catch (e) {
+      console.error("Error unfollowing user:", e);
+    }
+    setFollowLoading(false);
   };
 
   const tabs = ["posts", "followers", "following"];
@@ -165,11 +247,19 @@ export default function UserProfile() {
           </div>
           {/* Second Row: Followers and Following Counts */}
           <div className="flex gap-8" style={{ marginRight: "calc(50% - 220px)" }}>
-            <div className="flex flex-col items-center">
+            <div
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => setActiveTab("followers")}
+              title="View followers"
+            >
               <span className="font-bold text-lg text-gray-900 dark:text-white">{followers.length}</span>
               <span className="text-sm text-gray-500 dark:text-gray-400">Followers</span>
             </div>
-            <div className="flex flex-col items-center">
+            <div
+              className="flex flex-col items-center cursor-pointer"
+              onClick={() => setActiveTab("following")}
+              title="View following"
+            >
               <span className="font-bold text-lg text-gray-900 dark:text-white">{following.length}</span>
               <span className="text-sm text-gray-500 dark:text-gray-400">Following</span>
             </div>
@@ -194,26 +284,35 @@ export default function UserProfile() {
           </div>
           {/* Tab Content */}
           <div className="w-full mt-4">
-            <div
-              className="max-h-[400px] overflow-y-auto hide-scrollbar"
-            >
+            <div className="max-h-[400px] overflow-y-auto hide-scrollbar">
               {activeTab === "posts" && (
-                        <>
-                          {posts.length === 0 ? (
-                            <div className="text-gray-500 dark:text-gray-400 text-center py-8">No posts yet.</div>
-                          ) : (
-                            posts.slice(0, 70).map((post) => (
-                              <Link
-                                key={post._id}
-                                to={`/dashboard/community?postId=${post._id}`}
-                                style={{ display: "block", textDecoration: "none" }}
-                              >
-                                <Post post={post} onLike={handleLike} onComment={handleComment} />
-                              </Link>
-                            ))
-                          )}
-                        </>
-                      )}
+                <>
+                  {posts.length === 0 ? (
+                    <div className="text-gray-500 dark:text-gray-400 text-center py-8">No posts yet.</div>
+                  ) : (
+                    posts
+                      .filter((post) => post.createdAt)
+                      .sort((a, b) => {
+                        const dateA = new Date(a.createdAt);
+                        const dateB = new Date(b.createdAt);
+                        if (isNaN(dateA) || isNaN(dateB)) {
+                          return 0;
+                        }
+                        return dateB - dateA;
+                      })
+                      .slice(0, 70)
+                      .map((post) => (
+                        <Link
+                          key={post._id}
+                          to={`/dashboard/community?postId=${post._id}`}
+                          style={{ display: "block", textDecoration: "none" }}
+                        >
+                          <Post post={post} onLike={handleLike} onComment={handleComment} />
+                        </Link>
+                      ))
+                  )}
+                </>
+              )}
               {activeTab === "followers" && (
                 <>
                   {followers.length === 0 ? (
@@ -221,14 +320,20 @@ export default function UserProfile() {
                   ) : (
                     <div className="flex flex-col gap-4 items-center">
                       {followers.slice(0, 70).map((follower) => (
-                        <button
+                        <Link
                           key={follower._id}
-                          className="w-3/4 md:w-1/2 rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition"
-                          style={{ outline: "none", border: "none" }}
+                          to={`/dashboard/community/user/${encodeURIComponent(follower.username)}`}
+                          state={{ defaultTab: "posts" }}
+                          style={{ width: "75%", maxWidth: 400, textDecoration: "none" }}
                         >
-                          {follower.username}
-                          {follower.verified && <VerifiedBadge />}
-                        </button>
+                          <div
+                            className="w-full rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition cursor-pointer"
+                            style={{ outline: "none", border: "none" }}
+                          >
+                            {follower.username}
+                            {follower.verified && <VerifiedBadge />}
+                          </div>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -241,14 +346,20 @@ export default function UserProfile() {
                   ) : (
                     <div className="flex flex-col gap-4 items-center">
                       {following.slice(0, 70).map((user) => (
-                        <button
+                        <Link
                           key={user._id}
-                          className="w-3/4 md:w-1/2 rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition"
-                          style={{ outline: "none", border: "none" }}
+                          to={`/dashboard/community/user/${encodeURIComponent(user.username)}`}
+                          state={{ defaultTab: "posts" }}
+                          style={{ width: "75%", maxWidth: 400, textDecoration: "none" }}
                         >
-                          {user.username}
-                          {user.verified && <VerifiedBadge />}
-                        </button>
+                          <div
+                            className="w-full rounded-full bg-gray-700 dark:bg-gray-800 px-6 py-3 flex items-center justify-center gap-2 text-white font-semibold text-lg shadow hover:bg-gray-600 dark:hover:bg-gray-700 transition cursor-pointer"
+                            style={{ outline: "none", border: "none" }}
+                          >
+                            {user.username}
+                            {user.verified && <VerifiedBadge />}
+                          </div>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -257,6 +368,35 @@ export default function UserProfile() {
             </div>
           </div>
         </div>
+        {/* Follow/Message Buttons */}
+        {currentUser && profile && String(currentUser.id) !== String(profile._id) && (
+          <div className="flex gap-4 mt-4">
+            {isFollowing ? (
+              <button
+                className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition"
+                disabled={followLoading}
+                onClick={handleUnfollow}
+              >
+                {followLoading ? "..." : "Following"}
+              </button>
+            ) : (
+              <button
+                className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+                disabled={followLoading}
+                onClick={handleFollow}
+              >
+                {followLoading ? "..." : "Follow"}
+              </button>
+            )}
+            <button
+              className="px-6 py-2 rounded-full bg-gray-600 text-white font-semibold hover:bg-gray-700 transition"
+              // Add your message handler here if needed
+            >
+              <FaEnvelope className="inline mr-2" />
+              Message
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
