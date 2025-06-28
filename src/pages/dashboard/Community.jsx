@@ -5,6 +5,7 @@ import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
 import CreatePostBox from "./community/CreatePostBox";
 import UserSearch from "./community/UserSearch";
+import { incrementPostViews } from "../../utils/api";
 
 export default function Community({ user }) {
   const [activeTab, setActiveTab] = useState("forYou");
@@ -202,9 +203,45 @@ export default function Community({ user }) {
   };
 
   // View a post (local state only)
-  const handleView = (postId) => {
-    // Optionally implement view tracking logic here
+  const handleView = async (postId) => {
+    // Use localStorage to track viewed posts
+    const viewedKey = "viewedPosts";
+    let viewedPosts = [];
+    try {
+      viewedPosts = JSON.parse(localStorage.getItem(viewedKey)) || [];
+    } catch {
+      viewedPosts = [];
+    }
+
+    // If already viewed, do nothing
+    if (viewedPosts.includes(postId)) return;
+
+    // Mark as viewed in localStorage
+    viewedPosts.push(postId);
+    localStorage.setItem(viewedKey, JSON.stringify(viewedPosts));
+
+    // Optimistically update local state
+    setPostsForYou((prevPosts) =>
+      prevPosts.map((post) =>
+        post._id === postId
+          ? { ...post, views: (post.views || 0) + 1 }
+          : post
+      )
+    );
+
+    // Update backend
+    try {
+      await incrementPostViews(postId);
+    } catch (e) {
+      // Optionally handle error (e.g., revert optimistic update)
+      console.error("Failed to increment post views", e);
+    }
   };
+
+  // Clear viewed posts on component mount
+  useEffect(() => {
+    localStorage.removeItem("viewedPosts");
+  }, []);
 
   return (
     <div className="flex flex-col h-full max-h-full">

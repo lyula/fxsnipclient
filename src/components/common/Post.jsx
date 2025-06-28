@@ -1,10 +1,19 @@
-import React, { useState } from "react";
-import { FaHeart, FaComment } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import { FaHeart, FaComment, FaEye } from "react-icons/fa"; // Add FaEye for the view icon
 import VerifiedBadge from "../VerifiedBadge";
+import { incrementPostViews } from "../../utils/api"; // Import the function
 
 export default function Post({ post, onLike, onComment }) {
   const [showComments, setShowComments] = useState(false);
   const [comment, setComment] = useState("");
+  const [views, setViews] = useState(post.views || 0);
+
+  useEffect(() => {
+    setViews((v) => v + 1); // Optimistically increment locally
+    incrementPostViews(post._id)
+      .then((data) => setViews(data.views))
+      .catch(() => {});
+  }, [post._id]);
 
   const handleCommentSubmit = () => {
     if (comment.trim()) {
@@ -35,6 +44,10 @@ export default function Post({ post, onLike, onComment }) {
           <FaComment />
           <span>{post.comments.length}</span>
         </button>
+        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+          <FaEye />
+          <span>{views}</span>
+        </div>
       </div>
       {showComments && (
         <div className="mt-4">

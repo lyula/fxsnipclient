@@ -177,3 +177,10 @@ export async function likePost(postId) {
   });
   return res.json();
 }
+
+// Increment post views
+export async function incrementPostViews(postId) {
+  const res = await fetch(`/api/post/${postId}/view`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to increment post views");
+  return res.json();
+}
