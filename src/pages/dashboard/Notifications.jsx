@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getNotifications, markNotificationsRead } from "../../utils/api";
 import VerifiedBadge from "../../components/VerifiedBadge";
+import { Link } from "react-router-dom";
 
 // Helper to show "just now", "10 mins ago", etc.
 function timeAgo(date) {
@@ -11,29 +12,6 @@ function timeAgo(date) {
   if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
   return `${Math.floor(diff / 86400)} days ago`;
 }
-
-const NotificationItem = ({ message, time }) => {
-  return (
-    <div className="notification-item flex justify-between items-center p-4 border-b">
-      <span className="message">{message}</span>
-      <span className="time text-gray-500 text-sm">{time}</span>
-    </div>
-  );
-};
-
-const Notifications = ({ notifications }) => {
-  return (
-    <div className="notifications-container">
-      {notifications.map((notification, index) => (
-        <NotificationItem
-          key={index}
-          message={notification.message}
-          time={notification.time}
-        />
-      ))}
-    </div>
-  );
-};
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
@@ -75,25 +53,41 @@ export default function NotificationsPage() {
                 }`}
               >
                 <span className="flex items-center gap-2 text-gray-900 dark:text-white flex-1">
-                  {n.type === "follow" && n.from ? (
+                  {n.from ? (
                     <>
                       <span
-                        className="font-semibold"
+                        className="font-semibold flex items-center gap-1"
                         style={{ color: "#a99d6b", cursor: "pointer" }}
                         onClick={() =>
                           (window.location.href = `/dashboard/community/user/${encodeURIComponent(
                             n.from.username
-                          )}`)
-                        }
+                          )}`)}
                         title={`View ${n.from.username}'s profile`}
                       >
                         {n.from.username}
+                        {n.from.verified && <VerifiedBadge />}
                       </span>
-                      {n.from.verified && <VerifiedBadge />}
-                      {" followed you "}
+                      {n.post ? (
+                        <Link
+                          to={`/dashboard/community?postId=${n.post}${n.comment ? `&commentId=${n.comment}` : ""}${n.reply ? `&replyId=${n.reply}` : ""}`}
+                          className="hover:text-[#a99d6b] transition-colors"
+                          style={{ textDecoration: "none" }}
+                          title="Go to post"
+                        >
+                          {n.message
+                            ? n.message.replace(n.from.username, "").trim()
+                            : n.text}
+                        </Link>
+                      ) : (
+                        <span>
+                          {n.message
+                            ? n.message.replace(n.from.username, "").trim()
+                            : n.text}
+                        </span>
+                      )}
                     </>
                   ) : (
-                    <>{n.text}</>
+                    <>{n.message || n.text}</>
                   )}
                 </span>
                 <span className="text-xs text-gray-400">

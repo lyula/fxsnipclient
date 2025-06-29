@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import { addCommentToPost, likePost } from "../../../utils/api"; // Adjust path if needed
 import { formatPostDate } from '../../../utils/formatDate'; // Adjust path if needed
@@ -34,6 +34,34 @@ function ReplyInput({ onSubmit, loading, postId, commentId }) {
       </button>
     </form>
   );
+}
+
+function useScrollToCommentOrReply(setShowComments) {
+  const { search } = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    const commentId = params.get("commentId");
+    const replyId = params.get("replyId");
+    if (commentId || replyId) {
+      setShowComments(true); // Open comments section
+    }
+  }, [search, setShowComments]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const commentId = params.get("commentId");
+    const replyId = params.get("replyId");
+    // Wait for comments to be rendered
+    setTimeout(() => {
+      if (replyId) {
+        const el = document.getElementById(`reply-${replyId}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else if (commentId) {
+        const el = document.getElementById(`comment-${commentId}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 300); // Adjust delay if needed
+  }, [setShowComments]);
 }
 
 export default function ChatPost({
@@ -367,6 +395,7 @@ export default function ChatPost({
                     key={comment._id || comment.id || idx}
                     className="mb-3 pl-2 border-l-2 border-blue-100 dark:border-gray-700"
                     data-id={comment._id}
+                    id={comment._id ? `comment-${comment._id}` : undefined}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-gray-800 dark:text-white flex items-center gap-1">
@@ -392,7 +421,7 @@ export default function ChatPost({
                     {repliesToShow.length > 0 && (
                       <div className="mt-1">
                         {repliesToShow.map((reply, ridx) => (
-                          <div key={ridx} className="mb-1 w-full">
+                          <div key={ridx} className="mb-1 w-full" id={reply._id ? `reply-${reply._id}` : undefined}>
                             <div className="flex flex-col w-full">
                               <div className="flex items-center gap-1">
                                 <span className="text-xs text-blue-500 mr-1">
