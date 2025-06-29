@@ -33,6 +33,9 @@ export function DashboardProvider({ children }) {
   // Message cache
   const [messageCache, setMessageCache] = useState(new Map());
 
+  // Mobile chat state
+  const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
+
   // Fetch conversations with caching
   const fetchConversations = useCallback(async () => {
     try {
@@ -193,7 +196,11 @@ export function DashboardProvider({ children }) {
     
     // Message cache
     messageCache,
-    setMessageCache
+    setMessageCache,
+
+    // Mobile chat
+    isMobileChatOpen,
+    setIsMobileChatOpen,
   }), [
     conversations,
     fetchConversations,
@@ -208,7 +215,9 @@ export function DashboardProvider({ children }) {
     loadingStates,
     formatRelativeTime,
     messageCache,
-    setMessageCache
+    setMessageCache,
+    isMobileChatOpen,
+    setIsMobileChatOpen,
   ]);
 
   return (

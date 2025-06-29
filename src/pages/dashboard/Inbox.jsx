@@ -11,7 +11,8 @@ const Inbox = () => {
     conversations, 
     fetchConversations, 
     updateConversation,
-    formatRelativeTime
+    formatRelativeTime,
+    setIsMobileChatOpen
   } = useDashboard();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -65,11 +66,33 @@ const Inbox = () => {
       const user = conversations.find(c => c.username === decodeURIComponent(chatParam));
       if (user && (!selectedUser || selectedUser._id !== user._id)) {
         setSelectedUser(user);
+        // Hide header on mobile when chat is selected
+        if (window.innerWidth < 768) {
+          setIsMobileChatOpen(true);
+        }
       }
     } else if (!chatParam && selectedUser) {
       setSelectedUser(null);
+      // Show header when no chat is selected
+      setIsMobileChatOpen(false);
     }
-  }, [searchParams, conversations, selectedUser]);
+  }, [searchParams, conversations, selectedUser, setIsMobileChatOpen]);
+
+  // Add window resize handler
+  useEffect(() => {
+    const handleResize = () => {
+      // If screen becomes desktop size, always show header
+      if (window.innerWidth >= 768) {
+        setIsMobileChatOpen(false);
+      } else if (selectedUser) {
+        // If screen becomes mobile and chat is open, hide header
+        setIsMobileChatOpen(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [selectedUser, setIsMobileChatOpen]);
 
   // Debounced search functionality
   useEffect(() => {
@@ -276,44 +299,120 @@ const Inbox = () => {
     }
   }, [selectedUser, isSending, updateConversation, formatRelativeTime]);
 
-  // Group messages by time (Instagram style)
+  // Handle back to conversations (mobile)
+  const handleBackToConversations = useCallback(() => {
+    setSelectedUser(null);
+    navigate("/dashboard/inbox", { replace: true });
+    setIsMobileChatOpen(false); // Show header when going back
+  }, [navigate, setIsMobileChatOpen]);
+
+  // Add cleanup effect when component unmounts
+  useEffect(() => {
+    return () => {
+      setIsMobileChatOpen(false);
+    };
+  }, [setIsMobileChatOpen]);
+
+  // Format date for chat separators
+  const formatDateSeparator = useCallback((timestamp) => {
+    const date = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // Reset time to midnight for accurate comparison
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const yesterdayOnly = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+    
+    if (dateOnly.getTime() === todayOnly.getTime()) {
+      return 'Today';
+    } else if (dateOnly.getTime() === yesterdayOnly.getTime()) {
+      return 'Yesterday';
+    } else {
+      // Format as "Month Day, Year" for older dates
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+  }, []);
+
+  // Group messages by date and time
   const groupedMessages = useMemo(() => {
     if (!messages.length) return [];
 
-    const grouped = [];
-    let currentGroup = [];
+    const groupedByDate = [];
+    let currentDateGroup = null;
+    let currentTimeGroup = [];
     let lastSender = null;
     let lastTime = null;
+    let lastDate = null;
 
     messages.forEach((message, index) => {
       const messageTime = new Date(message.createdAt);
+      const messageDate = new Date(messageTime.getFullYear(), messageTime.getMonth(), messageTime.getDate());
+      
+      // Check if we need a new date group
+      if (!lastDate || messageDate.getTime() !== lastDate.getTime()) {
+        // Save previous time group if exists
+        if (currentTimeGroup.length > 0) {
+          currentDateGroup.messages.push(currentTimeGroup);
+          currentTimeGroup = [];
+        }
+        
+        // Save previous date group if exists
+        if (currentDateGroup) {
+          groupedByDate.push(currentDateGroup);
+        }
+        
+        // Create new date group
+        currentDateGroup = {
+          date: formatDateSeparator(messageTime),
+          timestamp: messageDate.getTime(),
+          messages: []
+        };
+        
+        lastDate = messageDate;
+        lastSender = null; // Reset sender for new date
+        lastTime = null;
+      }
+
+      // Check if we need a new time group (same logic as before)
       const timeDiff = lastTime ? messageTime.getTime() - lastTime.getTime() : 0;
       const shouldGroup = message.from === lastSender && timeDiff < 60000; // 1 minute
 
-      if (!shouldGroup && currentGroup.length > 0) {
-        grouped.push(currentGroup);
-        currentGroup = [];
+      if (!shouldGroup && currentTimeGroup.length > 0) {
+        currentDateGroup.messages.push(currentTimeGroup);
+        currentTimeGroup = [];
       }
 
-      currentGroup.push({
+      currentTimeGroup.push({
         ...message,
-        isFirst: !shouldGroup || currentGroup.length === 0,
+        isFirst: !shouldGroup || currentTimeGroup.length === 0,
         isLast: index === messages.length - 1 || 
                 (index < messages.length - 1 && 
                  (messages[index + 1].from !== message.from || 
-                  new Date(messages[index + 1].createdAt).getTime() - messageTime.getTime() > 60000))
+                  new Date(messages[index + 1].createdAt).getTime() - messageTime.getTime() > 60000 ||
+                  new Date(messages[index + 1].createdAt).toDateString() !== messageTime.toDateString()))
       });
 
       lastSender = message.from;
       lastTime = messageTime;
     });
 
-    if (currentGroup.length > 0) {
-      grouped.push(currentGroup);
+    // Don't forget the last groups
+    if (currentTimeGroup.length > 0) {
+      currentDateGroup.messages.push(currentTimeGroup);
+    }
+    if (currentDateGroup) {
+      groupedByDate.push(currentDateGroup);
     }
 
-    return grouped;
-  }, [messages]);
+    return groupedByDate;
+  }, [messages, formatDateSeparator]);
 
   // Format time (Instagram style)
   const formatMessageTime = useCallback((timestamp) => {
@@ -352,7 +451,7 @@ const Inbox = () => {
   }
 
   return (
-    <div className="h-full flex bg-white dark:bg-gray-900">
+    <div className={`h-full flex bg-white dark:bg-gray-900 ${selectedUser ? 'fixed inset-0 lg:relative lg:inset-auto' : ''}`}>
       {/* Sidebar - Conversation List */}
       <div className={`${selectedUser ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 xl:w-96 border-r border-gray-200 dark:border-gray-700`}>
         {/* Header */}
@@ -380,7 +479,7 @@ const Inbox = () => {
             />
           </div>
           
-          {/* Search Results - FIXED: Removed scrollbar */}
+          {/* Search Results */}
           {search && searchResults.length > 0 && (
             <div className="absolute top-full left-4 right-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-10 hide-scrollbar">
               {searchResults.map((user) => (
@@ -462,15 +561,13 @@ const Inbox = () => {
 
       {/* Main Chat Area */}
       {selectedUser ? (
-        <div className="flex-1 flex flex-col">
-          {/* Chat Header */}
+        <div className={`flex-1 flex flex-col ${selectedUser ? 'fixed inset-0 lg:relative lg:inset-auto' : ''}`}>
+          {/* Chat Header - ENHANCED FOR MOBILE */}
           <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            {/* Back button for mobile */}
             <button
               className="lg:hidden mr-3 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              onClick={() => {
-                setSelectedUser(null);
-                navigate("/dashboard/inbox", { replace: true });
-              }}
+              onClick={handleBackToConversations}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -539,96 +636,110 @@ const Inbox = () => {
                   </div>
                 </div>
               ) : (
-                groupedMessages.map((group, groupIndex) => (
-                  <div key={groupIndex} className="space-y-1">
-                    {group.map((message, messageIndex) => {
-                      const isOwn = message.from === myUserId;
-                      const showAvatar = !isOwn && message.isFirst;
-                      const showTime = message.isLast;
+                groupedMessages.map((dateGroup, dateIndex) => (
+                  <div key={dateGroup.timestamp} className="space-y-4">
+                    {/* Date Separator */}
+                    <div className="flex items-center justify-center my-6">
+                      <div className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                          {dateGroup.date}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Messages for this date */}
+                    {dateGroup.messages.map((group, groupIndex) => (
+                      <div key={`${dateGroup.timestamp}-${groupIndex}`} className="space-y-1">
+                        {group.map((message, messageIndex) => {
+                          const isOwn = message.from === myUserId;
+                          const showAvatar = !isOwn && message.isFirst;
+                          const showTime = message.isLast;
 
-                      return (
-                        <div
-                          key={message._id}
-                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
-                            message.isFirst ? 'mt-4' : 'mt-1'
-                          }`}
-                        >
-                          {/* Avatar */}
-                          {showAvatar && (
-                            <img
-                              src={selectedUser.avatar}
-                              alt={selectedUser.username}
-                              className="w-6 h-6 rounded-full mr-2 mt-auto"
-                            />
-                          )}
-                          {!isOwn && !showAvatar && <div className="w-8" />}
-
-                          {/* Message Bubble */}
-                          <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
+                          return (
                             <div
-                              className={`px-4 py-2 rounded-2xl text-sm break-words ${
-                                isOwn
-                                  ? message.failed
-                                    ? 'bg-red-500 text-white'
-                                    : message.isOptimistic
-                                    ? 'bg-blue-400 text-white opacity-80'
-                                    : 'bg-blue-500 text-white'
-                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                              } ${
-                                isOwn
-                                  ? message.isFirst && message.isLast
-                                    ? 'rounded-2xl'
-                                    : message.isFirst
-                                    ? 'rounded-br-md'
-                                    : message.isLast
-                                    ? 'rounded-tr-md'
-                                    : 'rounded-r-md'
-                                  : message.isFirst && message.isLast
-                                  ? 'rounded-2xl'
-                                  : message.isFirst
-                                  ? 'rounded-bl-md'
-                                  : message.isLast
-                                  ? 'rounded-tl-md'
-                                  : 'rounded-l-md'
+                              key={message._id}
+                              className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
+                                message.isFirst ? 'mt-4' : 'mt-1'
                               }`}
                             >
-                              {message.text}
-                              
-                              {/* Retry button for failed messages */}
-                              {message.failed && (
-                                <button
-                                  onClick={() => handleRetryMessage(message)}
-                                  className="block mt-2 text-xs underline hover:no-underline"
-                                  disabled={isSending}
-                                >
-                                  Tap to retry
-                                </button>
+                              {/* Avatar */}
+                              {showAvatar && (
+                                <img
+                                  src={selectedUser.avatar}
+                                  alt={selectedUser.username}
+                                  className="w-6 h-6 rounded-full mr-2 mt-auto"
+                                />
                               )}
-                            </div>
+                              {!isOwn && !showAvatar && <div className="w-8" />}
 
-                            {/* Message status and time - FIXED: Changed to text status */}
-                            {showTime && (
-                              <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${
-                                isOwn ? 'justify-end' : 'justify-start'
-                              }`}>
-                                <span>{formatMessageTime(message.createdAt)}</span>
-                                {isOwn && !message.failed && (
-                                  <span className="ml-2">
-                                    {message.isOptimistic ? (
-                                      <span className="text-gray-400">sending...</span>
-                                    ) : message.read ? (
-                                      <span className="text-blue-500">seen</span>
-                                    ) : (
-                                      <span className="text-gray-400">delivered</span>
+                              {/* Message Bubble */}
+                              <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
+                                <div
+                                  className={`px-4 py-2 rounded-2xl text-sm break-words ${
+                                    isOwn
+                                      ? message.failed
+                                        ? 'bg-red-500 text-white'
+                                        : message.isOptimistic
+                                        ? 'bg-blue-400 text-white opacity-80'
+                                        : 'bg-blue-500 text-white'
+                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                  } ${
+                                    isOwn
+                                      ? message.isFirst && message.isLast
+                                        ? 'rounded-2xl'
+                                        : message.isFirst
+                                        ? 'rounded-br-md'
+                                        : message.isLast
+                                        ? 'rounded-tr-md'
+                                        : 'rounded-r-md'
+                                      : message.isFirst && message.isLast
+                                      ? 'rounded-2xl'
+                                      : message.isFirst
+                                      ? 'rounded-bl-md'
+                                      : message.isLast
+                                      ? 'rounded-tl-md'
+                                      : 'rounded-l-md'
+                                  }`}
+                                >
+                                  {message.text}
+                                  
+                                  {/* Retry button for failed messages */}
+                                  {message.failed && (
+                                    <button
+                                      onClick={() => handleRetryMessage(message)}
+                                      className="block mt-2 text-xs underline hover:no-underline"
+                                      disabled={isSending}
+                                    >
+                                      Tap to retry
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Message status and time */}
+                                {showTime && (
+                                  <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${
+                                    isOwn ? 'justify-end' : 'justify-start'
+                                  }`}>
+                                    <span>{formatMessageTime(message.createdAt)}</span>
+                                    {isOwn && !message.failed && (
+                                      <span className="ml-2">
+                                        {message.isOptimistic ? (
+                                          <span className="text-gray-400">sending...</span>
+                                        ) : message.read ? (
+                                          <span className="text-blue-500">seen</span>
+                                        ) : (
+                                          <span className="text-gray-400">delivered</span>
+                                        )}
+                                      </span>
                                     )}
-                                  </span>
+                                  </div>
                                 )}
                               </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 ))
               )}

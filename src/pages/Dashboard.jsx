@@ -31,18 +31,16 @@ import Community from "./dashboard/Community";
 import Signals from "./dashboard/Signals";
 import Inbox from "./dashboard/Inbox";
 import Subscriptions from "./dashboard/Subscriptions";
-// (Do not import pages like About, Contact, Markets, News, Terms, Register, Login, etc.)
 
 // Add this mapping at the top of your file
 const DASHBOARD_LABELS = {
   "/dashboard": "Dashboard",
   "/dashboard/journal": "My Journals",
   "/dashboard/stats": "Analytics",
-  "/dashboard/community": "Vibe", // changed from "Community"
+  "/dashboard/community": "Vibe",
   "/dashboard/signals": "Signal Rooms",
   "/dashboard/inbox": "Inbox",
   "/dashboard/subscriptions": "Subscriptions",
-  // Add more as needed
 };
 
 export default function Dashboard() {
@@ -51,7 +49,8 @@ export default function Dashboard() {
     conversations,
     notifications,
     fetchConversations,
-    fetchNotifications
+    fetchNotifications,
+    isMobileChatOpen
   } = useDashboard();
 
   const { user, refreshUser } = useAuth();
@@ -221,27 +220,6 @@ export default function Dashboard() {
     </div>
   );
 
-  // Determine which dashboard page to show
-  let MainContent;
-  if (location.pathname === "/dashboard") {
-    MainContent = DashboardMain;
-  } else if (location.pathname.startsWith("/dashboard/journal")) {
-    MainContent = <Journal />;
-  } else if (location.pathname.startsWith("/dashboard/stats")) {
-    MainContent = <Stats />;
-  } else if (location.pathname.startsWith("/dashboard/community")) {
-    MainContent = <Community user={user} />;
-  } else if (location.pathname.startsWith("/dashboard/signals")) {
-    MainContent = <Signals />;
-  } else if (location.pathname.startsWith("/dashboard/inbox")) {
-    MainContent = <Inbox />;
-  } else if (location.pathname.startsWith("/dashboard/subscriptions")) {
-    MainContent = <Subscriptions />;
-  } else {
-    MainContent = DashboardMain;
-  }
-
-  // Sidebar and header code remains unchanged
   return (
     <div className="fixed inset-0 flex bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       {/* Sidebar */}
@@ -288,14 +266,13 @@ export default function Dashboard() {
               <FaUser className="text-2xl" />
             </div>
             {!sidebarCollapsed ? (
-              // Make name and email clickable to go to user's public profile page and close sidebar
               <div
                 className="w-full cursor-pointer"
                 onClick={() => {
                   navigate(`/dashboard/community/user/${encodeURIComponent(user?.username)}`, {
                     state: { fromSidebar: true }
                   });
-                  setSidebarOpen(false); // Close sidebar after navigating
+                  setSidebarOpen(false);
                 }}
                 title="View your public profile"
               >
@@ -404,7 +381,7 @@ export default function Dashboard() {
                 ? "hidden md:inline-block md:opacity-0 md:w-0 md:visible"
                 : "inline-block")
             }>
-              Vibe {/* changed from Community */}
+              Vibe
             </span>
           </Link>
           <Link
@@ -498,91 +475,91 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 ml-0 transition-all duration-300 ease-in-out">
-        {/* Header */}
-        <header className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-3 sm:py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20 flex-shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              className="md:hidden text-[#a99d6b] text-3xl sm:text-xl md:text-2xl"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
-            >
-              <FaBars />
-            </button>
-            <h1
-              className="font-bold text-[#1E3A8A] dark:text-white font-inter truncate"
-              style={{
-                fontSize: "clamp(1rem, 5vw, 2rem)",
-                lineHeight: 1.1,
-                maxWidth: "60vw"
-              }}
-            >
-              {currentLabel}
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-4">
-            {/* Community (Vibe) Icon */}
-            <button
-              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title="Vibe"
-              type="button"
-              onClick={() => navigate("/dashboard/community")}
-            >
-              <FaUsers className="text-base sm:text-xl" />
-            </button>
-            {/* Inbox Icon */}
-            <button
-              className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title="Inbox"
-              type="button"
-              onClick={() => navigate("/dashboard/inbox")}
-            >
-              <FaInbox className="text-base sm:text-xl" />
-              {unreadConversations > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
-                  {unreadConversations > 99 ? "99+" : unreadConversations}
-                </span>
-              )}
-            </button>
-            {/* Notifications - moved above theme toggle */}
-            <button
-              className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title="Notifications"
-              type="button"
-              onClick={() => {
-                navigate("/dashboard/notifications");
-              }}
-            >
-              <FaBell className="text-base sm:text-xl" />
-              {unreadNotifications > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
-                  {unreadNotifications > 99 ? "99+" : unreadNotifications}
-                </span>
-              )}
-            </button>
-            {/* Theme Toggle - moved below notifications */}
-            <button
-              className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-              onClick={() => setDarkMode((v) => !v)}
-              type="button"
-            >
-              {darkMode ? (
-                <FaSun className="text-base sm:text-xl" />
-              ) : (
-                <FaMoon className="text-base sm:text-xl" />
-              )}
-            </button>
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="p-2 sm:p-3 bg-[#a99d6b] text-white rounded-full shadow hover:bg-[#c2b77a] transition"
-              title="Logout"
-              type="button"
-            >
-              <FaSignOutAlt className="text-base sm:text-xl" />
-            </button>
-          </div>
-        </header>
+        {/* Header - Hide on mobile when in chat */}
+        {!(isMobileChatOpen && window.innerWidth < 768) && (
+          <header className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-3 sm:py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                className="md:hidden text-[#a99d6b] text-3xl sm:text-xl md:text-2xl"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open sidebar"
+              >
+                <FaBars />
+              </button>
+              <h1
+                className="font-bold text-[#1E3A8A] dark:text-white font-inter truncate"
+                style={{
+                  fontSize: "clamp(1rem, 5vw, 2rem)",
+                  lineHeight: 1.1,
+                  maxWidth: "60vw"
+                }}
+              >
+                {currentLabel}
+              </h1>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Community (Vibe) Icon */}
+              <button
+                className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title="Vibe"
+                type="button"
+                onClick={() => navigate("/dashboard/community")}
+              >
+                <FaUsers className="text-base sm:text-xl" />
+              </button>
+              {/* Inbox Icon */}
+              <button
+                className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title="Inbox"
+                type="button"
+                onClick={() => navigate("/dashboard/inbox")}
+              >
+                <FaInbox className="text-base sm:text-xl" />
+                {unreadConversations > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                    {unreadConversations > 99 ? "99+" : unreadConversations}
+                  </span>
+                )}
+              </button>
+              {/* Notifications */}
+              <button
+                className="relative p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title="Notifications"
+                type="button"
+                onClick={() => navigate("/dashboard/notifications")}
+              >
+                <FaBell className="text-base sm:text-xl" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full px-2 py-0.5 min-w-[20px] text-center">
+                    {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                  </span>
+                )}
+              </button>
+              {/* Theme Toggle */}
+              <button
+                className="p-2 sm:p-3 bg-blue-100 dark:bg-gray-800 text-[#a99d6b] rounded-full shadow hover:bg-blue-200 dark:hover:bg-gray-700 transition"
+                title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+                onClick={() => setDarkMode((v) => !v)}
+                type="button"
+              >
+                {darkMode ? (
+                  <FaSun className="text-base sm:text-xl" />
+                ) : (
+                  <FaMoon className="text-base sm:text-xl" />
+                )}
+              </button>
+              {/* Logout */}
+              <button
+                onClick={handleLogout}
+                className="p-2 sm:p-3 bg-[#a99d6b] text-white rounded-full shadow hover:bg-[#c2b77a] transition"
+                title="Logout"
+                type="button"
+              >
+                <FaSignOutAlt className="text-base sm:text-xl" />
+              </button>
+            </div>
+          </header>
+        )}
 
         {/* Dashboard Content */}
         <main className="flex-1 flex flex-col min-h-0">
@@ -602,7 +579,6 @@ export default function Dashboard() {
                 <Route path="subscriptions" element={<Subscriptions />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="notifications" element={<Notifications />} />
-                {/* Add other routes as needed */}
               </Routes>
               {/* Only show footer if not in any community subpath */}
               {!location.pathname.startsWith("/dashboard/community") &&
@@ -610,8 +586,7 @@ export default function Dashboard() {
                 !location.pathname.startsWith("/dashboard/inbox") &&
                 !location.pathname.startsWith("/dashboard/notifications") ? (
                 <footer
-                  className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0
-                    sm:static sm:z-auto"
+                  className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0 sm:static sm:z-auto"
                   style={{}}
                 >
                   &copy; {currentYear} FXsnip. All rights reserved.
@@ -624,4 +599,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
