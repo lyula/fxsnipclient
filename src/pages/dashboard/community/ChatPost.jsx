@@ -430,6 +430,15 @@ export default function ChatPost({
                     <div className="ml-4 mt-2">
                       {repliesToShow.map((reply, ridx) => (
                         <div key={reply._id || ridx} className="mb-2">
+                          <div className="flex items-center gap-1 text-xs text-blue-500 mb-1">
+                            Replied to{" "}
+                            <Link
+                              to={`/dashboard/community/user/${encodeURIComponent(comment.author?.username || comment.user)}`}
+                              className="hover:underline text-blue-600 ml-1"
+                            >
+                              {comment.author?.username || comment.user}
+                            </Link>
+                          </div>
                           <span className="font-bold text-gray-700 dark:text-gray-300">
                             <Link
                               to={`/dashboard/community/user/${encodeURIComponent(reply.author?.username || reply.user)}`}
