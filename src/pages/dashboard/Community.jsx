@@ -204,6 +204,8 @@ export default function Community({ user }) {
 
   // View a post (local state only)
   const handleView = async (postId) => {
+    if (!postId) return;
+
     // Use localStorage to track viewed posts
     const viewedKey = "viewedPosts";
     let viewedPosts = [];
@@ -229,19 +231,20 @@ export default function Community({ user }) {
       )
     );
 
-    // Update backend
+    // Update backend and sync view count
     try {
-      await incrementPostViews(postId);
+      const res = await incrementPostViews(postId);
+      setPostsForYou((prevPosts) =>
+        prevPosts.map((post) =>
+          post._id === postId
+            ? { ...post, views: res.views }
+            : post
+        )
+      );
     } catch (e) {
-      // Optionally handle error (e.g., revert optimistic update)
       console.error("Failed to increment post views", e);
     }
   };
-
-  // Clear viewed posts on component mount
-  useEffect(() => {
-    localStorage.removeItem("viewedPosts");
-  }, []);
 
   return (
     <div className="flex flex-col h-full max-h-full">
@@ -262,7 +265,7 @@ export default function Community({ user }) {
           posts={
             activeTab === "forYou"
               ? [...postsForYou]
-                  .filter((post) => post.createdAt)
+                  .filter((post) => post._id && post.createdAt)
                   .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
               : postsFollowing
           }

@@ -55,20 +55,36 @@ export default function ChatPost({
   const [localPost, setLocalPost] = useState(post); // Local state for optimistic updates
   const [error, setError] = useState(null);
   const commentsRef = useRef(null);
+  const postRef = useRef();
 
   useEffect(() => {
     setLocalPost(post); // Sync with prop if post changes
   }, [post]);
 
   useEffect(() => {
-    try {
-      onView(localPost.id);
-    } catch (err) {
-      console.error("Error in onView:", err);
-      setError("Failed to record view");
-    }
-    // eslint-disable-next-line
-  }, []);
+    if (!post || !post._id) return;
+    const node = postRef.current;
+    if (!node) return;
+
+    let hasViewed = false;
+    const observer = new window.IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasViewed) {
+            console.log(`View recorded for post: ${post._id}`);
+            onView(post._id);
+            hasViewed = true;
+            observer.disconnect();
+          }
+        });
+      },
+      { threshold: 0.5 } // 50% visible
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [post, onView]);
 
   const liked = Array.isArray(localPost.likes) && currentUserId
     ? localPost.likes.map(String).includes(String(currentUserId))
@@ -235,6 +251,8 @@ export default function ChatPost({
     }
   };
 
+  console.log("Views for post", localPost._id, localPost.views);
+
   if (error) {
     return (
       <div className="text-red-500 p-6">
@@ -244,7 +262,7 @@ export default function ChatPost({
   }
 
   return (
-    <div className={`rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all`}>
+    <div className={`rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all`} ref={postRef}>
       {/* Header */}
       <div className="flex items-center mb-3">
         <span className="text-2xl mr-3">{post.avatar}</span>
@@ -318,7 +336,7 @@ export default function ChatPost({
 
         {/* Views */}
         <span className="flex items-center gap-1 text-gray-400 ml-auto">
-          <FaChartBar /> {post.views || 0}
+          <FaChartBar /> {localPost.views || 0}
         </span>
       </div>
 

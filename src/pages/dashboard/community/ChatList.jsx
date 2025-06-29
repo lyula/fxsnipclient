@@ -4,7 +4,7 @@ import ChatPost from "./ChatPost";
 export default function ChatList({ posts, onReply, onComment, onLike, onView, postRefs, currentUserId, currentUsername, currentUserVerified }) {
   return (
     <div className="space-y-6">
-      {posts.map(post => (
+      {posts.filter(post => post && post._id).map(post => (
         <div
           ref={el => postRefs && postRefs.current && (postRefs.current[post._id] = el)}
           key={post._id}
