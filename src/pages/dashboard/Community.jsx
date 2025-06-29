@@ -43,7 +43,7 @@ export default function Community({ user }) {
       setActiveTab("forYou");
       setTimeout(() => {
         if (postRefs.current[postId]) {
-          postRefs.current[postId].scrollIntoView({ behavior: "smooth", block: "center" });
+          postRefs.current[postId].scrollIntoView({ behavior: "auto", block: "center" });
         }
       }, 300); // Wait for posts to render
     }

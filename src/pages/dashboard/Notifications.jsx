@@ -69,7 +69,7 @@ export default function NotificationsPage() {
                       </span>
                       {n.post ? (
                         <Link
-                          to={`/dashboard/community?postId=${n.post}${n.comment ? `&commentId=${n.comment}` : ""}${n.reply ? `&replyId=${n.reply}` : ""}`}
+                          to={`/dashboard/community?postId=${n.post}${n.commentUserId ? `&commentUserId=${n.commentUserId}` : ""}`}
                           className="hover:text-[#a99d6b] transition-colors"
                           style={{ textDecoration: "none" }}
                           title="Go to post"

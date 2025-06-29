@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
-import { addCommentToPost, likePost } from "../../../utils/api"; // Adjust path if needed
+import { addCommentToPost, likePost, searchUsers } from "../../../utils/api"; // Adjust path if needed
 import { formatPostDate } from '../../../utils/formatDate'; // Adjust path if needed
 
 function ReplyInput({ onSubmit, loading, postId, commentId }) {
@@ -36,32 +36,13 @@ function ReplyInput({ onSubmit, loading, postId, commentId }) {
   );
 }
 
-function useScrollToCommentOrReply(setShowComments) {
-  const { search } = useLocation();
-  useEffect(() => {
-    const params = new URLSearchParams(search);
-    const commentId = params.get("commentId");
-    const replyId = params.get("replyId");
-    if (commentId || replyId) {
-      setShowComments(true); // Open comments section
-    }
-  }, [search, setShowComments]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const commentId = params.get("commentId");
-    const replyId = params.get("replyId");
-    // Wait for comments to be rendered
-    setTimeout(() => {
-      if (replyId) {
-        const el = document.getElementById(`reply-${replyId}`);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-      } else if (commentId) {
-        const el = document.getElementById(`comment-${commentId}`);
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 300); // Adjust delay if needed
-  }, [setShowComments]);
+function renderHighlightedContent(content) {
+  const parts = (content || "").split(/(@\w+)/g);
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part)
+      ? <span key={i} className="text-blue-600">{part}</span>
+      : <span key={i}>{part}</span>
+  );
 }
 
 export default function ChatPost({
@@ -82,6 +63,8 @@ export default function ChatPost({
   const [loadingReply, setLoadingReply] = useState({});
   const [localPost, setLocalPost] = useState(post); // Local state for optimistic updates
   const [error, setError] = useState(null);
+  const [showCommentInput, setShowCommentInput] = useState(true);
+  const [replyInputs, setReplyInputs] = useState({});
   const commentsRef = useRef(null);
   const postRef = useRef();
 
@@ -178,16 +161,6 @@ export default function ChatPost({
           // Keep optimistic comment since backend likely saved it
         }
       }
-    } finally {
-      setLoadingComment(false);
-      setComment("");
-      // Scroll to the new comment
-      if (commentsRef.current) {
-        const newComment = commentsRef.current.querySelector(`[data-id="${tempComment._id}"]`);
-        if (newComment) {
-          newComment.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }
-      }
     }
   };
 
@@ -279,6 +252,14 @@ export default function ChatPost({
     }
   };
 
+  const { search } = useLocation();
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get("commentId") || params.get("replyId") || params.get("commentUserId")) {
+      setShowComments(true);
+    }
+  }, [search]);
+
   console.log("Views for post", localPost._id, localPost.views);
 
   if (error) {
@@ -290,7 +271,11 @@ export default function ChatPost({
   }
 
   return (
-    <div className={`rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all`} ref={postRef}>
+    <div
+      className="rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all overflow-x-hidden"
+      ref={postRef}
+      style={{ maxWidth: "100%" }}
+    >
       {/* Header */}
       <div className="flex items-center mb-3">
         <span className="text-2xl mr-3">{post.avatar}</span>
@@ -383,7 +368,36 @@ export default function ChatPost({
               ×
             </button>
           </div>
-          <div className="max-h-80 overflow-y-auto pr-2 hide-scrollbar">
+          {/* Add new comment input at the top */}
+          {activeReply === null && showCommentInput && (
+            <form
+              onSubmit={handleCommentSubmit}
+              className="w-full mt-2"
+              style={{ maxWidth: "100%" }}
+            >
+              <MentionInput
+                value={comment}
+                onChange={setComment}
+                onSubmit={handleCommentSubmit}
+                loading={loadingComment}
+                placeholder="Write a comment..."
+                disabled={loadingComment}
+                onClose={() => setShowCommentInput(false)}
+              />
+            </form>
+          )}
+          {activeReply === null && !showCommentInput && (
+            <div className="mt-2">
+              <button
+                type="button"
+                className="text-blue-600 hover:underline text-sm"
+                onClick={() => setShowCommentInput(true)}
+              >
+                Add a comment
+              </button>
+            </div>
+          )}
+          <div className="max-h-80 overflow-y-auto pr-2 hide-scrollbar w-full" style={{ maxWidth: "100%" }}>
             {localPost.comments && localPost.comments.length > 0 ? (
               localPost.comments.slice(0, 5).map((comment, idx) => {
                 const replies = comment.replies || [];
@@ -392,10 +406,10 @@ export default function ChatPost({
 
                 return (
                   <div
-                    key={comment._id || comment.id || idx}
+                    key={comment._id || comment.user || idx}
+                    id={`comment-${comment._id || comment.user || idx}`}
                     className="mb-3 pl-2 border-l-2 border-blue-100 dark:border-gray-700"
                     data-id={comment._id}
-                    id={comment._id ? `comment-${comment._id}` : undefined}
                   >
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-gray-800 dark:text-white flex items-center gap-1">
@@ -415,13 +429,13 @@ export default function ChatPost({
                       <span className="text-xs text-gray-400">{formatPostDate(comment.createdAt || comment.timestamp)}</span>
                     </div>
                     <div className="text-gray-900 dark:text-gray-100 break-words w-full">
-                      {comment.text || comment.content}
+                      {renderHighlightedContent(comment.text || comment.content)}
                     </div>
                     {/* Replies to this comment */}
                     {repliesToShow.length > 0 && (
                       <div className="mt-1">
                         {repliesToShow.map((reply, ridx) => (
-                          <div key={ridx} className="mb-1 w-full" id={reply._id ? `reply-${reply._id}` : undefined}>
+                          <div key={reply._id || reply.user || ridx} id={`reply-${reply._id || reply.user || ridx}`} className="mb-1 w-full">
                             <div className="flex flex-col w-full">
                               <div className="flex items-center gap-1">
                                 <span className="text-xs text-blue-500 mr-1">
@@ -444,7 +458,7 @@ export default function ChatPost({
                                 <span className="text-xs text-gray-400">{formatPostDate(reply.createdAt || reply.timestamp)}</span>
                               </div>
                               <div className="text-gray-900 dark:text-gray-100 break-words w-full">
-                                {reply.content}
+                                {renderHighlightedContent(reply.content)}
                               </div>
                             </div>
                           </div>
@@ -477,14 +491,34 @@ export default function ChatPost({
                     </button>
                     {/* Reply input for this comment */}
                     {activeReply === idx && (
-                      <div className="ml-4 mt-2">
-                        <ReplyInput
-                          onSubmit={handleReply}
+                      <form
+                        className="ml-4 mt-2 w-full"
+                        onSubmit={e => {
+                          e.preventDefault();
+                          handleReply(localPost._id, replyInputs[idx] || "", comment._id || idx);
+                          setReplyInputs(inputs => ({ ...inputs, [idx]: "" }));
+                        }}
+                      >
+                        <MentionInput
+                          value={replyInputs[idx] || ""}
+                          onChange={val => setReplyInputs(inputs => ({ ...inputs, [idx]: val }))}
+                          onSubmit={e => {
+                            e.preventDefault();
+                            handleReply(localPost._id, replyInputs[idx] || "", comment._id || idx);
+                            setReplyInputs(inputs => ({ ...inputs, [idx]: "" }));
+                          }}
                           loading={loadingReply[comment._id || idx] || false}
-                          postId={localPost._id}
-                          commentId={comment._id || idx}
+                          placeholder="Write a reply..."
+                          disabled={loadingReply[comment._id || idx] || false}
                         />
-                      </div>
+                        <button
+                          type="button"
+                          className="mt-2 text-xs text-blue-600 hover:underline"
+                          onClick={() => setActiveReply(null)}
+                        >
+                          Write a comment instead
+                        </button>
+                      </form>
                     )}
                   </div>
                 );
@@ -493,27 +527,110 @@ export default function ChatPost({
               <div className="text-gray-500 text-sm">No comments yet.</div>
             )}
           </div>
-          {/* Add new comment */}
-          <div className="mt-2">
-            <form onSubmit={handleCommentSubmit} className="flex gap-2 mt-2">
-              <input
-                type="text"
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                placeholder="Write a comment..."
-                className="flex-1 border rounded px-2 py-1"
-                disabled={loadingComment}
-              />
-              <button
-                type="submit"
-                disabled={loadingComment || !comment.trim()}
-                className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
-              >
-                {loadingComment ? "Sending..." : "Send"}
-              </button>
-            </form>
-          </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function MentionInput({
+  value,
+  onChange,
+  onSubmit,
+  loading,
+  placeholder,
+  disabled,
+  onClose,
+}) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [caretPos, setCaretPos] = useState(0);
+  const inputRef = useRef();
+
+  // Detect @mention pattern and fetch suggestions
+  useEffect(() => {
+    const match = value.slice(0, caretPos).match(/@(\w*)$/);
+    if (match && match[1].length > 0) {
+      setMentionQuery(match[1]);
+      searchUsers(match[1]).then(result => {
+        const userList = Array.isArray(result) ? result : result.users;
+        setSuggestions((userList || []).slice(0, 5));
+        setShowSuggestions(true);
+      });
+    } else {
+      setShowSuggestions(false);
+      setSuggestions([]);
+    }
+  }, [value, caretPos]);
+
+  // Insert mention
+  const handleSelect = (username) => {
+    const before = value.slice(0, caretPos).replace(/@\w*$/, `@${username} `);
+    const after = value.slice(caretPos);
+    const newValue = before + after;
+    onChange(newValue);
+    setShowSuggestions(false);
+    setMentionQuery(""); // Ensures suggestions don't reappear until new @
+    setTimeout(() => {
+      if (inputRef.current) {
+        const pos = before.length;
+        inputRef.current.setSelectionRange(pos, pos);
+        inputRef.current.focus();
+      }
+    }, 0);
+  };
+
+  return (
+    <div className="relative w-full">
+      <div className="flex items-center gap-2 w-full">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={e => {
+            onChange(e.target.value);
+            setCaretPos(e.target.selectionStart);
+          }}
+          onClick={e => setCaretPos(e.target.selectionStart)}
+          onKeyUp={e => setCaretPos(e.target.selectionStart)}
+          placeholder={placeholder}
+          className="flex-1 border rounded px-2 py-1 min-w-0"
+          disabled={disabled}
+          style={{ maxWidth: "100%" }}
+        />
+        <button
+          type="submit"
+          disabled={loading || !value.trim()}
+          className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
+        >
+          {loading ? "Sending..." : "Send"}
+        </button>
+        {onClose && (
+          <button
+            type="button"
+            className="text-gray-400 hover:text-red-500 text-lg font-bold px-2 py-1 rounded transition"
+            aria-label="Close comment input"
+            onClick={onClose}
+            title="Hide comment input"
+            tabIndex={0}
+          >
+            ×
+          </button>
+        )}
+      </div>
+      {showSuggestions && suggestions.length > 0 && (
+        <ul className="absolute z-20 left-0 mt-1 w-full bg-white border rounded shadow max-h-40 overflow-y-auto">
+          {suggestions.map(user => (
+            <li
+              key={user._id}
+              className="px-3 py-1 cursor-pointer hover:bg-blue-50 text-blue-600"
+              onMouseDown={() => handleSelect(user.username)}
+            >
+              @{user.username}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
