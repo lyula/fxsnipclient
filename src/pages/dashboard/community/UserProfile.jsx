@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { FaArrowLeft, FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
@@ -6,45 +6,10 @@ import VerifiedBadge from "../../../components/VerifiedBadge";
 import Post from "../../../components/common/Post";
 import { useAuth } from "../../../context/auth";
 import { hashId } from "../../../utils/hash";
-import { incrementPostViews } from "../../../utils/api";
 
 // Profile cache to avoid refetching same data
 const profileCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-// Post view tracking component - EXACT SAME AS CHATPOST
-const PostViewTracker = ({ post, onView, children }) => {
-  const postRef = useRef();
-
-  useEffect(() => {
-    if (!post || !post._id) return;
-    const node = postRef.current;
-    if (!node) return;
-
-    let hasViewed = false;
-    const observer = new window.IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasViewed) {
-            onView(post._id);
-            hasViewed = true;
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.5 }
-    );
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }, [post, onView]);
-
-  return (
-    <div ref={postRef}>
-      {children}
-    </div>
-  );
-};
 
 export default function UserProfile() {
   const location = useLocation();
@@ -92,7 +57,7 @@ export default function UserProfile() {
     });
   }, [cacheKey]);
 
-  // SIMPLIFIED Profile view tracking - no more complex logic
+  // Profile view tracking
   const trackProfileView = (profileId) => {
     if (!profileId || !currentUser) return;
     
@@ -114,41 +79,7 @@ export default function UserProfile() {
     }
   };
 
-  // Modified handleView to prevent multiple views on refresh
-  const handleView = async (postId) => {
-    if (!postId) return;
-
-    // Initialize viewedPosts from localStorage or create new array
-    let viewedPosts = JSON.parse(localStorage.getItem("viewedPosts") || "[]");
-
-    // Check if post has already been viewed
-    if (!viewedPosts.includes(postId)) {
-      // Add postId to viewedPosts
-      viewedPosts.push(postId);
-      localStorage.setItem("viewedPosts", JSON.stringify(viewedPosts));
-
-      // Update view count in local state
-      setPosts(prevPosts =>
-        prevPosts.map(post =>
-          post._id === postId 
-            ? { ...post, views: (post.views || 0) + 1 }
-            : post
-        )
-      );
-
-      // Call API in background to increment view count
-      try {
-        await incrementPostViews(postId);
-      } catch (error) {
-        // If API call fails, remove postId from viewedPosts to allow retry
-        viewedPosts = viewedPosts.filter(id => id !== postId);
-        localStorage.setItem("viewedPosts", JSON.stringify(viewedPosts));
-        console.error("Error incrementing post views:", error);
-      }
-    }
-  };
-
-  // SIMPLIFIED fetch function - removed complex dependencies
+  // Fetch profile and counts
   const fetchProfileAndCounts = useCallback(async () => {
     setLoading(true);
     setButtonLoading(true);
@@ -185,7 +116,7 @@ export default function UserProfile() {
         profileData = await profileRes.json();
         setProfile(profileData);
         
-        // Track profile view - simple call, no dependencies
+        // Track profile view
         if (profileData?._id) {
           trackProfileView(profileData._id);
         }
@@ -238,7 +169,7 @@ export default function UserProfile() {
     }
   }, [API_BASE]);
 
-  // SIMPLIFIED useEffect - no debug logs
+  // Fetch profile and counts when username changes
   useEffect(() => {
     if (username) {
       fetchProfileAndCounts();
@@ -272,7 +203,7 @@ export default function UserProfile() {
     setIsFollowing(followersHashed.includes(hashedCurrentUserId));
   }, [profile, currentUser]);
 
-  // Optimized like handler with optimistic updates
+  // Like handler with optimistic updates
   const handleLike = useCallback(async (postId) => {
     // Optimistic update
     setPosts(prevPosts =>
@@ -301,7 +232,7 @@ export default function UserProfile() {
     }
   }, [API_BASE, authHeaders, currentUser]);
 
-  // Optimized comment handler
+  // Comment handler
   const handleComment = useCallback(async (postId, content) => {
     try {
       const res = await fetch(`${API_BASE}/posts/${postId}/comment`, {
@@ -323,7 +254,7 @@ export default function UserProfile() {
     }
   }, [API_BASE, authHeaders]);
 
-  // Follow/unfollow handlers (unchanged)
+  // Follow handler
   const handleFollow = useCallback(async () => {
     setFollowLoading(true);
     
@@ -367,6 +298,7 @@ export default function UserProfile() {
     }
   }, [profile, API_BASE, authHeaders, currentUser, cacheKey]);
 
+  // Unfollow handler
   const handleUnfollow = useCallback(async () => {
     setFollowLoading(true);
     
@@ -540,18 +472,13 @@ export default function UserProfile() {
                       })
                       .slice(0, 70)
                       .map((post) => (
-                        <PostViewTracker 
-                          key={post._id} 
-                          post={post} 
-                          onView={handleView}
+                        <Link
+                          key={post._id}
+                          to={`/dashboard/community?postId=${post._id}`}
+                          style={{ display: "block", textDecoration: "none" }}
                         >
-                          <Link
-                            to={`/dashboard/community?postId=${post._id}`}
-                            style={{ display: "block", textDecoration: "none" }}
-                          >
-                            <Post post={post} onLike={handleLike} onComment={handleComment} />
-                          </Link>
-                        </PostViewTracker>
+                          <Post post={post} onLike={handleLike} onComment={handleComment} />
+                        </Link>
                       ))
                   )}
                 </>
