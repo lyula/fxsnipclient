@@ -301,3 +301,12 @@ export async function addReplyToComment(postId, commentId, content) {
   });
   return res.json();
 }
+
+// Get unread conversation count
+export async function getUnreadConversationCount() {
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+  const res = await fetch(`${API_BASE}/message/unread-count`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  return res.json();
+}

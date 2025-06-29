@@ -6,34 +6,30 @@ import CommunityTabs from "./community/CommunityTabs";
 import CreatePostBox from "./community/CreatePostBox";
 import UserSearch from "./community/UserSearch";
 import { incrementPostViews } from "../../utils/api";
+import { useDashboard } from "../../context/dashboard";
 
 export default function Community({ user }) {
   const [activeTab, setActiveTab] = useState("forYou");
   const [showCreate, setShowCreate] = useState(false);
-  const [postsForYou, setPostsForYou] = useState([]);
   const [postsFollowing, setPostsFollowing] = useState([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
   const location = useLocation();
   const postRefs = useRef({});
 
-  // Fetch posts from backend for "For You" tab
+  // Use Dashboard Context instead of local state for posts
+  const {
+    communityPosts,
+    fetchCommunityPosts,
+    loadingStates,
+    addPostOptimistically,
+    updatePost,
+    deletePost
+  } = useDashboard();
+
+  // Load posts on mount (with caching)
   useEffect(() => {
-    if (activeTab === "forYou") {
-      const fetchPosts = async () => {
-        const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-        try {
-          const res = await fetch(`${API_BASE}/posts`);
-          if (res.ok) {
-            const data = await res.json();
-            setPostsForYou(data);
-          }
-        } catch (error) {
-          console.error("Error fetching posts:", error);
-        }
-      };
-      fetchPosts();
-    }
-  }, [activeTab]);
+    fetchCommunityPosts();
+  }, [fetchCommunityPosts]);
 
   // Scroll to post if postId is in URL
   useEffect(() => {
@@ -47,10 +43,33 @@ export default function Community({ user }) {
         }
       }, 300); // Wait for posts to render
     }
-  }, [location.search, postsForYou]);
+  }, [location.search, communityPosts]);
 
-  // Create a new post
+  // Create a new post with optimistic updates
   const handleNewPost = async (content, image) => {
+    const tempId = `temp-${Date.now()}`;
+    const optimisticPost = {
+      _id: tempId,
+      content,
+      image,
+      author: {
+        _id: user._id,
+        username: user.username,
+        verified: user.verified,
+        countryFlag: user.countryFlag
+      },
+      likes: [],
+      comments: [],
+      views: 0,
+      createdAt: new Date().toISOString(),
+      sending: true
+    };
+
+    // Add optimistically
+    addPostOptimistically(optimisticPost);
+    setActiveTab("forYou");
+    setShowCreate(false);
+
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
     try {
       const res = await fetch(`${API_BASE}/posts`, {
@@ -61,15 +80,19 @@ export default function Community({ user }) {
         },
         body: JSON.stringify({ content, image }),
       });
+      
       if (res.ok) {
         const newPost = await res.json();
-        setPostsForYou((prevPosts) => [newPost, ...prevPosts]);
-        setActiveTab("forYou");
-        setShowCreate(false);
+        // Replace optimistic post with real post
+        updatePost(tempId, { ...newPost, sending: false });
       } else {
+        // Mark as failed
+        updatePost(tempId, { ...optimisticPost, sending: false, failed: true });
         console.error("Failed to create post");
       }
     } catch (error) {
+      // Mark as failed
+      updatePost(tempId, { ...optimisticPost, sending: false, failed: true });
       console.error("Error creating post:", error);
     }
   };
@@ -88,12 +111,8 @@ export default function Community({ user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Update local state
-        setPostsForYou((prevPosts) =>
-          prevPosts.map((post) =>
-            post._id === postId ? data : post
-          )
-        );
+        // Update cached post
+        updatePost(postId, data);
         return data; // Return the updated post
       } else {
         console.error("Failed to add comment");
@@ -119,12 +138,8 @@ export default function Community({ user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Update local state
-        setPostsForYou((prevPosts) =>
-          prevPosts.map((post) =>
-            post._id === postId ? data : post
-          )
-        );
+        // Update cached post
+        updatePost(postId, data);
         return data; // Return the updated post
       } else {
         console.error("Failed to add reply");
@@ -148,52 +163,52 @@ export default function Community({ user }) {
     if (!postId) return;
 
     // Use localStorage to track viewed posts
-    const viewedKey = "viewedPosts";
-    let viewedPosts = [];
-    try {
-      viewedPosts = JSON.parse(localStorage.getItem(viewedKey)) || [];
-    } catch {
-      viewedPosts = [];
-    }
+    const viewedPosts = JSON.parse(localStorage.getItem("viewedPosts") || "[]");
+    if (!viewedPosts.includes(postId)) {
+      viewedPosts.push(postId);
+      localStorage.setItem("viewedPosts", JSON.stringify(viewedPosts));
 
-    // If already viewed, do nothing
-    if (viewedPosts.includes(postId)) return;
+      // Update view count in cache
+      const post = communityPosts.find(p => p._id === postId);
+      if (post) {
+        updatePost(postId, { ...post, views: (post.views || 0) + 1 });
+      }
 
-    // Mark as viewed in localStorage
-    viewedPosts.push(postId);
-    localStorage.setItem(viewedKey, JSON.stringify(viewedPosts));
-
-    // Optimistically update local state
-    setPostsForYou((prevPosts) =>
-      prevPosts.map((post) =>
-        post._id === postId
-          ? { ...post, views: (post.views || 0) + 1 }
-          : post
-      )
-    );
-
-    // Update backend and sync view count
-    try {
-      const res = await incrementPostViews(postId);
-      setPostsForYou((prevPosts) =>
-        prevPosts.map((post) =>
-          post._id === postId
-            ? { ...post, views: res.views }
-            : post
-        )
-      );
-    } catch (e) {
-      console.error("Failed to increment post views", e);
+      // Call API in background
+      try {
+        await incrementPostViews(postId);
+      } catch (error) {
+        console.error("Error incrementing post views:", error);
+      }
     }
   };
 
   // Delete a post
-  const handleDeletePost = (postId) => {
-    setPostsForYou((prevPosts) => prevPosts.filter((post) => post._id !== postId));
+  const handleDeletePost = async (postId) => {
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    try {
+      const res = await fetch(`${API_BASE}/posts/${postId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (res.ok) {
+        // Remove from cache
+        deletePost(postId);
+      } else {
+        console.error("Failed to delete post");
+      }
+    } catch (error) {
+      console.error("Error deleting post:", error);
+    }
   };
 
+  // Show cached data immediately with background refresh indicator
+  const showLoading = loadingStates.posts && communityPosts.length === 0;
+
   return (
-    <div className="flex flex-col h-full max-h-full">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-800">
       <CommunityTabs
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -206,25 +221,37 @@ export default function Community({ user }) {
         />
       )}
       <div className="flex-1 overflow-y-auto px-2 py-4 bg-gray-50 dark:bg-gray-800 hide-scrollbar">
-        {activeTab === "following" && <UserSearch currentUser={user} />}
-        <ChatList
-          posts={
-            activeTab === "forYou"
-              ? [...postsForYou]
-                  .filter((post) => post._id && post.createdAt)
-                  .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-              : postsFollowing
-          }
-          postRefs={postRefs}
-          onReply={handleReply}
-          onComment={handleComment}
-          onLike={handleLike}
-          onView={handleView}
-          onDelete={handleDeletePost}
-          currentUserId={user?._id}
-          currentUsername={user?.username}
-          currentUserVerified={user?.verified}
-        />
+        {/* Loading indicator for background refresh */}
+        {loadingStates.posts && communityPosts.length > 0 && (
+          <div className="mb-4 p-2 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-center text-sm rounded">
+            Refreshing posts...
+          </div>
+        )}
+
+        {showLoading ? (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            Loading posts...
+          </div>
+        ) : activeTab === "following" ? (
+          <UserSearch currentUser={user} />
+        ) : communityPosts.length === 0 ? (
+          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+            No posts yet. Be the first to share something!
+          </div>
+        ) : (
+          <ChatList
+            posts={communityPosts}
+            postRefs={postRefs}
+            onReply={handleReply}
+            onComment={handleComment}
+            onLike={handleLike}
+            onView={handleView}
+            onDelete={handleDeletePost}
+            currentUserId={user?._id}
+            currentUsername={user?.username}
+            currentUserVerified={user?.verified}
+          />
+        )}
       </div>
 
       {/* Floating Create Post Button */}

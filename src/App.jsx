@@ -14,12 +14,14 @@ import Terms from "./pages/Terms";
 import UserProfile from "./pages/dashboard/community/UserProfile";
 import MobileUserProfile from "./pages/dashboard/community/MobileUserProfile";
 import { useTheme } from "./hooks/useTheme";
+import { DashboardProvider } from "./context/dashboard"; // NEW
 
 function Placeholder({ title }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh]">
-      <h1 className="text-3xl font-bold text-blue-900 dark:text-white mb-4">{title}</h1>
-      <p className="text-gray-600 dark:text-gray-300">This is the {title} page.</p>
+    <div className="min-h-screen flex items-center justify-center">
+      <h1 className="text-3xl font-bold text-gray-700 dark:text-gray-300">
+        {title} Page
+      </h1>
     </div>
   );
 }
@@ -38,10 +40,10 @@ function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768); // Adjust breakpoint as needed
+      setIsMobile(window.innerWidth <= 768);
     };
 
-    handleResize(); // Check on initial load
+    handleResize();
     window.addEventListener("resize", handleResize);
 
     return () => {
@@ -52,7 +54,6 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Terms page should be independent */}
         <Route path="/terms" element={<Terms />} />
         <Route element={<PublicLayout />}>
           <Route path="/" element={<Landing />} />
@@ -63,7 +64,14 @@ function App() {
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/dashboard/*" element={<Dashboard />} />
+        
+        {/* Wrap Dashboard routes with DashboardProvider */}
+        <Route path="/dashboard/*" element={
+          <DashboardProvider>
+            <Dashboard />
+          </DashboardProvider>
+        } />
+        
         <Route element={<PrivateLayout />}>
           <Route path="/tsr" element={<Placeholder title="TSR" />} />
           <Route path="/stats" element={<Placeholder title="Stats" />} />

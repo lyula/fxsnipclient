@@ -1,86 +1,77 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useRef, useEffect } from "react";
-import { getConversations, getConversation, sendMessage } from "../../utils/api";
-import { jwtDecode } from "jwt-decode";
+import React, { useState, useEffect, useRef } from "react";
+import { useDashboard } from "../../context/dashboard";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import VerifiedBadge from "../../components/VerifiedBadge";
+import { getConversation, sendMessage } from "../../utils/api";
+import { jwtDecode } from "jwt-decode";
 
-export default function Inbox(props) {
-  const location = useLocation();
+const Inbox = () => {
+  // Context and navigation
+  const { 
+    conversations, 
+    fetchConversations, 
+    addMessageOptimistically, 
+    updateMessage, 
+    markMessageFailed, 
+    updateConversation,
+    formatRelativeTime
+  } = useDashboard();
   const navigate = useNavigate();
-  const query = new URLSearchParams(location.search);
-  const chatUsername = query.get("chat");
-
-  // All conversations in this session
-  const [users, setUsers] = useState([]);
+  const [searchParams] = useSearchParams();
+  
+  // Component state
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const messagesEndRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [lastMessageCount, setLastMessageCount] = useState(0);
+  const [newMessageAlert, setNewMessageAlert] = useState(null); // { count: number, show: boolean }
+  
+  // Track when user last opened each conversation (for unread indicator)
+  const [lastOpenedTimestamp, setLastOpenedTimestamp] = useState({});
+  
+  // Refs
   const messagesContainerRef = useRef(null);
+  const intervalRef = useRef(null);
+  const debouncedFetchMessages = useRef(null);
+  
+  // Get user ID from token
+  const token = localStorage.getItem("token");
+  let myUserId = "";
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      myUserId = decoded.id || decoded._id || decoded.userId || "";
+    } catch (e) {
+      myUserId = "";
+    }
+  }
 
-  // When chatUsername is present, select or create that user
+  // Load conversations on mount
   useEffect(() => {
-    if (chatUsername && users.length > 0) {
-      let user = users.find(
-        (u) => u.username && u.username.toLowerCase() === chatUsername.toLowerCase()
-      );
-      if (user) {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  // Handle URL parameters
+  useEffect(() => {
+    const chatParam = searchParams.get("chat");
+    if (chatParam && conversations.length > 0) {
+      const user = conversations.find(c => c.username === decodeURIComponent(chatParam));
+      if (user && (!selectedUser || selectedUser._id !== user._id)) {
         setSelectedUser(user);
       }
-    }
-    if (!chatUsername) {
+    } else if (!chatParam && selectedUser) {
+      // Clear selected user if no chat param
       setSelectedUser(null);
     }
-  }, [chatUsername, users]);
+  }, [searchParams, conversations, selectedUser]);
 
-  useEffect(() => {
-    if (selectedUser) setMessages(Array.isArray(selectedUser.messages) ? selectedUser.messages : []);
-  }, [selectedUser]);
-
-  // Scroll to the latest message when messages or selectedUser change
-  useEffect(() => {
-    if (messagesEndRef.current && messagesContainerRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "auto" });
-    }
-  }, [messages, selectedUser]);
-
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (input.trim() && selectedUser && selectedUser._id) {
-      try {
-        const newMsg = await sendMessage(selectedUser._id, input);
-        if (newMsg && newMsg.text) {
-          setMessages((prev) => [...prev, newMsg]);
-          setInput("");
-          setUsers((prev) => {
-            const updatedUsers = prev.map((u) =>
-              u._id === selectedUser._id
-                ? {
-                    ...u,
-                    lastMessage: newMsg.text,
-                    lastTime: new Date(newMsg.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }),
-                    lastTimestamp: new Date(newMsg.createdAt).getTime(), // Update timestamp
-                  }
-                : u
-            );
-            // Sort by lastTimestamp in descending order to ensure latest is at top
-            return updatedUsers.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
-          });
-        } else {
-          alert("Failed to send message.");
-        }
-      } catch (err) {
-        alert("Network error. Please try again.");
-      }
-    }
-  };
-
-  // Debounced search for users from backend
+  // Search functionality
   useEffect(() => {
     if (search.trim().length === 0) {
       setSearchResults([]);
@@ -125,153 +116,450 @@ export default function Inbox(props) {
     };
   }, [search]);
 
-  // Fetch conversations on mount
-  useEffect(() => {
-    getConversations().then((data) => {
-      const sortedUsers = data
-        .map((conv) => ({
-          _id: conv.user._id,
-          username: conv.user.username,
-          avatar: conv.user.countryFlag
-            ? conv.user.countryFlag
-            : "https://ui-avatars.com/api/?name=" + encodeURIComponent(conv.user.username),
-          lastMessage: conv.lastMessage?.text || "",
-          lastTime: conv.lastMessage
-            ? new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "",
-          lastTimestamp: conv.lastMessage
-            ? new Date(conv.lastMessage.createdAt).getTime()
-            : 0,
-          unreadCount: conv.unreadCount || 0,
-          verified: !!conv.user.verified, // <--- this is the badge flag
-        }))
-        .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
-      setUsers(sortedUsers);
-    });
-  }, []);
+  // Function to fetch messages from database
+  const fetchMessagesFromDB = async (conversationId, showLoading = false) => {
+    if (!conversationId) return;
+    
+    // Only show loading spinner when explicitly requested
+    if (showLoading) {
+      setIsLoadingMessages(true);
+    }
+    
+    setError(null);
+    
+    try {
+      console.log("Fetching messages for conversation:", conversationId);
+      const freshMessages = await getConversation(conversationId);
+      console.log("Received messages:", freshMessages);
+      
+      // Handle different response formats
+      let messagesArray = [];
+      if (Array.isArray(freshMessages)) {
+        messagesArray = freshMessages;
+      } else if (freshMessages && Array.isArray(freshMessages.messages)) {
+        messagesArray = freshMessages.messages;
+      } else if (freshMessages && Array.isArray(freshMessages.data)) {
+        messagesArray = freshMessages.data;
+      } else {
+        console.warn("Unexpected response format:", freshMessages);
+        messagesArray = [];
+      }
+      
+      // Check if there are new messages from other users
+      const currentMessageCount = messagesArray.length;
+      const hasNewMessages = currentMessageCount > lastMessageCount;
+      
+      // If there are new messages, check if any are from other users
+      if (hasNewMessages && lastMessageCount > 0) {
+        const newMessages = messagesArray.slice(lastMessageCount);
+        const newMessagesFromOthers = newMessages.filter(msg => msg.from !== myUserId);
+        
+        if (newMessagesFromOthers.length > 0) {
+          // Show new message alert
+          setNewMessageAlert({
+            count: newMessagesFromOthers.length,
+            show: true
+          });
+          
+          // Hide alert after 3 seconds
+          setTimeout(() => {
+            setNewMessageAlert(prev => prev ? { ...prev, show: false } : null);
+          }, 3000);
+          
+          // Show brief loading for new messages from others
+          setIsLoadingMessages(true);
+          setTimeout(() => setIsLoadingMessages(false), 300);
+        }
+      }
+      
+      setMessages(messagesArray);
+      setLastMessageCount(currentMessageCount);
+      
+      if (showLoading || hasNewMessages) {
+        setShouldScrollToBottom(true);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      setError("Failed to load messages");
+      if (showLoading) {
+        setMessages([]);
+      }
+    } finally {
+      if (showLoading) {
+        setIsLoadingMessages(false);
+      }
+    }
+  };
 
+  // Load messages when user is selected and set up polling
   useEffect(() => {
     if (selectedUser && selectedUser._id) {
-      getConversation(selectedUser._id).then((msgs) => setMessages(msgs));
-    }
-  }, [selectedUser]);
+      const conversationId = selectedUser._id;
+      const now = Date.now();
+      
+      // Mark this conversation as opened now
+      setLastOpenedTimestamp(prev => ({
+        ...prev,
+        [conversationId]: now
+      }));
+      
+      // Clear any existing interval and debounced calls
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (debouncedFetchMessages.current) {
+        clearTimeout(debouncedFetchMessages.current);
+      }
+      
+      // Clear previous messages and error
+      setMessages([]);
+      setError(null);
+      setLastMessageCount(0);
+      setNewMessageAlert(null);
+      
+      // Check if this conversation has unread messages
+      const conversation = conversations.find(c => c._id === conversationId);
+      if (conversation && conversation.unreadCount > 0) {
+        // Show initial unread message alert
+        setNewMessageAlert({
+          count: conversation.unreadCount,
+          show: true
+        });
+        
+        // Hide after 4 seconds for initial unread messages
+        setTimeout(() => {
+          setNewMessageAlert(prev => prev ? { ...prev, show: false } : null);
+        }, 4000);
+      }
+      
+      // Fetch messages immediately (initial load with spinner)
+      fetchMessagesFromDB(conversationId, true);
+      
+      // Set up smarter polling - only if window is focused
+      const startPolling = () => {
+        intervalRef.current = setInterval(() => {
+          if (document.visibilityState === 'visible') {
+            fetchMessagesFromDB(conversationId, false);
+          }
+        }, 15000);
+      };
 
-  const token = localStorage.getItem("token");
-  let myUserId = "";
-  if (token) {
+      startPolling();
+
+      // Pause polling when window is not visible, resume when visible
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          if (!intervalRef.current) {
+            startPolling();
+          }
+        } else {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      // Cleanup function should also remove the event listener
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+        if (debouncedFetchMessages.current) {
+          clearTimeout(debouncedFetchMessages.current);
+        }
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    } else {
+      // Clear messages and stop polling when no user is selected
+      setMessages([]);
+      setIsLoadingMessages(false);
+      setError(null);
+      setLastMessageCount(0);
+      setNewMessageAlert(null);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    }
+
+    // Cleanup interval on unmount or user change
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [selectedUser, conversations]);
+
+  // Handle scrolling after messages are rendered
+  useEffect(() => {
+    if (messagesContainerRef.current && shouldScrollToBottom) {
+      // Scroll to bottom immediately without animation
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      setShouldScrollToBottom(false);
+    }
+  }, [messages, shouldScrollToBottom]);
+
+  // Optimistic message sending
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || !selectedUser?._id || isSending) return;
+
+    const messageText = input.trim();
+    const tempId = `temp-${Date.now()}`;
+    const now = new Date();
+    
+    // Create optimistic message
+    const optimisticMessage = {
+      _id: tempId,
+      text: messageText,
+      from: myUserId,
+      to: selectedUser._id,
+      createdAt: now.toISOString(),
+      read: false,
+      isOptimistic: true,
+      failed: false
+    };
+
+    // Clear input and add optimistic message
+    setInput("");
+    setMessages(prev => {
+      const newMessages = [...prev, optimisticMessage];
+      setLastMessageCount(newMessages.length); // Update count immediately
+      return newMessages;
+    });
+    
+    // Smooth scroll for new messages
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTo({
+          top: messagesContainerRef.current.scrollHeight,
+          behavior: "smooth"
+        });
+      }
+    }, 50);
+
+    setIsSending(true);
+
+    // Update conversation list optimistically
+    updateConversation(selectedUser._id, {
+      lastMessage: messageText,
+      lastTime: formatRelativeTime(now.getTime()),
+      lastTimestamp: now.getTime()
+    });
+
     try {
-      const decoded = jwtDecode(token);
-      myUserId = decoded.id || decoded._id || decoded.userId || "";
-    } catch (e) {
-      myUserId = "";
-    }
-  }
+      // Send actual message
+      const newMsg = await sendMessage(selectedUser._id, messageText);
+      
+      if (newMsg && (newMsg.text || newMsg.message)) {
+        // Update optimistic message with real message
+        const realMessage = {
+          ...newMsg,
+          text: newMsg.text || newMsg.message
+        };
+        
+        setMessages(prev => prev.map(msg => 
+          msg._id === tempId ? realMessage : msg
+        ));
 
-  // Group messages by date for rendering
-  function groupMessagesByDate(messages) {
-    const groups = [];
-    let lastDate = null;
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
+        // Update conversation list with real timestamp
+        updateConversation(selectedUser._id, {
+          lastMessage: realMessage.text,
+          lastTime: formatRelativeTime(new Date(realMessage.createdAt).getTime()),
+          lastTimestamp: new Date(realMessage.createdAt).getTime()
+        });
 
-    messages.forEach((msg, index) => {
-      const msgDate = new Date(msg.createdAt);
-      const msgDay = msgDate.getDate();
-      const msgMonth = msgDate.getMonth();
-      const msgYear = msgDate.getFullYear();
-
-      let label = "";
-      if (
-        msgDay === today.getDate() &&
-        msgMonth === today.getMonth() &&
-        msgYear === today.getFullYear()
-      ) {
-        label = "Today";
-      } else if (
-        msgDay === yesterday.getDate() &&
-        msgMonth === yesterday.getMonth() &&
-        msgYear === yesterday.getFullYear()
-      ) {
-        label = "Yesterday";
+        // Force refresh messages after successful send (without spinner)
+        setTimeout(() => {
+          fetchMessagesFromDB(selectedUser._id, false);
+        }, 1000);
       } else {
-        label = `${String(msgDay).padStart(2, "0")}/${String(msgMonth + 1).padStart(
-          2,
-          "0"
-        )}/${String(msgYear).slice(-2)}`;
+        throw new Error("Failed to send message");
+      }
+    } catch (error) {
+      console.error("Send error:", error);
+      // Mark message as failed
+      setMessages(prev => prev.map(msg => 
+        msg._id === tempId ? { ...msg, failed: true, isOptimistic: false } : msg
+      ));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleRetry = async (message) => {
+    if (isSending) return;
+    
+    // Remove failed flag
+    setMessages(prev => prev.map(msg => 
+      msg._id === message._id ? { ...msg, failed: false, isOptimistic: true } : msg
+    ));
+
+    setIsSending(true);
+
+    try {
+      const newMsg = await sendMessage(selectedUser._id, message.text);
+      
+      if (newMsg && (newMsg.text || newMsg.message)) {
+        const realMessage = {
+          ...newMsg,
+          text: newMsg.text || newMsg.message
+        };
+        
+        setMessages(prev => prev.map(msg => 
+          msg._id === message._id ? realMessage : msg
+        ));
+
+        // Force refresh messages after successful retry (without spinner)
+        setTimeout(() => {
+          fetchMessagesFromDB(selectedUser._id, false);
+        }, 1000);
+      } else {
+        throw new Error("Failed to send message");
+      }
+    } catch (error) {
+      console.error("Retry error:", error);
+      setMessages(prev => prev.map(msg => 
+        msg._id === message._id ? { ...msg, failed: true, isOptimistic: false } : msg
+      ));
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    if (selectedUser?._id) {
+      fetchMessagesFromDB(selectedUser._id, true);
+    }
+  };
+
+  // Group messages by date and add unread indicator
+  const groupedMessages = (() => {
+    if (!messages.length) return [];
+
+    const conversationId = selectedUser?._id;
+    const openedTimestamp = lastOpenedTimestamp[conversationId];
+    let unreadSectionShown = false;
+    
+    const grouped = [];
+    let currentDate = null;
+
+    messages.forEach((message, index) => {
+      const messageDate = new Date(message.createdAt).toDateString();
+      
+      // Add date divider if needed
+      if (messageDate !== currentDate) {
+        currentDate = messageDate;
+        const today = new Date();
+        const yesterday = new Date();
+        yesterday.setDate(today.getDate() - 1);
+        
+        let label = "";
+        if (messageDate === today.toDateString()) {
+          label = "Today";
+        } else if (messageDate === yesterday.toDateString()) {
+          label = "Yesterday";
+        } else {
+          const msgDate = new Date(messageDate);
+          label = `${String(msgDate.getDate()).padStart(2, "0")}/${String(msgDate.getMonth() + 1).padStart(2, "0")}/${String(msgDate.getFullYear()).slice(-2)}`;
+        }
+        
+        grouped.push({
+          type: "date",
+          label
+        });
       }
 
-      const dateKey = `${msgYear}-${msgMonth + 1}-${msgDay}`;
-      if (!lastDate || lastDate !== dateKey) {
-        groups.push({ type: "date", label });
-        lastDate = dateKey;
+      // Check if we should show unread indicator
+      // Only show for messages from other users that arrived after the conversation was last opened
+      const messageTimestamp = new Date(message.createdAt).getTime();
+      const shouldShowUnread = !unreadSectionShown && 
+                              message.from !== myUserId && 
+                              openedTimestamp && 
+                              messageTimestamp > openedTimestamp;
+
+      if (shouldShowUnread) {
+        unreadSectionShown = true;
+        grouped.push({
+          type: "unread",
+          label: "Unread Messages"
+        });
       }
 
-      const isFirstInGroup =
-        index === 0 ||
-        (messages[index - 1] && new Date(messages[index - 1].createdAt).getDate() !== msgDay);
+      // Determine if this is the first message in a group
+      const isFirstInGroup = index === 0 || 
+        messages[index - 1].from !== message.from ||
+        (new Date(message.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime()) > 300000; // 5 minutes
 
-      groups.push({
-        type: "msg",
-        msg,
-        isFirstInGroup,
-        originalIndex: index,
+      grouped.push({
+        type: "message",
+        msg: message,
+        isFirstInGroup
       });
     });
-    return groups;
+
+    return grouped;
+  })();
+
+  const truncateWords = (text, wordCount) => {
+    if (!text) return "";
+    const words = text.split(" ");
+    if (words.length <= wordCount) return text;
+    return words.slice(0, wordCount).join(" ") + "...";
+  };
+
+  // Show loading state only if no cached data
+  if (!conversations.length) {
+    return (
+      <div className="w-full h-full flex flex-col bg-white dark:bg-gray-900">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Messages</h2>
+        </div>
+        
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-gray-500 dark:text-gray-400 mb-2">Loading conversations...</div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
-  // Count conversations with unread messages
-  useEffect(() => {
-    const unreadConversations = users.filter((u) => u.unreadCount > 0).length;
-    if (typeof props.setUnreadConversations === "function") {
-      props.setUnreadConversations(unreadConversations);
-    }
-  }, [users]);
-
-  // Helper function to truncate words
-  function truncateWords(str, numWords = 4) {
-    if (!str) return "";
-    const words = str.split(" ");
-    if (words.length <= numWords) return str;
-    return words.slice(0, numWords).join(" ") + " ...";
-  }
-
-  // Keep selectedUser in sync with users array for latest verified status, etc.
-  useEffect(() => {
-    if (selectedUser && users.length > 0) {
-      const updated = users.find(u => u._id === selectedUser._id);
-      if (updated) setSelectedUser(updated);
-    }
-  }, [users]);
-
-  // If no user selected, show chat list or start messaging UI
+  // If no user selected, show chat list
   if (!selectedUser) {
     return (
-      <div className="w-full max-w-lg mx-auto flex flex-col h-screen bg-white dark:bg-gray-800 rounded-none sm:rounded-xl shadow p-0">
+      <div className="w-full h-full flex flex-col bg-white dark:bg-gray-900">
+        {/* Header */}
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Messages</h2>
+        </div>
+        
         {/* Search bar */}
-        <div className="relative w-full max-w-xs mx-auto mt-4 mb-2">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 relative">
           <input
-            className="w-full rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Search user to message..."
+            className="w-full rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Search conversations..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             autoComplete="off"
           />
           {search && searchResults.length > 0 && (
-            <ul className="absolute left-0 right-0 z-20 bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
+            <ul className="absolute left-4 right-4 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
               {searchResults.map((user) => (
                 <li
                   key={user.username}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-blue-50 dark:hover:bg-gray-800 cursor-pointer transition"
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition"
                   onClick={() => {
-                    // Prefer the user object from the conversation list if it exists
-                    const fullUser = users.find(u => u._id === user._id) || user;
+                    const fullUser = conversations.find(u => u._id === user._id) || user;
                     setSelectedUser(fullUser);
                     navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
+                    setSearch("");
                   }}
                 >
                   <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
@@ -284,53 +572,59 @@ export default function Inbox(props) {
             </ul>
           )}
           {search && searchResults.length === 0 && (
-            <div className="absolute left-0 right-0 z-20 bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded-lg shadow-lg mt-1 p-3 text-xs text-gray-500 dark:text-gray-400">
+            <div className="absolute left-4 right-4 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 p-3 text-xs text-gray-500 dark:text-gray-400">
               No users found.
             </div>
           )}
         </div>
+
         {/* Conversation list */}
-        <div className="flex-1 px-0 py-0 bg-gray-50 dark:bg-gray-900 rounded-b-xl overflow-y-auto">
-          {users.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 text-lg">
-              Start messaging
+        <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+          {conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
+              <div className="text-center">
+                <h3 className="text-lg font-medium mb-2">No conversations yet</h3>
+                <p className="text-sm">Start a conversation to see it here</p>
+              </div>
             </div>
           ) : (
-            users.map((user) => (
+            conversations.map((user) => (
               <button
                 key={user._id}
-                className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800 transition relative"
+                className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition relative"
                 onClick={async () => {
-                  const fullUser = users.find(u => u._id === user._id) || user;
+                  const fullUser = conversations.find(u => u._id === user._id) || user;
                   setSelectedUser(fullUser);
                   navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
-                  setUsers((prev) =>
-                    prev.map((u) =>
-                      u._id === user._id ? { ...u, unreadCount: 0 } : u
-                    )
-                  );
+                  updateConversation(user._id, { unreadCount: 0 });
                 }}
               >
                 <div className="relative">
-                  <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full" />
+                  <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
+                  {user.unreadCount > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {user.unreadCount > 9 ? '9+' : user.unreadCount}
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1 text-left">
-                  <div className={`text-gray-900 dark:text-white ${user.unreadCount > 0 ? "font-bold" : "font-normal"}`}>
-                    {user.username}
+                <div className="flex-1 text-left min-w-0">
+                  <div className={`text-gray-900 dark:text-white flex items-center gap-1 ${user.unreadCount > 0 ? "font-bold" : "font-medium"}`}>
+                    <span className="truncate">{user.username}</span>
                     {user.verified && <VerifiedBadge />}
                   </div>
                   <div
-                    className={`text-xs truncate ${
+                    className={`text-sm truncate ${
                       user.unreadCount > 0
-                        ? "font-bold text-gray-900 dark:text-white"
+                        ? "font-medium text-gray-900 dark:text-white"
                         : "text-gray-500 dark:text-gray-400"
                     }`}
                   >
-                    <span className="block sm:hidden">{truncateWords(user.lastMessage, 4)}</span>
-                    <span className="hidden sm:block">{truncateWords(user.lastMessage, 8)}</span>
+                    {truncateWords(user.lastMessage, 10)}
                   </div>
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">{user.lastTime}</div>
+                <div className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                  {user.lastTime}
+                </div>
               </button>
             ))
           )}
@@ -339,17 +633,17 @@ export default function Inbox(props) {
     );
   }
 
-  // If user selected, show chat view
+  // Chat view (chatbox style)
   if (selectedUser) {
-    const groupedMessages = groupMessagesByDate(messages);
     return (
-      <div className="w-full max-w-lg mx-auto h-screen flex flex-col bg-gray-50 dark:bg-gray-900 rounded-none sm:rounded-xl shadow p-0">
-        {/* Sticky Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 sticky top-0 z-30">
+      <div className="w-full h-screen flex flex-col bg-white dark:bg-gray-900 rounded-none sm:rounded-xl shadow relative">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-30">
           <button
             onClick={() => {
               setSelectedUser(null);
-              navigate("/dashboard/inbox");
+              setMessages([]);
+              navigate("/dashboard/inbox", { replace: true });
             }}
             className="mr-2 text-blue-600 dark:text-blue-400 font-bold text-lg px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-gray-700 transition"
           >
@@ -378,8 +672,21 @@ export default function Inbox(props) {
             {selectedUser.username}
             {selectedUser.verified && <VerifiedBadge />}
           </span>
+          
+          {/* Refresh button */}
+          <button
+            onClick={handleRefresh}
+            className="ml-auto text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 p-2 rounded transition"
+            title="Refresh messages"
+            disabled={isLoadingMessages}
+          >
+            <svg className={`w-4 h-4 ${isLoadingMessages ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
-        {/* Scrollable Messages */}
+
+        {/* Messages */}
         <div className="flex-1 relative overflow-hidden">
           <div
             ref={messagesContainerRef}
@@ -395,18 +702,57 @@ export default function Inbox(props) {
                 }
               `}
             </style>
-            <div>
-              {groupedMessages.map((item, idx) =>
-                item.type === "date" ? (
-                  <div
-                    key={`date-${idx}`}
-                    className="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 my-4"
+            
+            {/* Error message */}
+            {error && (
+              <div className="text-center py-4">
+                <div className="inline-block px-4 py-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 text-sm rounded-lg">
+                  {error}
+                  <button 
+                    onClick={handleRefresh}
+                    className="ml-2 underline hover:no-underline"
                   >
-                    <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                      {item.label}
-                    </span>
-                  </div>
-                ) : (
+                    Try again
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* No messages state */}
+            {!isLoadingMessages && !error && messages.length === 0 && (
+              <div className="text-center py-8">
+                <div className="text-gray-500 dark:text-gray-400">
+                  No messages yet. Start the conversation!
+                </div>
+              </div>
+            )}
+            
+            <div>
+              {groupedMessages.map((item, idx) => {
+                if (item.type === "date") {
+                  return (
+                    <div
+                      key={`date-${idx}`}
+                      className="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 my-4"
+                    >
+                      <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                        {item.label}
+                      </span>
+                    </div>
+                  );
+                }
+                
+                if (item.type === "unread") {
+                  return (
+                    <div key={`unread-${idx}`} className="text-center text-xs font-semibold text-red-500 dark:text-red-400 my-4">
+                      <span className="bg-red-100 dark:bg-red-900 px-3 py-1 rounded-full">
+                        {item.label}
+                      </span>
+                    </div>
+                  );
+                }
+
+                return (
                   <div
                     key={`msg-${idx}`}
                     className={`flex ${
@@ -414,14 +760,28 @@ export default function Inbox(props) {
                     } ${item.isFirstInGroup ? "mt-4" : "mt-1"} mb-2 flex-col`}
                   >
                     <div
-                      className={`max-w-xs px-4 py-2 rounded-2xl text-sm shadow-sm ${
+                      className={`max-w-xs px-4 py-2 rounded-2xl text-sm shadow-sm relative ${
                         item.msg.from === myUserId
-                          ? "bg-blue-600 text-white rounded-br-none border border-blue-700"
+                          ? `${item.msg.failed 
+                              ? "bg-red-500 text-white border border-red-600" 
+                              : item.msg.isOptimistic 
+                                ? "bg-blue-400 text-white border border-blue-500 opacity-80"
+                                : "bg-blue-600 text-white border border-blue-700"
+                        } rounded-br-none`
                           : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-300 dark:border-gray-600"
                       } ${item.msg.from === myUserId ? "ml-auto" : "mr-auto"}`}
                     >
                       <div>{item.msg.text}</div>
-                      <div className="text-xs text-gray-400 mt-1">
+                      {item.msg.failed && (
+                        <button
+                          onClick={() => handleRetry(item.msg)}
+                          className="text-xs underline mt-1 hover:no-underline"
+                          disabled={isSending}
+                        >
+                          Tap to retry
+                        </button>
+                      )}
+                      <div className={`text-xs mt-1 ${item.msg.from === myUserId ? "text-blue-100" : "text-gray-400"}`}>
                         {new Date(item.msg.createdAt).toLocaleTimeString([], {
                           hour: "2-digit",
                           minute: "2-digit",
@@ -429,29 +789,48 @@ export default function Inbox(props) {
                       </div>
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-1 text-[10px]">
-                     
-                      {/* Status badge for messages sent by me */}
-                      {item.msg.from === myUserId && (
+                      {item.msg.from === myUserId && !item.msg.failed && (
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full font-semibold
-        ${
-          item.msg.read
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border border-green-300 dark:border-green-700"
-            : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-300 dark:border-gray-700"
-        }
-      `}
+                          className={`inline-block px-2 py-0.5 rounded-full font-semibold ${
+                            item.msg.isOptimistic
+                              ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700"
+                              : item.msg.read
+                                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border border-green-300 dark:border-green-700"
+                                : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-300 dark:border-gray-700"
+                          }`}
                         >
-                          {item.msg.read ? "Seen" : "Delivered"}
+                          {item.msg.isOptimistic ? "Sending..." : item.msg.read ? "Seen" : "Delivered"}
+                        </span>
+                      )}
+                      {item.msg.failed && (
+                        <span className="inline-block px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 border border-red-300 dark:border-red-700">
+                          Failed
                         </span>
                       )}
                     </div>
                   </div>
-                )
-              )}
-              <div ref={messagesEndRef} />
+                );
+              })}
             </div>
           </div>
         </div>
+
+        {/* Floating loading spinner - no background */}
+        {isLoadingMessages && (
+          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-40">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
+          </div>
+        )}
+
+        {/* New message alert - floating above input */}
+        {newMessageAlert && newMessageAlert.show && (
+          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+            <div className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
+              {newMessageAlert.count === 1 ? "New message" : `${newMessageAlert.count} new messages`}
+            </div>
+          </div>
+        )}
+
         {/* Message input form */}
         <form
           onSubmit={handleSend}
@@ -463,19 +842,41 @@ export default function Inbox(props) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             autoComplete="off"
+            disabled={isSending}
           />
           <button
             type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-full transition"
-            disabled={!input.trim()}
+            className={`font-bold px-4 py-2 rounded-full transition ${
+              isSending || !input.trim()
+                ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 text-white"
+            }`}
+            disabled={isSending || !input.trim()}
           >
-            Send
+            {isSending ? "..." : "Send"}
           </button>
         </form>
+
+        <style jsx>{`
+          @keyframes fade-in {
+            0% {
+              opacity: 0;
+              transform: translateX(-50%) translateY(10px);
+            }
+            100% {
+              opacity: 1;
+              transform: translateX(-50%) translateY(0);
+            }
+          }
+          .animate-fade-in {
+            animation: fade-in 0.3s ease-out;
+          }
+        `}</style>
       </div>
     );
   }
 
-  // fallback (should never hit)
   return null;
-}
+};
+
+export default Inbox;

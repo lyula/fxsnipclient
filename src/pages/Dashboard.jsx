@@ -22,7 +22,7 @@ import Profile from "./dashboard/Profile";
 import { useAuth } from "../context/auth";
 import VerifiedBadge from "../components/VerifiedBadge";
 import Notifications from "./dashboard/Notifications";
-import { getUnreadNotificationCount } from "../utils/api"; // Add this import
+import { useDashboard } from "../context/dashboard";
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
@@ -46,9 +46,13 @@ const DASHBOARD_LABELS = {
 };
 
 export default function Dashboard() {
-  // All hooks must be inside the function!
-  const [unreadConversations, setUnreadConversations] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  // Use dashboard context instead of local state
+  const {
+    conversations,
+    notifications,
+    fetchConversations,
+    fetchNotifications
+  } = useDashboard();
 
   const { user, refreshUser } = useAuth();
 
@@ -147,6 +151,16 @@ export default function Dashboard() {
       .sort((a, b) => b[0].length - a[0].length)
       .find(([key]) => location.pathname.startsWith(key))?.[1] || "Dashboard";
 
+  // Calculate unread counts from context data
+  const unreadConversations = conversations.filter(conv => conv.unreadCount > 0).length;
+  const unreadNotifications = notifications.filter(notif => !notif.read).length;
+
+  // Load data on mount
+  useEffect(() => {
+    fetchConversations();
+    fetchNotifications();
+  }, [fetchConversations, fetchNotifications]);
+
   // Main dashboard content (preserved original layout)
   const DashboardMain = (
     <div className="w-full max-w-7xl mx-auto">
@@ -212,20 +226,6 @@ export default function Dashboard() {
       </div>
     </div>
   );
-
-  // Fetch unread notification count
-  useEffect(() => {
-    async function fetchUnread() {
-      try {
-        const res = await getUnreadNotificationCount();
-        setUnreadNotifications(res.count || 0);
-      } catch {}
-    }
-    fetchUnread();
-    // Optionally, poll every 30s for real-time updates
-    const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Determine which dashboard page to show
   let MainContent;
@@ -557,7 +557,6 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => {
                   navigate("/dashboard/notifications");
-                  setUnreadNotifications(0); // Optimistically clear badge
                 }}
               >
                 <FaBell className="text-base sm:text-xl" />
@@ -604,7 +603,7 @@ export default function Dashboard() {
                 <Route path="" element={DashboardMain} />
                 <Route path="community/user/:username" element={<UserProfile />} />
                 <Route path="community/*" element={<Community user={user} />} />
-                <Route path="inbox" element={<Inbox setUnreadConversations={setUnreadConversations} />} />
+                <Route path="inbox" element={<Inbox />} />
                 <Route path="signals" element={<Signals />} />
                 <Route path="journal" element={<Journal />} />
                 <Route path="stats" element={<Stats />} />
