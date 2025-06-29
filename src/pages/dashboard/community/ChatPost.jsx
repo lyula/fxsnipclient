@@ -2,8 +2,37 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
-import { addCommentToPost, likePost, searchUsers } from "../../../utils/api"; // Adjust path if needed
+import { addCommentToPost, likePost } from "../../../utils/api"; // Adjust path if needed
 import { formatPostDate } from '../../../utils/formatDate'; // Adjust path if needed
+
+// Dummy MentionInput component (replace with your actual implementation)
+function MentionInput({ value, onChange, onSubmit, loading, placeholder, disabled, onClose }) {
+  return (
+    <form onSubmit={onSubmit} className="flex gap-2 w-full max-w-full flex-wrap">
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="flex-1 border rounded px-2 py-1 text-sm sm:text-base min-w-0 box-border"
+        disabled={disabled}
+        style={{ maxWidth: "100%" }}
+      />
+      <button
+        type="submit"
+        disabled={loading || !value.trim()}
+        className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50 shrink-0"
+      >
+        {loading ? "Sending..." : "Send"}
+      </button>
+      {onClose && (
+        <button type="button" onClick={onClose} className="ml-2 text-gray-400">
+          ×
+        </button>
+      )}
+    </form>
+  );
+}
 
 function ReplyInput({ onSubmit, loading, postId, commentId }) {
   const [reply, setReply] = useState("");
@@ -16,19 +45,20 @@ function ReplyInput({ onSubmit, loading, postId, commentId }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-full flex-wrap">
       <input
         type="text"
         value={reply}
         onChange={e => setReply(e.target.value)}
         placeholder="Write a reply..."
-        className="flex-1 border rounded px-2 py-1 text-sm sm:text-base"
+        className="flex-1 border rounded px-2 py-1 text-sm sm:text-base min-w-0 box-border"
         disabled={loading}
+        style={{ maxWidth: "100%" }}
       />
       <button
         type="submit"
         disabled={loading || !reply.trim()}
-        className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
+        className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50 shrink-0"
       >
         {loading ? "Sending..." : "Send"}
       </button>
@@ -64,9 +94,10 @@ export default function ChatPost({
   const [localPost, setLocalPost] = useState(post); // Local state for optimistic updates
   const [error, setError] = useState(null);
   const [showCommentInput, setShowCommentInput] = useState(true);
-  const [replyInputs, setReplyInputs] = useState({});
   const commentsRef = useRef(null);
   const postRef = useRef();
+
+  const { search } = useLocation();
 
   useEffect(() => {
     setLocalPost(post); // Sync with prop if post changes
@@ -82,20 +113,25 @@ export default function ChatPost({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasViewed) {
-            console.log(`View recorded for post: ${post._id}`);
             onView(post._id);
             hasViewed = true;
             observer.disconnect();
           }
         });
       },
-      { threshold: 0.5 } // 50% visible
+      { threshold: 0.5 }
     );
-
     observer.observe(node);
 
     return () => observer.disconnect();
   }, [post, onView]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(search);
+    if (params.get("commentId") || params.get("replyId") || params.get("commentUserId")) {
+      setShowComments(true);
+    }
+  }, [search]);
 
   const liked = Array.isArray(localPost.likes) && currentUserId
     ? localPost.likes.map(String).includes(String(currentUserId))
@@ -118,7 +154,6 @@ export default function ChatPost({
       replies: [],
     };
 
-    // Optimistically update local state
     setLocalPost(prev => ({
       ...prev,
       comments: [tempComment, ...(prev.comments || [])],
@@ -126,41 +161,32 @@ export default function ChatPost({
 
     try {
       const res = await addCommentToPost(localPost._id, comment);
-      // Even if backend returns 500, assume comment is saved (since it appears after refresh)
       if (res && res.comment && !res.error) {
-        // Update with actual comment from backend if available
         setLocalPost(prev => ({
           ...prev,
           comments: [res.comment, ...prev.comments.filter(c => !c._id.startsWith('temp-comment'))],
         }));
       } else {
-        // If backend fails (e.g., 500), try to fetch updated post via onComment
         if (onComment) {
           const updatedPost = await onComment();
-          if (updatedPost) {
-            setLocalPost(updatedPost); // Update with backend data
-          }
+          if (updatedPost) setLocalPost(updatedPost);
         }
-        // Keep optimistic comment in UI since backend saves it
       }
     } catch (e) {
-      console.error("Error adding comment:", e);
-      // Only set error for critical failures (e.g., network errors), not 500
-      if (e.message.includes("Network Error")) {
+      if (e.message && e.message.includes("Network Error")) {
         setError("Network error: Failed to post comment");
       }
-      // Try to fetch updated post to get actual comment
       if (onComment) {
         try {
           const updatedPost = await onComment();
-          if (updatedPost) {
-            setLocalPost(updatedPost); // Update with backend data
-          }
+          if (updatedPost) setLocalPost(updatedPost);
         } catch (fetchError) {
-          console.error("Error fetching updated post:", fetchError);
           // Keep optimistic comment since backend likely saved it
         }
       }
+    } finally {
+      setLoadingComment(false);
+      setComment("");
     }
   };
 
@@ -169,7 +195,6 @@ export default function ChatPost({
     setLoadingReply(prev => ({ ...prev, [commentId]: true }));
     setError(null);
 
-    // Create a temporary reply object with user data
     const tempReply = {
       _id: `temp-reply-${Date.now()}`,
       content: replyText,
@@ -178,7 +203,6 @@ export default function ChatPost({
       createdAt: new Date().toISOString(),
     };
 
-    // Optimistically update local state
     setLocalPost(prev => ({
       ...prev,
       comments: prev.comments.map(c =>
@@ -190,26 +214,18 @@ export default function ChatPost({
 
     try {
       if (onReply) {
-        const updatedPost = await onReply(postId, replyText, commentId); // Assume onReply returns updated post
-        if (updatedPost) {
-          setLocalPost(updatedPost); // Update with backend data
-        }
+        const updatedPost = await onReply(postId, replyText, commentId);
+        if (updatedPost) setLocalPost(updatedPost);
       }
     } catch (e) {
-      console.error("Error adding reply:", e);
-      if (e.message.includes("Network Error")) {
+      if (e.message && e.message.includes("Network Error")) {
         setError("Network error: Failed to post reply");
       }
-      // Keep optimistic reply in UI since backend likely saves it
       if (onComment) {
         try {
           const updatedPost = await onComment();
-          if (updatedPost) {
-            setLocalPost(updatedPost); // Update with backend data
-          }
-        } catch (fetchError) {
-          console.error("Error fetching updated post:", fetchError);
-        }
+          if (updatedPost) setLocalPost(updatedPost);
+        } catch (fetchError) {}
       }
     } finally {
       setLoadingReply(prev => ({ ...prev, [commentId]: false }));
@@ -219,7 +235,6 @@ export default function ChatPost({
   // Optimistic like handler
   const handleLike = async () => {
     setError(null);
-    // Optimistically update local state
     setLocalPost(prev => {
       const alreadyLiked = Array.isArray(prev.likes) && currentUserId
         ? prev.likes.map(String).includes(String(currentUserId))
@@ -233,17 +248,12 @@ export default function ChatPost({
       return { ...prev, likes: newLikes };
     });
 
-    // Send to backend
     try {
       await likePost(localPost._id);
       if (onLike) onLike(localPost._id);
     } catch (e) {
-      console.error("Error liking post:", e);
-      if (e.message.includes("Network Error")) {
+      if (e.message && e.message.includes("Network Error")) {
         setError("Network error: Failed to like post");
-      }
-      // Revert optimistic update only for critical errors
-      if (e.message.includes("Network Error")) {
         setLocalPost(prev => ({
           ...prev,
           likes: prev.likes.filter(like => String(like) !== String(currentUserId)),
@@ -251,16 +261,6 @@ export default function ChatPost({
       }
     }
   };
-
-  const { search } = useLocation();
-  useEffect(() => {
-    const params = new URLSearchParams(search);
-    if (params.get("commentId") || params.get("replyId") || params.get("commentUserId")) {
-      setShowComments(true);
-    }
-  }, [search]);
-
-  console.log("Views for post", localPost._id, localPost.views);
 
   if (error) {
     return (
@@ -272,7 +272,7 @@ export default function ChatPost({
 
   return (
     <div
-      className="rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all overflow-x-hidden"
+      className="rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-800 transition-all overflow-x-hidden max-w-full"
       ref={postRef}
       style={{ maxWidth: "100%" }}
     >
@@ -298,7 +298,7 @@ export default function ChatPost({
       {/* Content */}
       <div className="mb-3">
         <span className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words">
-          {post.content}
+          {renderHighlightedContent(post.content)}
         </span>
       </div>
       {post.image && (
@@ -355,12 +355,12 @@ export default function ChatPost({
 
       {/* Comments Section */}
       {showComments && (
-        <div className="mt-4 relative w-full max-w-full" ref={commentsRef}>
+        <div className="mt-4 relative w-full max-w-full overflow-x-hidden" ref={commentsRef}>
           {/* Close button */}
           <div className="flex justify-between items-center mb-2">
             <div className="font-semibold text-sm text-blue-700">Comments</div>
             <button
-              className="text-gray-500 hover:text-red-500 text-xl font-bold px-2 py-0.5 rounded transition shrink-0"
+              className="text-gray-500 hover:text-red-500 text-xl font-bold px-2 py-1"
               onClick={() => setShowComments(false)}
               aria-label="Close comments"
               type="button"
@@ -370,7 +370,7 @@ export default function ChatPost({
           </div>
           {/* Add new comment input at the top */}
           {activeReply === null && showCommentInput && (
-            <div className="w-full mt-2">
+            <div className="w-full mt-2 max-w-full">
               <MentionInput
                 value={comment}
                 onChange={setComment}
@@ -399,7 +399,6 @@ export default function ChatPost({
                 const replies = comment.replies || [];
                 const isExpanded = expandedReplies === (comment._id || idx);
                 const repliesToShow = isExpanded ? replies.slice(0, 20) : replies.slice(0, 1);
-
                 return (
                   <div
                     key={comment._id || comment.user || idx}
@@ -424,196 +423,84 @@ export default function ChatPost({
                       </span>
                       <span className="text-xs text-gray-400">{formatPostDate(comment.createdAt || comment.timestamp)}</span>
                     </div>
-                    <div className="text-gray-900 dark:text-gray-100 break-words w-full text-sm sm:text-base">
-                      {renderHighlightedContent(comment.text || comment.content)}
+                    <div className="mt-1 text-gray-700 dark:text-gray-200 text-sm break-words">
+                      {renderHighlightedContent(comment.content)}
                     </div>
-                    {/* Replies to this comment */}
-                    {repliesToShow.length > 0 && (
-                      <div className="mt-1">
-                        {repliesToShow.map((reply, ridx) => (
-                          <div key={reply._id || reply.user || ridx} id={`reply-${reply._id || reply.user || ridx}`} className="mb-1 w-full">
-                            <div className="flex flex-col w-full">
-                              <div className="flex items-center gap-1">
-                                <span className="text-xs text-blue-500 mr-1">
-                                  Replied to{" "}
-                                  <Link
-                                    to={`/dashboard/community/user ${encodeURIComponent(comment.author?.username || comment.user)}`}
-                                    className="hover:underline text-blue-600"
-                                  >
-                                    {comment.author?.username || comment.user}
-                                  </Link>
-                                </span>
-                                <Link
-                                  to={`/dashboard/community/user/${encodeURIComponent(reply.author?.username || reply.user)}`}
-                                  className="hover:underline text-blue-600"
-                                >
-                                  {reply.author?.username || reply.user}
-                                  {reply.author?.verified && <VerifiedBadge />}
-                                </Link>
-                                <span className="font-bold mx-1 text-gray-400">·</span>
-                                <span className="text-xs text-gray-400">{formatPostDate(reply.createdAt || reply.timestamp)}</span>
-                              </div>
-                              <div className="text-gray-900 dark:text-gray-100 break-words w-full text-sm sm:text-base">
-                                {renderHighlightedContent(reply.content)}
-                              </div>
-                            </div>
+                    {/* Replies */}
+                    <div className="ml-4 mt-2">
+                      {repliesToShow.map((reply, ridx) => (
+                        <div key={reply._id || ridx} className="mb-2">
+                          <span className="font-bold text-gray-700 dark:text-gray-300">
+                            <Link
+                              to={`/dashboard/community/user/${encodeURIComponent(reply.author?.username || reply.user)}`}
+                              className="hover:underline"
+                            >
+                              {reply.author?.username || reply.user}
+                              {(reply.author?.verified === true ||
+                                reply.author?.verified === "blue" ||
+                                reply.author?.verified === "grey" ||
+                                reply.verified === true ||
+                                reply.verified === "blue" ||
+                                reply.verified === "grey") && <VerifiedBadge />}
+                            </Link>
+                          </span>
+                          <span className="ml-2 text-xs text-gray-400">{formatPostDate(reply.createdAt || reply.timestamp)}</span>
+                          <div className="text-gray-700 dark:text-gray-200 text-sm break-words">
+                            {renderHighlightedContent(reply.content)}
                           </div>
-                        ))}
-                        {/* Show more/less replies link */}
-                        {replies.length > 1 && !isExpanded && (
-                          <button
-                            className="text-xs text-blue-600 hover:underline mt-1"
-                            onClick={() => setExpandedReplies(comment._id || idx)}
-                          >
-                            Show more replies ({Math.min(replies.length, 20)})
-                          </button>
-                        )}
-                        {isExpanded && replies.length > 1 && (
-                          <button
-                            className="text-xs text-blue-600 hover:underline mt-1"
-                            onClick={() => setExpandedReplies(null)}
-                          >
-                            Hide replies
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {/* Reply button for this comment */}
-                    <button
-                      className="text-xs text-blue-600 hover:underline mt-1"
-                      onClick={() => setActiveReply(activeReply === idx ? null : idx)}
-                    >
-                      Reply
-                    </button>
-                    {/* Reply input for this comment */}
-                    {activeReply === idx && (
-                      <div className="ml-4 mt-2 w-full">
+                        </div>
+                      ))}
+                      {replies.length > 1 && !isExpanded && (
+                        <button
+                          className="text-blue-600 hover:underline text-xs mt-1"
+                          onClick={() => setExpandedReplies(comment._id || idx)}
+                        >
+                          View more replies ({replies.length - 1} more)
+                        </button>
+                      )}
+                      {isExpanded && (
+                        <button
+                          className="text-blue-600 hover:underline text-xs mt-1"
+                          onClick={() => setExpandedReplies(null)}
+                        >
+                          Hide replies
+                        </button>
+                      )}
+                    </div>
+                    {/* Reply input */}
+                    <div className="mt-2">
+                      {activeReply === comment._id ? (
                         <ReplyInput
                           onSubmit={handleReply}
-                          loading={loadingReply[comment._id || idx] || false}
+                          loading={loadingReply[comment._id] || false}
                           postId={localPost._id}
-                          commentId={comment._id || idx}
+                          commentId={comment._id}
                         />
+                      ) : (
                         <button
-                          type="button"
-                          className="mt-2 text-xs text-blue-600 hover:underline"
+                          className="text-blue-600 hover:underline text-xs"
+                          onClick={() => setActiveReply(comment._id)}
+                        >
+                          Reply
+                        </button>
+                      )}
+                      {activeReply === comment._id && (
+                        <button
+                          className="ml-2 text-gray-400 hover:text-red-500 text-xs"
                           onClick={() => setActiveReply(null)}
                         >
-                          Write a comment instead
+                          Cancel
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 );
               })
             ) : (
-              <div className="text-gray-500 text-sm">No comments yet.</div>
+              <div className="text-gray-400 text-sm">No comments yet. Be the first to comment!</div>
             )}
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-function MentionInput({
-  value,
-  onChange,
-  onSubmit,
-  loading,
-  placeholder,
-  disabled,
-  onClose,
-}) {
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState("");
-  const [caretPos, setCaretPos] = useState(0);
-  const inputRef = useRef();
-
-  // Detect @mention pattern and fetch suggestions
-  useEffect(() => {
-    const match = value.slice(0, caretPos).match(/@(\w*)$/);
-    if (match && match[1].length > 0) {
-      setMentionQuery(match[1]);
-      searchUsers(match[1]).then(result => {
-        const userList = Array.isArray(result) ? result : result.users;
-        setSuggestions((userList || []).slice(0, 5));
-        setShowSuggestions(true);
-      });
-    } else {
-      setShowSuggestions(false);
-      setSuggestions([]);
-    }
-  }, [value, caretPos]);
-
-  // Insert mention
-  const handleSelect = (username) => {
-    const before = value.slice(0, caretPos).replace(/@\w*$/, `@${username} `);
-    const after = value.slice(caretPos);
-    const newValue = before + after;
-    onChange(newValue);
-    setShowSuggestions(false);
-    setMentionQuery(""); // Ensures suggestions don't reappear until new @
-    setTimeout(() => {
-      if (inputRef.current) {
-        const pos = before.length;
-        inputRef.current.setSelectionRange(pos, pos);
-        inputRef.current.focus();
-      }
-    }, 0);
-  };
-
-  return (
-    <div className="relative w-full">
-      <div className="flex items-center gap-2 w-full">
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={e => {
-            onChange(e.target.value);
-            setCaretPos(e.target.selectionStart);
-          }}
-          onClick={e => setCaretPos(e.target.selectionStart)}
-          onKeyUp={e => setCaretPos(e.target.selectionStart)}
-          placeholder={placeholder}
-          className="flex-1 border rounded px-2 py-1 min-w-0 text-sm sm:text-base"
-          disabled={disabled}
-          style={{ maxWidth: "100%" }}
-        />
-        <button
-          type="submit"
-          disabled={loading || !value.trim()}
-          className="bg-blue-500 text-white px-3 py-1 rounded disabled:opacity-50"
-        >
-          {loading ? "Sending..." : "Send"}
-        </button>
-        {onClose && (
-          <button
-            type="button"
-            className="text-gray-400 hover:text-red-500 text-lg font-bold px-2 py-1 rounded transition"
-            aria-label="Close comment input"
-            onClick={onClose}
-            title="Hide comment input"
-            tabIndex={0}
-          >
-            ×
-          </button>
-        )}
-      </div>
-      {showSuggestions && suggestions.length > 0 && (
-        <ul className="absolute z-20 left-0 mt-1 w-full bg-white border rounded shadow max-h-40 overflow-y-auto">
-          {suggestions.map(user => (
-            <li
-              key={user._id}
-              className="px-3 py-1 cursor-pointer hover:bg-blue-50 text-blue-600"
-              onMouseDown={() => handleSelect(user.username)}
-            >
-              @{user.username}
-            </li>
-          ))}
-        </ul>
       )}
     </div>
   );
