@@ -6,52 +6,41 @@ import VerifiedBadge from "../../../components/VerifiedBadge";
 import Post from "../../../components/common/Post";
 import { useAuth } from "../../../context/auth";
 import { hashId } from "../../../utils/hash";
+import { incrementPostViews } from "../../../utils/api";
 
 // Profile cache to avoid refetching same data
 const profileCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// Track viewed profiles and posts to prevent multiple views per session
-const viewedProfiles = new Set();
-const viewedPosts = new Set();
-
-// Post view tracking component
+// Post view tracking component - EXACT SAME AS CHATPOST
 const PostViewTracker = ({ post, onView, children }) => {
-  const elementRef = useRef(null);
-  const hasBeenViewed = useRef(false);
+  const postRef = useRef();
 
   useEffect(() => {
-    const element = elementRef.current;
-    if (!element || hasBeenViewed.current) return;
+    if (!post || !post._id) return;
+    const node = postRef.current;
+    if (!node) return;
 
-    const observer = new IntersectionObserver(
+    let hasViewed = false;
+    const observer = new window.IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            // Post is 50% visible
-            if (!hasBeenViewed.current && !viewedPosts.has(post._id)) {
-              hasBeenViewed.current = true;
-              viewedPosts.add(post._id);
-              onView(post._id);
-            }
+          if (entry.isIntersecting && !hasViewed) {
+            onView(post._id);
+            hasViewed = true;
+            observer.disconnect();
           }
         });
       },
-      {
-        threshold: 0.5, // Trigger when 50% of the post is visible
-        rootMargin: '0px'
-      }
+      { threshold: 0.5 }
     );
+    observer.observe(node);
 
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [post._id, onView]);
+    return () => observer.disconnect();
+  }, [post, onView]);
 
   return (
-    <div ref={elementRef}>
+    <div ref={postRef}>
       {children}
     </div>
   );
@@ -103,51 +92,63 @@ export default function UserProfile() {
     });
   }, [cacheKey]);
 
-  // Track profile view (only once per session per profile)
-  const trackProfileView = useCallback(async (profileId) => {
-    const viewKey = `${profileId}_${currentUser?._id || 'anonymous'}`;
+  // SIMPLIFIED Profile view tracking - no more complex logic
+  const trackProfileView = (profileId) => {
+    if (!profileId || !currentUser) return;
     
-    // Only track if not already viewed in this session and not viewing own profile
-    if (!viewedProfiles.has(viewKey) && currentUser?._id !== profileId) {
-      viewedProfiles.add(viewKey);
+    const viewKey = `profile_${profileId}_${currentUser._id || currentUser.id}`;
+    
+    // Use localStorage to track viewed profiles
+    const viewedProfiles = JSON.parse(localStorage.getItem("viewedProfiles") || "[]");
+    
+    // Only track if not already viewed and not viewing own profile
+    if (!viewedProfiles.includes(viewKey) && String(currentUser._id || currentUser.id) !== String(profileId)) {
+      viewedProfiles.push(viewKey);
+      localStorage.setItem("viewedProfiles", JSON.stringify(viewedProfiles));
       
-      try {
-        await fetch(`${API_BASE}/user/view/${profileId}`, {
-          method: "POST",
-          headers: authHeaders,
-        });
-      } catch (error) {
-        console.error("Error tracking profile view:", error);
-      }
-    }
-  }, [API_BASE, authHeaders, currentUser]);
-
-  // Track post view (only once per session per post)
-  const trackPostView = useCallback(async (postId) => {
-    if (!currentUser) return; // Only track for logged-in users
-    
-    try {
-      const response = await fetch(`${API_BASE}/posts/${postId}/view`, {
+      // Call API in background
+      fetch(`${API_BASE}/user/view/${profileId}`, {
         method: "POST",
         headers: authHeaders,
-      });
-      
-      if (response.ok) {
-        // Optimistically update local post view count
-        setPosts(prevPosts =>
-          prevPosts.map(post =>
-            post._id === postId 
-              ? { ...post, views: (post.views || 0) + 1 }
-              : post
-          )
-        );
-      }
-    } catch (error) {
-      console.error("Error tracking post view:", error);
+      }).catch(() => {}); // Ignore errors
     }
-  }, [API_BASE, authHeaders, currentUser]);
+  };
 
-  // Fetch profile, followers, and following with parallel execution and caching
+  // Modified handleView to prevent multiple views on refresh
+  const handleView = async (postId) => {
+    if (!postId) return;
+
+    // Initialize viewedPosts from localStorage or create new array
+    let viewedPosts = JSON.parse(localStorage.getItem("viewedPosts") || "[]");
+
+    // Check if post has already been viewed
+    if (!viewedPosts.includes(postId)) {
+      // Add postId to viewedPosts
+      viewedPosts.push(postId);
+      localStorage.setItem("viewedPosts", JSON.stringify(viewedPosts));
+
+      // Update view count in local state
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post._id === postId 
+            ? { ...post, views: (post.views || 0) + 1 }
+            : post
+        )
+      );
+
+      // Call API in background to increment view count
+      try {
+        await incrementPostViews(postId);
+      } catch (error) {
+        // If API call fails, remove postId from viewedPosts to allow retry
+        viewedPosts = viewedPosts.filter(id => id !== postId);
+        localStorage.setItem("viewedPosts", JSON.stringify(viewedPosts));
+        console.error("Error incrementing post views:", error);
+      }
+    }
+  };
+
+  // SIMPLIFIED fetch function - removed complex dependencies
   const fetchProfileAndCounts = useCallback(async () => {
     setLoading(true);
     setButtonLoading(true);
@@ -160,11 +161,6 @@ export default function UserProfile() {
       setFollowing(cached.following || []);
       setLoading(false);
       setButtonLoading(false);
-      
-      // Track view for cached profile too
-      if (cached.profile?._id) {
-        trackProfileView(cached.profile._id);
-      }
       return;
     }
 
@@ -189,7 +185,7 @@ export default function UserProfile() {
         profileData = await profileRes.json();
         setProfile(profileData);
         
-        // Track profile view
+        // Track profile view - simple call, no dependencies
         if (profileData?._id) {
           trackProfileView(profileData._id);
         }
@@ -223,7 +219,7 @@ export default function UserProfile() {
       setLoading(false);
       setButtonLoading(false);
     }
-  }, [username, API_BASE, authHeaders, getCachedProfile, setCachedProfile, trackProfileView]);
+  }, [username, API_BASE, authHeaders, getCachedProfile, setCachedProfile]);
 
   // Fetch posts for this user with abort controller
   const fetchPosts = useCallback(async (profileId, signal) => {
@@ -242,19 +238,11 @@ export default function UserProfile() {
     }
   }, [API_BASE]);
 
-  // Main effect - fetch profile data and posts in parallel
+  // SIMPLIFIED useEffect - no debug logs
   useEffect(() => {
-    const controller = new AbortController();
-    
-    const loadData = async () => {
-      await fetchProfileAndCounts();
-    };
-
-    loadData();
-
-    return () => {
-      controller.abort();
-    };
+    if (username) {
+      fetchProfileAndCounts();
+    }
   }, [username, fetchProfileAndCounts]);
 
   // Fetch posts when profile is available
@@ -270,14 +258,13 @@ export default function UserProfile() {
     };
   }, [profile?._id, fetchPosts]);
 
-  // Check if current user is following the profile user - memoized for performance
+  // Check if current user is following the profile user
   useEffect(() => {
     if (!currentUser || !profile) {
       setIsFollowing(false);
       return;
     }
     
-    // Use followersHashed array and hash the current user's ID to check if following
     const followersHashed = Array.isArray(profile.followersHashed) ? profile.followersHashed : [];
     const currentUserId = String(currentUser._id || currentUser.id);
     const hashedCurrentUserId = hashId(currentUserId);
@@ -336,11 +323,10 @@ export default function UserProfile() {
     }
   }, [API_BASE, authHeaders]);
 
-  // Optimized follow handler with optimistic updates and cache invalidation
+  // Follow/unfollow handlers (unchanged)
   const handleFollow = useCallback(async () => {
     setFollowLoading(true);
     
-    // Optimistic update
     setIsFollowing(true);
     setProfile(prev => ({
       ...prev,
@@ -358,7 +344,6 @@ export default function UserProfile() {
       });
 
       if (!response.ok) {
-        // Revert optimistic update on error
         setIsFollowing(false);
         setProfile(prev => ({
           ...prev,
@@ -368,12 +353,10 @@ export default function UserProfile() {
           )
         }));
       } else {
-        // Clear cache for fresh data next time
         profileCache.delete(cacheKey);
       }
     } catch (error) {
       console.error("Error following user:", error);
-      // Revert optimistic update on error
       setIsFollowing(false);
       setProfile(prev => ({
         ...prev,
@@ -384,11 +367,9 @@ export default function UserProfile() {
     }
   }, [profile, API_BASE, authHeaders, currentUser, cacheKey]);
 
-  // Optimized unfollow handler with optimistic updates and cache invalidation
   const handleUnfollow = useCallback(async () => {
     setFollowLoading(true);
     
-    // Optimistic update
     setIsFollowing(false);
     setProfile(prev => ({
       ...prev,
@@ -405,7 +386,6 @@ export default function UserProfile() {
       });
 
       if (!response.ok) {
-        // Revert optimistic update on error
         setIsFollowing(true);
         setProfile(prev => ({
           ...prev,
@@ -416,12 +396,10 @@ export default function UserProfile() {
           ]
         }));
       } else {
-        // Clear cache for fresh data next time
         profileCache.delete(cacheKey);
       }
     } catch (error) {
       console.error("Error unfollowing user:", error);
-      // Revert optimistic update on error
       setIsFollowing(true);
       setProfile(prev => ({
         ...prev,
@@ -432,7 +410,6 @@ export default function UserProfile() {
     }
   }, [profile, API_BASE, authHeaders, currentUser, cacheKey]);
 
-  // Handle message button click - memoized
   const handleMessage = useCallback(() => {
     navigate(`/dashboard/inbox?chat=${encodeURIComponent(profile.username)}`);
   }, [navigate, profile?.username]);
@@ -501,7 +478,6 @@ export default function UserProfile() {
                 <div className="h-10"></div>
               ) : (
                 <>
-                  {/* UPDATED FOLLOW BUTTON LOGIC */}
                   {isFollowing ? (
                     <button
                       className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition"
@@ -519,7 +495,6 @@ export default function UserProfile() {
                       {followLoading ? "..." : "Follow"}
                     </button>
                   )}
-                  {/* UPDATED MESSAGE BUTTON */}
                   <button
                     className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition flex items-center gap-2"
                     onClick={handleMessage}
@@ -568,7 +543,7 @@ export default function UserProfile() {
                         <PostViewTracker 
                           key={post._id} 
                           post={post} 
-                          onView={trackPostView}
+                          onView={handleView}
                         >
                           <Link
                             to={`/dashboard/community?postId=${post._id}`}

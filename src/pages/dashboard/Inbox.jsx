@@ -292,8 +292,8 @@ const Inbox = () => {
     } catch (error) {
       console.error("Retry error:", error);
       setMessages(prev => prev.map(msg => 
-        msg._id === message._id ? { ...msg, failed: true, isOptimistic: false } : msg
-      ));
+  msg._id === message._id ? { ...msg, failed: true, isOptimistic: false } : msg
+));
     } finally {
       setIsSending(false);
     }
@@ -429,6 +429,16 @@ const Inbox = () => {
     if (diffDays < 7) return `${diffDays}d`;
     
     return date.toLocaleDateString();
+  }, []);
+
+  // New function to format exact time (e.g., 3:45 PM)
+  const formatExactTime = useCallback((timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
   }, []);
 
   // Truncate message preview (mobile responsive)
@@ -701,7 +711,19 @@ const Inbox = () => {
                                       : 'rounded-l-md'
                                   }`}
                                 >
-                                  {message.text}
+                                  {/* Message Text */}
+                                  <div className="mb-1">
+                                    {message.text}
+                                  </div>
+                                  
+                                  {/* Exact Time inside bubble */}
+                                  <div className={`text-xs ${
+                                    isOwn 
+                                      ? 'text-blue-100 dark:text-blue-200' 
+                                      : 'text-gray-500 dark:text-gray-400'
+                                  }`}>
+                                    {formatExactTime(message.createdAt)}
+                                  </div>
                                   
                                   {/* Retry button for failed messages */}
                                   {message.failed && (
@@ -715,25 +737,22 @@ const Inbox = () => {
                                   )}
                                 </div>
 
-                                {/* Message status and time */}
-                                {showTime && (
-                                  <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${
-                                    isOwn ? 'justify-end' : 'justify-start'
-                                  }`}>
-                                    <span>{formatMessageTime(message.createdAt)}</span>
-                                    {isOwn && !message.failed && (
-                                      <span className="ml-2">
-                                        {message.isOptimistic ? (
-                                          <span className="text-gray-400">sending...</span>
-                                        ) : message.read ? (
-                                          <span className="text-blue-500">seen</span>
-                                        ) : (
-                                          <span className="text-gray-400">delivered</span>
-                                        )}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
+                                {/* Message status below bubble */}
+                                <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${
+                                  isOwn ? 'justify-end' : 'justify-start'
+                                }`}>
+                                  {isOwn && !message.failed && (
+                                    <span>
+                                      {message.isOptimistic ? (
+                                        <span className="text-gray-400">sending...</span>
+                                      ) : message.read ? (
+                                        <span className="text-blue-500">seen</span>
+                                      ) : (
+                                        <span className="text-gray-400">delivered</span>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           );
