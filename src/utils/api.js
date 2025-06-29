@@ -185,3 +185,119 @@ export async function incrementPostViews(postId) {
   if (!res.ok) throw new Error("Failed to increment post views");
   return res.json();
 }
+
+// Like a comment
+export async function likeComment(postId, commentId) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/like`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  return res.json();
+}
+
+// Like a reply
+export async function likeReply(postId, commentId, replyId) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies/${replyId}/like`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+  return res.json();
+}
+
+// Edit a post
+export async function editPost(postId, content, image) {
+  const res = await fetch(`${API_BASE}/posts/${postId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ content, image }),
+  });
+  return res.json();
+}
+
+// Delete a post
+export async function deletePost(postId) {
+  const res = await fetch(`${API_BASE}/posts/${postId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  return res.json();
+}
+
+// Edit a comment
+export async function editComment(postId, commentId, content) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ content }),
+  });
+  return res.json();
+}
+
+// Delete a comment
+export async function deleteComment(postId, commentId) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  return res.json();
+}
+
+// Edit a reply
+export async function editReply(postId, commentId, replyId, content) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies/${replyId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ content }),
+  });
+  return res.json();
+}
+
+// Delete a reply
+export async function deleteReply(postId, commentId, replyId) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies/${replyId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  return res.json();
+}
+
+// Create a post
+export async function createPost(content, image) {
+  const res = await fetch(`${API_BASE}/posts`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ content, image }),
+  });
+  return res.json();
+}
+
+// Add this to api.js
+export async function addReplyToComment(postId, commentId, content) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ content }),
+  });
+  return res.json();
+}

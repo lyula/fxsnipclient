@@ -88,20 +88,20 @@ export default function Community({ user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Find the new comment (usually the last in the array)
-        const newComment = data.comments[data.comments.length - 1];
+        // Update local state
         setPostsForYou((prevPosts) =>
           prevPosts.map((post) =>
-            post._id === postId
-              ? { ...post, comments: [...post.comments, newComment] }
-              : post
+            post._id === postId ? data : post
           )
         );
+        return data; // Return the updated post
       } else {
         console.error("Failed to add comment");
+        return null;
       }
     } catch (error) {
       console.error("Error adding comment:", error);
+      return null;
     }
   };
 
@@ -119,87 +119,28 @@ export default function Community({ user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Find the updated comment with new replies
-        const updatedComment = data.comments.find((c) => c._id === commentId);
+        // Update local state
         setPostsForYou((prevPosts) =>
           prevPosts.map((post) =>
-            post._id === postId
-              ? {
-                  ...post,
-                  comments: post.comments.map((comment) =>
-                    comment._id === commentId
-                      ? { ...comment, replies: updatedComment.replies }
-                      : comment
-                  ),
-                }
-              : post
+            post._id === postId ? data : post
           )
         );
+        return data; // Return the updated post
       } else {
         console.error("Failed to add reply");
+        return null;
       }
     } catch (error) {
       console.error("Error adding reply:", error);
+      return null;
     }
   };
 
-  // Like a post
+  // Like a post (Let ChatPost handle optimistic updates)
   const handleLike = async (postId) => {
-    // Optimistically update the UI
-    setPostsForYou((prevPosts) =>
-      prevPosts.map((post) =>
-        post._id === postId
-          ? {
-              ...post,
-              likes: Array.isArray(post.likes)
-                ? [...post.likes, user._id] // Add current user's ID
-                : [user._id],
-            }
-          : post
-      )
-    );
-
-    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-    try {
-      const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      if (!res.ok) {
-        // If backend fails, revert the optimistic update
-        setPostsForYou((prevPosts) =>
-          prevPosts.map((post) =>
-            post._id === postId
-              ? {
-                  ...post,
-                  likes: Array.isArray(post.likes)
-                    ? post.likes.filter((id) => id !== user._id)
-                    : [],
-                }
-              : post
-          )
-        );
-        console.error("Failed to like post");
-      }
-      // Optionally, you can refetch posts here if you want to ensure full sync
-    } catch (error) {
-      // Revert optimistic update on error
-      setPostsForYou((prevPosts) =>
-        prevPosts.map((post) =>
-          post._id === postId
-            ? {
-                ...post,
-                likes: Array.isArray(post.likes)
-                  ? post.likes.filter((id) => id !== user._id)
-                  : [],
-              }
-            : post
-        )
-      );
-      console.error("Error liking post:", error);
-    }
+    // Don't do optimistic updates here - let ChatPost handle it
+    // Just call the API - ChatPost already handles the optimistic updates
+    return; // ChatPost handles everything
   };
 
   // View a post (local state only)
@@ -246,6 +187,11 @@ export default function Community({ user }) {
     }
   };
 
+  // Delete a post
+  const handleDeletePost = (postId) => {
+    setPostsForYou((prevPosts) => prevPosts.filter((post) => post._id !== postId));
+  };
+
   return (
     <div className="flex flex-col h-full max-h-full">
       <CommunityTabs
@@ -274,6 +220,7 @@ export default function Community({ user }) {
           onComment={handleComment}
           onLike={handleLike}
           onView={handleView}
+          onDelete={handleDeletePost}
           currentUserId={user?._id}
           currentUsername={user?.username}
           currentUserVerified={user?.verified}
