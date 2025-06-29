@@ -5,6 +5,7 @@ import { formatCount } from "../../../utils/formatNumber";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import Post from "../../../components/common/Post";
 import { useAuth } from "../../../context/auth";
+import { hashId } from "../../../utils/hash"; // Import the hash function
 
 export default function UserProfile() {
   const location = useLocation();
@@ -81,17 +82,19 @@ export default function UserProfile() {
     fetchPosts();
   }, [profile?._id]);
 
-  // Check if current user is following the profile user
+  // Check if current user is following the profile user - FIXED
   useEffect(() => {
     if (!currentUser || !profile) {
       setIsFollowing(false);
       return;
     }
-    const followerIds = Array.isArray(profile.followers)
-      ? profile.followers.map(f => String(f._id || f.id))
-      : [];
+    
+    // Use followersHashed array and hash the current user's ID to check if following
+    const followersHashed = Array.isArray(profile.followersHashed) ? profile.followersHashed : [];
     const currentUserId = String(currentUser._id || currentUser.id);
-    setIsFollowing(followerIds.includes(currentUserId));
+    const hashedCurrentUserId = hashId(currentUserId);
+    
+    setIsFollowing(followersHashed.includes(hashedCurrentUserId));
   }, [profile, currentUser]);
 
   // Like a post
@@ -144,6 +147,7 @@ export default function UserProfile() {
         method: "POST",
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
+      // Refresh profile data to get updated follower count and state
       const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
@@ -166,6 +170,7 @@ export default function UserProfile() {
         method: "POST",
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
+      // Refresh profile data to get updated follower count and state
       const profileRes = await fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
@@ -177,6 +182,11 @@ export default function UserProfile() {
       console.error("Error unfollowing user:", e);
     }
     setFollowLoading(false);
+  };
+
+  // Handle message button click - NEW
+  const handleMessage = () => {
+    navigate(`/dashboard/inbox?chat=${encodeURIComponent(profile.username)}`);
   };
 
   const tabs = ["posts", "followers", "following"];
@@ -243,6 +253,7 @@ export default function UserProfile() {
                 <div className="h-10"></div>
               ) : (
                 <>
+                  {/* UPDATED FOLLOW BUTTON LOGIC */}
                   {isFollowing ? (
                     <button
                       className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition"
@@ -260,9 +271,12 @@ export default function UserProfile() {
                       {followLoading ? "..." : "Follow"}
                     </button>
                   )}
+                  {/* UPDATED MESSAGE BUTTON */}
                   <button
-                    className="px-6 py-1 rounded-full bg-blue-600 text-white font-semibold hover:bg-gray-700 transition"
+                    className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition flex items-center gap-2"
+                    onClick={handleMessage}
                   >
+                    <FaEnvelope size={14} />
                     Message
                   </button>
                 </>
