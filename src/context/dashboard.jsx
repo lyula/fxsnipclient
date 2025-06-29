@@ -1,298 +1,215 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from "react";
-import { getConversations, getNotifications } from "../utils/api";
+import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import { 
+  getConversations, 
+  getNotifications, 
+  createPost,
+  likePost,
+  incrementPostViews,
+  deletePost,
+  addCommentToPost,
+  editPost,
+  addReplyToComment
+} from "../utils/api";
 
 const DashboardContext = createContext();
 
 export function DashboardProvider({ children }) {
-  // Persistent state across navigation
+  // State for conversations (messaging)
   const [conversations, setConversations] = useState([]);
+  
+  // State for notifications
   const [notifications, setNotifications] = useState([]);
+  
+  // State for community posts
   const [communityPosts, setCommunityPosts] = useState([]);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [messages, setMessages] = useState([]);
   
   // Loading states
   const [loadingStates, setLoadingStates] = useState({
     conversations: false,
     notifications: false,
     posts: false,
-    messages: false
   });
 
-  // Cache timestamps
-  const cacheTimestamps = useRef({
-    conversations: 0,
-    notifications: 0,
-    posts: 0
-  });
-
-  // Cache duration (10 minutes)
-  const CACHE_DURATION = 10 * 60 * 1000; // Increased from 5 minutes to 10 minutes
-
-  // Utility function to format time as relative duration
-  const formatRelativeTime = (timestamp) => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    const weeks = Math.floor(days / 7);
-    const months = Math.floor(days / 30);
-    const years = Math.floor(days / 365);
-
-    if (seconds < 60) return "Just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    if (weeks < 4) return `${weeks}w ago`;
-    if (months < 12) return `${months}mo ago`;
-    return `${years}y ago`;
-  };
-
-  // Check if cache is valid
-  const isCacheValid = (key) => {
-    const timestamp = cacheTimestamps.current[key];
-    return timestamp && (Date.now() - timestamp) < CACHE_DURATION;
-  };
-
-  // Update cache timestamp
-  const updateCacheTimestamp = (key) => {
-    cacheTimestamps.current[key] = Date.now();
-  };
-
-  // Set loading state
-  const setLoading = (key, value) => {
-    setLoadingStates(prev => ({ ...prev, [key]: value }));
-  };
+  // Message cache
+  const [messageCache, setMessageCache] = useState(new Map());
 
   // Fetch conversations with caching
-  const fetchConversations = async (force = false) => {
-    if (!force && isCacheValid('conversations') && conversations.length > 0) {
-      return conversations;
-    }
-
-    // Show loading only if no cached data
-    if (conversations.length === 0) {
-      setLoading('conversations', true);
-    }
-
+  const fetchConversations = useCallback(async () => {
     try {
+      setLoadingStates(prev => ({ ...prev, conversations: true }));
       const data = await getConversations();
-      const sortedUsers = data
-        .map((conv) => ({
-          _id: conv.user._id,
-          username: conv.user.username,
-          avatar: conv.user.countryFlag
-            ? conv.user.countryFlag
-            : "https://ui-avatars.com/api/?name=" + encodeURIComponent(conv.user.username),
-          lastMessage: conv.lastMessage?.text || "",
-          lastTime: conv.lastMessage
-            ? formatRelativeTime(new Date(conv.lastMessage.createdAt).getTime())
-            : "",
-          lastTimestamp: conv.lastMessage
-            ? new Date(conv.lastMessage.createdAt).getTime()
-            : 0,
-          unreadCount: conv.unreadCount || 0,
-          verified: !!conv.user.verified,
-        }))
-        .sort((a, b) => b.lastTimestamp - a.lastTimestamp);
-
-      setConversations(sortedUsers);
-      updateCacheTimestamp('conversations');
-      return sortedUsers;
+      
+      if (Array.isArray(data)) {
+        // Process conversations to add avatar URLs and format data
+        const processedConversations = data.map(conv => ({
+          _id: conv._id,
+          username: conv.user?.username || conv.username,
+          verified: conv.user?.verified || conv.verified,
+          avatar: conv.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.user?.username || conv.username)}&background=a99d6b&color=fff&size=40`,
+          lastMessage: conv.lastMessage?.text || conv.lastMessage?.message || "No messages yet",
+          lastTime: formatRelativeTime(new Date(conv.lastMessage?.createdAt || Date.now()).getTime()),
+          lastTimestamp: new Date(conv.lastMessage?.createdAt || Date.now()).getTime(),
+          unreadCount: conv.unreadCount || 0
+        }));
+        
+        setConversations(processedConversations);
+      }
     } catch (error) {
       console.error("Error fetching conversations:", error);
-      return conversations; // Return cached data on error
+      setConversations([]);
     } finally {
-      setLoading('conversations', false);
+      setLoadingStates(prev => ({ ...prev, conversations: false }));
     }
-  };
+  }, []);
 
-  // Fetch notifications with caching
-  const fetchNotifications = async (force = false) => {
-    if (!force && isCacheValid('notifications') && notifications.length > 0) {
-      return notifications;
-    }
-
-    if (notifications.length === 0) {
-      setLoading('notifications', true);
-    }
-
+  // Fetch notifications
+  const fetchNotifications = useCallback(async () => {
     try {
+      setLoadingStates(prev => ({ ...prev, notifications: true }));
       const data = await getNotifications();
-      setNotifications(data || []);
-      updateCacheTimestamp('notifications');
-      return data || [];
+      
+      if (Array.isArray(data)) {
+        setNotifications(data);
+      }
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      return notifications;
+      setNotifications([]);
     } finally {
-      setLoading('notifications', false);
+      setLoadingStates(prev => ({ ...prev, notifications: false }));
     }
-  };
+  }, []);
 
-  // Fetch community posts with caching
-  const fetchCommunityPosts = async (force = false) => {
-    if (!force && isCacheValid('posts') && communityPosts.length > 0) {
-      return communityPosts;
-    }
-
-    if (communityPosts.length === 0) {
-      setLoading('posts', true);
-    }
-
+  // Fetch community posts
+  const fetchCommunityPosts = useCallback(async () => {
     try {
+      setLoadingStates(prev => ({ ...prev, posts: true }));
+      
+      // Check if we have cached posts
+      if (communityPosts.length > 0) {
+        // Load from cache first, then refresh in background
+        setLoadingStates(prev => ({ ...prev, posts: false }));
+      }
+      
       const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-      const res = await fetch(`${API_BASE}/posts`);
+      const res = await fetch(`${API_BASE}/posts`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
       
       if (res.ok) {
         const data = await res.json();
-        const sortedPosts = [...data]
-          .filter((post) => post._id && post.createdAt)
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
-        setCommunityPosts(sortedPosts);
-        updateCacheTimestamp('posts');
-        return sortedPosts;
-      } else {
-        console.error("Failed to fetch posts");
-        return communityPosts;
+        if (Array.isArray(data)) {
+          setCommunityPosts(
+            data
+              .map(post => ({
+                ...post,
+                avatar: post.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.username || "User")}&background=a99d6b&color=fff&size=40`
+              }))
+              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sort by newest first
+          );
+        }
       }
     } catch (error) {
       console.error("Error fetching community posts:", error);
-      return communityPosts;
     } finally {
-      setLoading('posts', false);
+      setLoadingStates(prev => ({ ...prev, posts: false }));
     }
-  };
+  }, [communityPosts.length]);
 
-  // Add new post optimistically
-  const addPostOptimistically = (newPost) => {
-    setCommunityPosts(prev => [newPost, ...prev]);
-  };
-
-  // Update a specific post (for likes, comments, etc.)
-  const updatePost = (postId, updates) => {
-    setCommunityPosts(prev => 
-      prev.map(post => 
-        post._id === postId 
-          ? { ...post, ...updates }
-          : post
-      )
-    );
-  };
-
-  // Delete a post
-  const deletePost = (postId) => {
-    setCommunityPosts(prev => 
-      prev.filter(post => post._id !== postId)
-    );
-  };
-
-  // Update conversation optimistically
-  const updateConversation = (conversationId, updates) => {
+  // Update conversation in the list
+  const updateConversation = useCallback((conversationId, updates) => {
     setConversations(prev => 
       prev.map(conv => 
         conv._id === conversationId 
           ? { ...conv, ...updates }
           : conv
-      ).sort((a, b) => b.lastTimestamp - a.lastTimestamp)
-    );
-  };
-
-  // Add new message optimistically
-  const addMessageOptimistically = (message) => {
-    setMessages(prev => [...prev, message]);
-  };
-
-  // Update message after send
-  const updateMessage = (tempId, realMessage) => {
-    setMessages(prev => 
-      prev.map(msg => 
-        msg._id === tempId ? realMessage : msg
       )
     );
-  };
-
-  // Mark message as failed
-  const markMessageFailed = (tempId) => {
-    setMessages(prev => 
-      prev.map(msg => 
-        msg._id === tempId ? { ...msg, failed: true } : msg
-      )
-    );
-  };
-
-  // Background refresh (every 30 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Refresh conversations in background if cache is getting stale
-      if (cacheTimestamps.current.conversations && 
-          (Date.now() - cacheTimestamps.current.conversations) > (CACHE_DURATION * 0.8)) {
-        fetchConversations(true);
-      }
-
-      // Refresh notifications in background
-      if (cacheTimestamps.current.notifications && 
-          (Date.now() - cacheTimestamps.current.notifications) > (CACHE_DURATION * 0.8)) {
-        fetchNotifications(true);
-      }
-
-      // Refresh community posts in background
-      if (cacheTimestamps.current.posts && 
-          (Date.now() - cacheTimestamps.current.posts) > (CACHE_DURATION * 0.8)) {
-        fetchCommunityPosts(true);
-      }
-
-      // Update relative timestamps
-      setConversations(prev => 
-        prev.map(conv => ({
-          ...conv,
-          lastTime: conv.lastTimestamp 
-            ? formatRelativeTime(conv.lastTimestamp)
-            : ""
-        }))
-      );
-    }, 30000);
-
-    return () => clearInterval(interval);
   }, []);
 
-  const value = {
-    // State
+  // Add post optimistically
+  const addPostOptimistically = useCallback((post) => {
+    setCommunityPosts(prev => [post, ...prev]);
+  }, []);
+
+  // Update a specific post
+  const updatePost = useCallback((postId, updatedPost) => {
+    setCommunityPosts(prev => 
+      prev
+        .map(post => 
+          post._id === postId ? updatedPost : post
+        )
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Maintain sort order
+    );
+  }, []);
+
+  // Delete a post
+  const deletePost = useCallback((postId) => {
+    setCommunityPosts(prev => prev.filter(post => post._id !== postId));
+  }, []);
+
+  // Format relative time
+  const formatRelativeTime = useCallback((timestamp) => {
+    const now = Date.now();
+    const diffMs = now - timestamp;
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSeconds < 60) return "now";
+    if (diffMinutes < 60) return `${diffMinutes}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    
+    const date = new Date(timestamp);
+    return date.toLocaleDateString();
+  }, []);
+
+  // Context value
+  const value = useMemo(() => ({
+    // Conversations
     conversations,
-    notifications,
-    communityPosts,
-    selectedUser,
-    messages,
-    loadingStates,
-
-    // Setters
-    setConversations,
-    setNotifications,
-    setCommunityPosts,
-    setSelectedUser,
-    setMessages,
-
-    // Methods
     fetchConversations,
-    fetchNotifications,
-    fetchCommunityPosts,
     updateConversation,
-    addMessageOptimistically,
-    updateMessage,
-    markMessageFailed,
+    
+    // Notifications  
+    notifications,
+    fetchNotifications,
+    
+    // Community posts
+    communityPosts,
+    fetchCommunityPosts,
     addPostOptimistically,
     updatePost,
     deletePost,
+    
+    // Loading states
+    loadingStates,
+    
+    // Utilities
     formatRelativeTime,
-
-    // Cache info
-    isCacheValid,
-    cacheTimestamps: cacheTimestamps.current
-  };
+    
+    // Message cache
+    messageCache,
+    setMessageCache
+  }), [
+    conversations,
+    fetchConversations,
+    updateConversation,
+    notifications,
+    fetchNotifications,
+    communityPosts,
+    fetchCommunityPosts,
+    addPostOptimistically,
+    updatePost,
+    deletePost,
+    loadingStates,
+    formatRelativeTime,
+    messageCache,
+    setMessageCache
+  ]);
 
   return (
     <DashboardContext.Provider value={value}>

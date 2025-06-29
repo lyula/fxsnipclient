@@ -240,7 +240,7 @@ export default function Community({ user }) {
           </div>
         ) : (
           <ChatList
-            posts={communityPosts}
+            posts={communityPosts.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))}
             postRefs={postRefs}
             onReply={handleReply}
             onComment={handleComment}

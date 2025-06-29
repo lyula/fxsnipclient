@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useDashboard } from "../../context/dashboard";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import VerifiedBadge from "../../components/VerifiedBadge";
@@ -10,35 +10,25 @@ const Inbox = () => {
   const { 
     conversations, 
     fetchConversations, 
-    addMessageOptimistically, 
-    updateMessage, 
-    markMessageFailed, 
     updateConversation,
     formatRelativeTime
   } = useDashboard();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  // Component state
+  // Core state
   const [selectedUser, setSelectedUser] = useState(null);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState([]);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState(null);
-  const [lastMessageCount, setLastMessageCount] = useState(0);
-  const [newMessageAlert, setNewMessageAlert] = useState(null); // { count: number, show: boolean }
-  
-  // Track when user last opened each conversation (for unread indicator)
-  const [lastOpenedTimestamp, setLastOpenedTimestamp] = useState({});
   
   // Refs
   const messagesContainerRef = useRef(null);
-  const intervalRef = useRef(null);
-  const debouncedFetchMessages = useRef(null);
+  const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   
   // Get user ID from token
   const token = localStorage.getItem("token");
@@ -52,12 +42,23 @@ const Inbox = () => {
     }
   }
 
+  // Auto-scroll to bottom
+  const scrollToBottom = useCallback((smooth = false) => {
+    if (messagesContainerRef.current) {
+      const scrollOptions = {
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: smooth ? "smooth" : "auto"
+      };
+      messagesContainerRef.current.scrollTo(scrollOptions);
+    }
+  }, []);
+
   // Load conversations on mount
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
-  // Handle URL parameters
+  // Handle URL parameters for deep linking
   useEffect(() => {
     const chatParam = searchParams.get("chat");
     if (chatParam && conversations.length > 0) {
@@ -66,39 +67,33 @@ const Inbox = () => {
         setSelectedUser(user);
       }
     } else if (!chatParam && selectedUser) {
-      // Clear selected user if no chat param
       setSelectedUser(null);
     }
   }, [searchParams, conversations, selectedUser]);
 
-  // Search functionality
+  // Debounced search functionality
   useEffect(() => {
     if (search.trim().length === 0) {
       setSearchResults([]);
       return;
     }
+    
     const controller = new AbortController();
     const timeout = setTimeout(async () => {
       try {
-        const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(
-          /\/auth$/,
-          ""
-        );
+        const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
         const res = await fetch(`${API_BASE}/user/search?q=${encodeURIComponent(search)}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           signal: controller.signal,
         });
+        
         if (res.ok) {
           const data = await res.json();
           setSearchResults(
             (data.users || []).map((u) => ({
               _id: u._id,
               username: u.username,
-              avatar: u.countryFlag
-                ? u.countryFlag
-                : "https://ui-avatars.com/api/?name=" + encodeURIComponent(u.username),
+              avatar: u.countryFlag || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}`,
               verified: u.verified || false,
             }))
           );
@@ -116,194 +111,64 @@ const Inbox = () => {
     };
   }, [search]);
 
-  // Function to fetch messages from database
-  const fetchMessagesFromDB = async (conversationId, showLoading = false) => {
+  // Fetch messages from database (simple one-time fetch)
+  const fetchMessages = useCallback(async (conversationId) => {
     if (!conversationId) return;
-    
-    // Only show loading spinner when explicitly requested
-    if (showLoading) {
-      setIsLoadingMessages(true);
-    }
     
     setError(null);
     
     try {
       console.log("Fetching messages for conversation:", conversationId);
       const freshMessages = await getConversation(conversationId);
-      console.log("Received messages:", freshMessages);
-      
-      // Handle different response formats
       let messagesArray = [];
+      
       if (Array.isArray(freshMessages)) {
         messagesArray = freshMessages;
-      } else if (freshMessages && Array.isArray(freshMessages.messages)) {
+      } else if (freshMessages?.messages) {
         messagesArray = freshMessages.messages;
-      } else if (freshMessages && Array.isArray(freshMessages.data)) {
+      } else if (freshMessages?.data) {
         messagesArray = freshMessages.data;
-      } else {
-        console.warn("Unexpected response format:", freshMessages);
-        messagesArray = [];
       }
       
-      // Check if there are new messages from other users
-      const currentMessageCount = messagesArray.length;
-      const hasNewMessages = currentMessageCount > lastMessageCount;
-      
-      // If there are new messages, check if any are from other users
-      if (hasNewMessages && lastMessageCount > 0) {
-        const newMessages = messagesArray.slice(lastMessageCount);
-        const newMessagesFromOthers = newMessages.filter(msg => msg.from !== myUserId);
-        
-        if (newMessagesFromOthers.length > 0) {
-          // Show new message alert
-          setNewMessageAlert({
-            count: newMessagesFromOthers.length,
-            show: true
-          });
-          
-          // Hide alert after 3 seconds
-          setTimeout(() => {
-            setNewMessageAlert(prev => prev ? { ...prev, show: false } : null);
-          }, 3000);
-          
-          // Show brief loading for new messages from others
-          setIsLoadingMessages(true);
-          setTimeout(() => setIsLoadingMessages(false), 300);
-        }
-      }
-      
+      console.log("Fetched messages:", messagesArray);
       setMessages(messagesArray);
-      setLastMessageCount(currentMessageCount);
-      
-      if (showLoading || hasNewMessages) {
-        setShouldScrollToBottom(true);
+
+      // Update conversation with the actual last message from the fetched messages
+      if (messagesArray.length > 0) {
+        const lastMessage = messagesArray[messagesArray.length - 1];
+        updateConversation(conversationId, {
+          lastMessage: lastMessage.text || lastMessage.message || "",
+          lastTime: formatRelativeTime(new Date(lastMessage.createdAt).getTime()),
+          lastTimestamp: new Date(lastMessage.createdAt).getTime()
+        });
       }
+      
+      // Scroll to bottom after messages load
+      setTimeout(() => scrollToBottom(false), 100);
       
     } catch (error) {
       console.error("Error fetching messages:", error);
       setError("Failed to load messages");
-      if (showLoading) {
-        setMessages([]);
-      }
-    } finally {
-      if (showLoading) {
-        setIsLoadingMessages(false);
-      }
+      setMessages([]);
     }
-  };
+  }, [scrollToBottom, updateConversation, formatRelativeTime]);
 
-  // Load messages when user is selected and set up polling
+  // Load messages when user is selected (one-time fetch only)
   useEffect(() => {
-    if (selectedUser && selectedUser._id) {
-      const conversationId = selectedUser._id;
-      const now = Date.now();
-      
-      // Mark this conversation as opened now
-      setLastOpenedTimestamp(prev => ({
-        ...prev,
-        [conversationId]: now
-      }));
-      
-      // Clear any existing interval and debounced calls
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      if (debouncedFetchMessages.current) {
-        clearTimeout(debouncedFetchMessages.current);
-      }
-      
-      // Clear previous messages and error
+    if (selectedUser?._id) {
       setMessages([]);
       setError(null);
-      setLastMessageCount(0);
-      setNewMessageAlert(null);
       
-      // Check if this conversation has unread messages
-      const conversation = conversations.find(c => c._id === conversationId);
-      if (conversation && conversation.unreadCount > 0) {
-        // Show initial unread message alert
-        setNewMessageAlert({
-          count: conversation.unreadCount,
-          show: true
-        });
-        
-        // Hide after 4 seconds for initial unread messages
-        setTimeout(() => {
-          setNewMessageAlert(prev => prev ? { ...prev, show: false } : null);
-        }, 4000);
-      }
+      // Mark conversation as read
+      updateConversation(selectedUser._id, { unreadCount: 0 });
       
-      // Fetch messages immediately (initial load with spinner)
-      fetchMessagesFromDB(conversationId, true);
-      
-      // Set up smarter polling - only if window is focused
-      const startPolling = () => {
-        intervalRef.current = setInterval(() => {
-          if (document.visibilityState === 'visible') {
-            fetchMessagesFromDB(conversationId, false);
-          }
-        }, 15000);
-      };
-
-      startPolling();
-
-      // Pause polling when window is not visible, resume when visible
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-          if (!intervalRef.current) {
-            startPolling();
-          }
-        } else {
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-        }
-      };
-
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      // Cleanup function should also remove the event listener
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-        if (debouncedFetchMessages.current) {
-          clearTimeout(debouncedFetchMessages.current);
-        }
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    } else {
-      // Clear messages and stop polling when no user is selected
-      setMessages([]);
-      setIsLoadingMessages(false);
-      setError(null);
-      setLastMessageCount(0);
-      setNewMessageAlert(null);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      // Fetch messages once
+      fetchMessages(selectedUser._id);
     }
+  }, [selectedUser, fetchMessages, updateConversation]);
 
-    // Cleanup interval on unmount or user change
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [selectedUser, conversations]);
-
-  // Handle scrolling after messages are rendered
-  useEffect(() => {
-    if (messagesContainerRef.current && shouldScrollToBottom) {
-      // Scroll to bottom immediately without animation
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      setShouldScrollToBottom(false);
-    }
-  }, [messages, shouldScrollToBottom]);
-
-  // Optimistic message sending
-  const handleSend = async (e) => {
+  // Message sending with optimistic updates
+  const handleSendMessage = useCallback(async (e) => {
     e.preventDefault();
     if (!input.trim() || !selectedUser?._id || isSending) return;
 
@@ -323,27 +188,15 @@ const Inbox = () => {
       failed: false
     };
 
-    // Clear input and add optimistic message
+    // Clear input and add message
     setInput("");
-    setMessages(prev => {
-      const newMessages = [...prev, optimisticMessage];
-      setLastMessageCount(newMessages.length); // Update count immediately
-      return newMessages;
-    });
-    
-    // Smooth scroll for new messages
-    setTimeout(() => {
-      if (messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTo({
-          top: messagesContainerRef.current.scrollHeight,
-          behavior: "smooth"
-        });
-      }
-    }, 50);
-
+    setMessages(prev => [...prev, optimisticMessage]);
     setIsSending(true);
 
-    // Update conversation list optimistically
+    // Auto scroll to bottom
+    setTimeout(() => scrollToBottom(true), 50);
+
+    // Update conversation list with the message I just sent
     updateConversation(selectedUser._id, {
       lastMessage: messageText,
       lastTime: formatRelativeTime(now.getTime()),
@@ -351,11 +204,9 @@ const Inbox = () => {
     });
 
     try {
-      // Send actual message
       const newMsg = await sendMessage(selectedUser._id, messageText);
       
       if (newMsg && (newMsg.text || newMsg.message)) {
-        // Update optimistic message with real message
         const realMessage = {
           ...newMsg,
           text: newMsg.text || newMsg.message
@@ -365,39 +216,32 @@ const Inbox = () => {
           msg._id === tempId ? realMessage : msg
         ));
 
-        // Update conversation list with real timestamp
+        // Update conversation list with the real message
         updateConversation(selectedUser._id, {
           lastMessage: realMessage.text,
           lastTime: formatRelativeTime(new Date(realMessage.createdAt).getTime()),
           lastTimestamp: new Date(realMessage.createdAt).getTime()
         });
-
-        // Force refresh messages after successful send (without spinner)
-        setTimeout(() => {
-          fetchMessagesFromDB(selectedUser._id, false);
-        }, 1000);
       } else {
         throw new Error("Failed to send message");
       }
     } catch (error) {
       console.error("Send error:", error);
-      // Mark message as failed
       setMessages(prev => prev.map(msg => 
         msg._id === tempId ? { ...msg, failed: true, isOptimistic: false } : msg
       ));
     } finally {
       setIsSending(false);
     }
-  };
+  }, [input, selectedUser, myUserId, isSending, scrollToBottom, updateConversation, formatRelativeTime]);
 
-  const handleRetry = async (message) => {
+  // Retry failed message
+  const handleRetryMessage = useCallback(async (message) => {
     if (isSending) return;
     
-    // Remove failed flag
     setMessages(prev => prev.map(msg => 
       msg._id === message._id ? { ...msg, failed: false, isOptimistic: true } : msg
     ));
-
     setIsSending(true);
 
     try {
@@ -413,10 +257,12 @@ const Inbox = () => {
           msg._id === message._id ? realMessage : msg
         ));
 
-        // Force refresh messages after successful retry (without spinner)
-        setTimeout(() => {
-          fetchMessagesFromDB(selectedUser._id, false);
-        }, 1000);
+        // Update conversation list with the retried message
+        updateConversation(selectedUser._id, {
+          lastMessage: realMessage.text,
+          lastTime: formatRelativeTime(new Date(realMessage.createdAt).getTime()),
+          lastTimestamp: new Date(realMessage.createdAt).getTime()
+        });
       } else {
         throw new Error("Failed to send message");
       }
@@ -428,455 +274,473 @@ const Inbox = () => {
     } finally {
       setIsSending(false);
     }
-  };
+  }, [selectedUser, isSending, updateConversation, formatRelativeTime]);
 
-  // Manual refresh function
-  const handleRefresh = () => {
-    if (selectedUser?._id) {
-      fetchMessagesFromDB(selectedUser._id, true);
-    }
-  };
-
-  // Group messages by date and add unread indicator
-  const groupedMessages = (() => {
+  // Group messages by time (Instagram style)
+  const groupedMessages = useMemo(() => {
     if (!messages.length) return [];
 
-    const conversationId = selectedUser?._id;
-    const openedTimestamp = lastOpenedTimestamp[conversationId];
-    let unreadSectionShown = false;
-    
     const grouped = [];
-    let currentDate = null;
+    let currentGroup = [];
+    let lastSender = null;
+    let lastTime = null;
 
     messages.forEach((message, index) => {
-      const messageDate = new Date(message.createdAt).toDateString();
-      
-      // Add date divider if needed
-      if (messageDate !== currentDate) {
-        currentDate = messageDate;
-        const today = new Date();
-        const yesterday = new Date();
-        yesterday.setDate(today.getDate() - 1);
-        
-        let label = "";
-        if (messageDate === today.toDateString()) {
-          label = "Today";
-        } else if (messageDate === yesterday.toDateString()) {
-          label = "Yesterday";
-        } else {
-          const msgDate = new Date(messageDate);
-          label = `${String(msgDate.getDate()).padStart(2, "0")}/${String(msgDate.getMonth() + 1).padStart(2, "0")}/${String(msgDate.getFullYear()).slice(-2)}`;
-        }
-        
-        grouped.push({
-          type: "date",
-          label
-        });
+      const messageTime = new Date(message.createdAt);
+      const timeDiff = lastTime ? messageTime.getTime() - lastTime.getTime() : 0;
+      const shouldGroup = message.from === lastSender && timeDiff < 60000; // 1 minute
+
+      if (!shouldGroup && currentGroup.length > 0) {
+        grouped.push(currentGroup);
+        currentGroup = [];
       }
 
-      // Check if we should show unread indicator
-      // Only show for messages from other users that arrived after the conversation was last opened
-      const messageTimestamp = new Date(message.createdAt).getTime();
-      const shouldShowUnread = !unreadSectionShown && 
-                              message.from !== myUserId && 
-                              openedTimestamp && 
-                              messageTimestamp > openedTimestamp;
-
-      if (shouldShowUnread) {
-        unreadSectionShown = true;
-        grouped.push({
-          type: "unread",
-          label: "Unread Messages"
-        });
-      }
-
-      // Determine if this is the first message in a group
-      const isFirstInGroup = index === 0 || 
-        messages[index - 1].from !== message.from ||
-        (new Date(message.createdAt).getTime() - new Date(messages[index - 1].createdAt).getTime()) > 300000; // 5 minutes
-
-      grouped.push({
-        type: "message",
-        msg: message,
-        isFirstInGroup
+      currentGroup.push({
+        ...message,
+        isFirst: !shouldGroup || currentGroup.length === 0,
+        isLast: index === messages.length - 1 || 
+                (index < messages.length - 1 && 
+                 (messages[index + 1].from !== message.from || 
+                  new Date(messages[index + 1].createdAt).getTime() - messageTime.getTime() > 60000))
       });
+
+      lastSender = message.from;
+      lastTime = messageTime;
     });
 
+    if (currentGroup.length > 0) {
+      grouped.push(currentGroup);
+    }
+
     return grouped;
-  })();
+  }, [messages]);
 
-  const truncateWords = (text, wordCount) => {
+  // Format time (Instagram style)
+  const formatMessageTime = useCallback((timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'now';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    
+    return date.toLocaleDateString();
+  }, []);
+
+  // Truncate message preview (mobile responsive)
+  const truncateMessage = useCallback((text, isMobile = false) => {
     if (!text) return "";
-    const words = text.split(" ");
-    if (words.length <= wordCount) return text;
-    return words.slice(0, wordCount).join(" ") + "...";
-  };
+    const maxLength = isMobile ? 30 : 50;
+    return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
+  }, []);
 
-  // Show loading state only if no cached data
+  // Loading state
   if (!conversations.length) {
     return (
-      <div className="w-full h-full flex flex-col bg-white dark:bg-gray-900">
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Messages</h2>
-        </div>
-        
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-gray-500 dark:text-gray-400 mb-2">Loading conversations...</div>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          </div>
+      <div className="h-full flex items-center justify-center bg-white dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400">Loading conversations...</p>
         </div>
       </div>
     );
   }
 
-  // If no user selected, show chat list
-  if (!selectedUser) {
-    return (
-      <div className="w-full h-full flex flex-col bg-white dark:bg-gray-900">
+  return (
+    <div className="h-full flex bg-white dark:bg-gray-900">
+      {/* Sidebar - Conversation List */}
+      <div className={`${selectedUser ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 xl:w-96 border-r border-gray-200 dark:border-gray-700`}>
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Messages</h2>
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h1>
+          <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+            </svg>
+          </button>
         </div>
-        
-        {/* Search bar */}
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 relative">
-          <input
-            className="w-full rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Search conversations..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            autoComplete="off"
-          />
+
+        {/* Search */}
+        <div className="p-4 relative">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search conversations..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 border-0 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+            />
+          </div>
+          
+          {/* Search Results - FIXED: Removed scrollbar */}
           {search && searchResults.length > 0 && (
-            <ul className="absolute left-4 right-4 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
+            <div className="absolute top-full left-4 right-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-10 hide-scrollbar">
               {searchResults.map((user) => (
-                <li
-                  key={user.username}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition"
+                <button
+                  key={user._id}
+                  className="w-full flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                   onClick={() => {
-                    const fullUser = conversations.find(u => u._id === user._id) || user;
-                    setSelectedUser(fullUser);
+                    setSelectedUser(user);
                     navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
                     setSearch("");
                   }}
                 >
-                  <img src={user.avatar} alt={user.username} className="w-8 h-8 rounded-full" />
-                  <span className="font-semibold text-gray-900 dark:text-white flex items-center">
-                    {user.username}
-                    {user.verified && <VerifiedBadge />}
-                  </span>
-                </li>
+                  <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full mr-3" />
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center">
+                      <span className="font-medium text-gray-900 dark:text-white">{user.username}</span>
+                      {user.verified && <VerifiedBadge />}
+                    </div>
+                  </div>
+                </button>
               ))}
-            </ul>
-          )}
-          {search && searchResults.length === 0 && (
-            <div className="absolute left-4 right-4 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 p-3 text-xs text-gray-500 dark:text-gray-400">
-              No users found.
             </div>
           )}
         </div>
 
-        {/* Conversation list */}
-        <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+        {/* Conversations List */}
+        <div className="flex-1 overflow-y-auto">
           {conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500">
-              <div className="text-center">
-                <h3 className="text-lg font-medium mb-2">No conversations yet</h3>
-                <p className="text-sm">Start a conversation to see it here</p>
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
               </div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No conversations yet</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">Start a conversation to see it here</p>
             </div>
           ) : (
             conversations.map((user) => (
               <button
                 key={user._id}
-                className="w-full flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition relative"
-                onClick={async () => {
-                  const fullUser = conversations.find(u => u._id === user._id) || user;
-                  setSelectedUser(fullUser);
+                className={`w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition ${
+                  selectedUser?._id === user._id ? 'bg-gray-50 dark:bg-gray-800' : ''
+                }`}
+                onClick={() => {
+                  setSelectedUser(user);
                   navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
-                  updateConversation(user._id, { unreadCount: 0 });
                 }}
               >
-                <div className="relative">
-                  <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
+                <div className="relative mr-3">
                   {user.unreadCount > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center z-10">
                       {user.unreadCount > 9 ? '9+' : user.unreadCount}
                     </div>
                   )}
+                  <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
                 </div>
-                <div className="flex-1 text-left min-w-0">
-                  <div className={`text-gray-900 dark:text-white flex items-center gap-1 ${user.unreadCount > 0 ? "font-bold" : "font-medium"}`}>
-                    <span className="truncate">{user.username}</span>
-                    {user.verified && <VerifiedBadge />}
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center">
+                      <span className={`font-medium truncate ${user.unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white'}`}>
+                        {user.username}
+                      </span>
+                      {user.verified && <VerifiedBadge />}
+                    </div>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                      {user.lastTime}
+                    </span>
                   </div>
-                  <div
-                    className={`text-sm truncate ${
-                      user.unreadCount > 0
-                        ? "font-medium text-gray-900 dark:text-white"
-                        : "text-gray-500 dark:text-gray-400"
-                    }`}
-                  >
-                    {truncateWords(user.lastMessage, 10)}
+                  <div className={`text-sm truncate ${user.unreadCount > 0 ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                    {truncateMessage(user.lastMessage, window.innerWidth < 768)}
                   </div>
-                </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
-                  {user.lastTime}
                 </div>
               </button>
             ))
           )}
         </div>
       </div>
-    );
-  }
 
-  // Chat view (chatbox style)
-  if (selectedUser) {
-    return (
-      <div className="w-full h-screen flex flex-col bg-white dark:bg-gray-900 rounded-none sm:rounded-xl shadow relative">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-30">
-          <button
-            onClick={() => {
-              setSelectedUser(null);
-              setMessages([]);
-              navigate("/dashboard/inbox", { replace: true });
-            }}
-            className="mr-2 text-blue-600 dark:text-blue-400 font-bold text-lg px-2 py-1 rounded hover:bg-blue-100 dark:hover:bg-gray-700 transition"
-          >
-            ←
-          </button>
-          <img
-            src={selectedUser.avatar}
-            alt={selectedUser.username}
-            className="w-10 h-10 rounded-full"
-          />
-          <span
-            className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b] flex items-center cursor-pointer hover:underline"
-            onClick={() =>
-              navigate(
-                `/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`,
-                {
-                  state: {
-                    fromInbox: true,
-                    chatUsername: selectedUser.username,
-                  },
-                }
-              )
-            }
-            title="View public profile"
-          >
-            {selectedUser.username}
-            {selectedUser.verified && <VerifiedBadge />}
-          </span>
-          
-          {/* Refresh button */}
-          <button
-            onClick={handleRefresh}
-            className="ml-auto text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-gray-700 p-2 rounded transition"
-            title="Refresh messages"
-            disabled={isLoadingMessages}
-          >
-            <svg className={`w-4 h-4 ${isLoadingMessages ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
+      {/* Main Chat Area */}
+      {selectedUser ? (
+        <div className="flex-1 flex flex-col">
+          {/* Chat Header */}
+          <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <button
+              className="lg:hidden mr-3 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              onClick={() => {
+                setSelectedUser(null);
+                navigate("/dashboard/inbox", { replace: true });
+              }}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full mr-3" />
+            
+            <div className="flex-1">
+              <button
+                className="flex items-center hover:underline"
+                onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
+              >
+                <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
+                {selectedUser.verified && <VerifiedBadge />}
+              </button>
+            </div>
 
-        {/* Messages */}
-        <div className="flex-1 relative overflow-hidden">
-          <div
-            ref={messagesContainerRef}
-            className="absolute inset-0 overflow-y-auto no-scrollbar px-4 py-3"
-          >
-            <style>
-              {`
-                .no-scrollbar {
-                  scrollbar-width: none;
-                }
-                .no-scrollbar::-webkit-scrollbar {
-                  display: none;
-                }
-              `}
-            </style>
-            
-            {/* Error message */}
-            {error && (
-              <div className="text-center py-4">
-                <div className="inline-block px-4 py-2 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 text-sm rounded-lg">
-                  {error}
-                  <button 
-                    onClick={handleRefresh}
-                    className="ml-2 underline hover:no-underline"
-                  >
-                    Try again
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* No messages state */}
-            {!isLoadingMessages && !error && messages.length === 0 && (
-              <div className="text-center py-8">
-                <div className="text-gray-500 dark:text-gray-400">
-                  No messages yet. Start the conversation!
-                </div>
-              </div>
-            )}
-            
-            <div>
-              {groupedMessages.map((item, idx) => {
-                if (item.type === "date") {
-                  return (
-                    <div
-                      key={`date-${idx}`}
-                      className="text-center text-xs font-semibold text-gray-500 dark:text-gray-400 my-4"
+            {/* Chat Actions */}
+            <div className="flex items-center space-x-2">
+              <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </button>
+              <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              </button>
+              <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-hidden relative">
+            <div
+              ref={messagesContainerRef}
+              className="h-full overflow-y-auto px-4 py-4 space-y-4 hide-scrollbar"
+            >
+              {error ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <p className="text-red-500 mb-2">{error}</p>
+                    <button
+                      onClick={() => fetchMessages(selectedUser._id)}
+                      className="text-blue-500 hover:underline"
                     >
-                      <span className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                        {item.label}
-                      </span>
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
                     </div>
-                  );
-                }
-                
-                if (item.type === "unread") {
-                  return (
-                    <div key={`unread-${idx}`} className="text-center text-xs font-semibold text-red-500 dark:text-red-400 my-4">
-                      <span className="bg-red-100 dark:bg-red-900 px-3 py-1 rounded-full">
-                        {item.label}
-                      </span>
-                    </div>
-                  );
-                }
+                    <p className="text-gray-500 dark:text-gray-400">No messages yet. Say hello!</p>
+                  </div>
+                </div>
+              ) : (
+                groupedMessages.map((group, groupIndex) => (
+                  <div key={groupIndex} className="space-y-1">
+                    {group.map((message, messageIndex) => {
+                      const isOwn = message.from === myUserId;
+                      const showAvatar = !isOwn && message.isFirst;
+                      const showTime = message.isLast;
 
-                return (
-                  <div
-                    key={`msg-${idx}`}
-                    className={`flex ${
-                      item.msg.from === myUserId ? "justify-end" : "justify-start"
-                    } ${item.isFirstInGroup ? "mt-4" : "mt-1"} mb-2 flex-col`}
-                  >
-                    <div
-                      className={`max-w-xs px-4 py-2 rounded-2xl text-sm shadow-sm relative ${
-                        item.msg.from === myUserId
-                          ? `${item.msg.failed 
-                              ? "bg-red-500 text-white border border-red-600" 
-                              : item.msg.isOptimistic 
-                                ? "bg-blue-400 text-white border border-blue-500 opacity-80"
-                                : "bg-blue-600 text-white border border-blue-700"
-                        } rounded-br-none`
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none border border-gray-300 dark:border-gray-600"
-                      } ${item.msg.from === myUserId ? "ml-auto" : "mr-auto"}`}
-                    >
-                      <div>{item.msg.text}</div>
-                      {item.msg.failed && (
-                        <button
-                          onClick={() => handleRetry(item.msg)}
-                          className="text-xs underline mt-1 hover:no-underline"
-                          disabled={isSending}
-                        >
-                          Tap to retry
-                        </button>
-                      )}
-                      <div className={`text-xs mt-1 ${item.msg.from === myUserId ? "text-blue-100" : "text-gray-400"}`}>
-                        {new Date(item.msg.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-end gap-2 mt-1 text-[10px]">
-                      {item.msg.from === myUserId && !item.msg.failed && (
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-full font-semibold ${
-                            item.msg.isOptimistic
-                              ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300 border border-yellow-300 dark:border-yellow-700"
-                              : item.msg.read
-                                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border border-green-300 dark:border-green-700"
-                                : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-300 dark:border-gray-700"
+                      return (
+                        <div
+                          key={message._id}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
+                            message.isFirst ? 'mt-4' : 'mt-1'
                           }`}
                         >
-                          {item.msg.isOptimistic ? "Sending..." : item.msg.read ? "Seen" : "Delivered"}
-                        </span>
-                      )}
-                      {item.msg.failed && (
-                        <span className="inline-block px-2 py-0.5 rounded-full font-semibold bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 border border-red-300 dark:border-red-700">
-                          Failed
-                        </span>
-                      )}
-                    </div>
+                          {/* Avatar */}
+                          {showAvatar && (
+                            <img
+                              src={selectedUser.avatar}
+                              alt={selectedUser.username}
+                              className="w-6 h-6 rounded-full mr-2 mt-auto"
+                            />
+                          )}
+                          {!isOwn && !showAvatar && <div className="w-8" />}
+
+                          {/* Message Bubble */}
+                          <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
+                            <div
+                              className={`px-4 py-2 rounded-2xl text-sm break-words ${
+                                isOwn
+                                  ? message.failed
+                                    ? 'bg-red-500 text-white'
+                                    : message.isOptimistic
+                                    ? 'bg-blue-400 text-white opacity-80'
+                                    : 'bg-blue-500 text-white'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                              } ${
+                                isOwn
+                                  ? message.isFirst && message.isLast
+                                    ? 'rounded-2xl'
+                                    : message.isFirst
+                                    ? 'rounded-br-md'
+                                    : message.isLast
+                                    ? 'rounded-tr-md'
+                                    : 'rounded-r-md'
+                                  : message.isFirst && message.isLast
+                                  ? 'rounded-2xl'
+                                  : message.isFirst
+                                  ? 'rounded-bl-md'
+                                  : message.isLast
+                                  ? 'rounded-tl-md'
+                                  : 'rounded-l-md'
+                              }`}
+                            >
+                              {message.text}
+                              
+                              {/* Retry button for failed messages */}
+                              {message.failed && (
+                                <button
+                                  onClick={() => handleRetryMessage(message)}
+                                  className="block mt-2 text-xs underline hover:no-underline"
+                                  disabled={isSending}
+                                >
+                                  Tap to retry
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Message status and time - FIXED: Changed to text status */}
+                            {showTime && (
+                              <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${
+                                isOwn ? 'justify-end' : 'justify-start'
+                              }`}>
+                                <span>{formatMessageTime(message.createdAt)}</span>
+                                {isOwn && !message.failed && (
+                                  <span className="ml-2">
+                                    {message.isOptimistic ? (
+                                      <span className="text-gray-400">sending...</span>
+                                    ) : message.read ? (
+                                      <span className="text-blue-500">seen</span>
+                                    ) : (
+                                      <span className="text-gray-400">delivered</span>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                ))
+              )}
             </div>
+          </div>
+
+          {/* Message Input */}
+          <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <form onSubmit={handleSendMessage} className="p-4">
+              <div className="flex items-end space-x-3">
+                {/* Attachment button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                </button>
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*,.pdf,.doc,.docx"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    // Handle file selection
+                    const files = Array.from(e.target.files || []);
+                    console.log('Selected files:', files);
+                    // You can implement file upload logic here
+                  }}
+                />
+
+                {/* Text input */}
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Message..."
+                    className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    disabled={isSending}
+                    maxLength={1000}
+                  />
+                </div>
+
+                {/* Emoji button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Focus input and trigger emoji keyboard on mobile
+                    if (inputRef.current) {
+                      inputRef.current.focus();
+                      // On mobile devices, this will show the emoji keyboard
+                      if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                        inputRef.current.setAttribute('inputmode', 'text');
+                        inputRef.current.click();
+                      }
+                    }
+                  }}
+                  className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
+
+                {/* Send button */}
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isSending}
+                  className={`p-2 rounded-full transition ${
+                    input.trim() && !isSending
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {isSending ? (
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        {/* Floating loading spinner - no background */}
-        {isLoadingMessages && (
-          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-40">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 dark:border-blue-400"></div>
-          </div>
-        )}
-
-        {/* New message alert - floating above input */}
-        {newMessageAlert && newMessageAlert.show && (
-          <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
-            <div className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-              {newMessageAlert.count === 1 ? "New message" : `${newMessageAlert.count} new messages`}
+      ) : (
+        /* No chat selected - Desktop view */
+        <div className="hidden lg:flex flex-1 items-center justify-center bg-gray-50 dark:bg-gray-800">
+          <div className="text-center">
+            <div className="w-24 h-24 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
             </div>
+            <h2 className="text-2xl font-light text-gray-900 dark:text-white mb-2">Your Messages</h2>
+            <p className="text-gray-500 dark:text-gray-400">Select a conversation to start messaging</p>
           </div>
-        )}
-
-        {/* Message input form */}
-        <form
-          onSubmit={handleSend}
-          className="flex items-center gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
-        >
-          <input
-            className="flex-1 rounded-full border border-gray-300 dark:border-gray-700 px-4 py-2 text-sm bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type your message..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            autoComplete="off"
-            disabled={isSending}
-          />
-          <button
-            type="submit"
-            className={`font-bold px-4 py-2 rounded-full transition ${
-              isSending || !input.trim()
-                ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-            disabled={isSending || !input.trim()}
-          >
-            {isSending ? "..." : "Send"}
-          </button>
-        </form>
-
-        <style jsx>{`
-          @keyframes fade-in {
-            0% {
-              opacity: 0;
-              transform: translateX(-50%) translateY(10px);
-            }
-            100% {
-              opacity: 1;
-              transform: translateX(-50%) translateY(0);
-            }
-          }
-          .animate-fade-in {
-            animation: fade-in 0.3s ease-out;
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  return null;
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default Inbox;

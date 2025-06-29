@@ -563,14 +563,13 @@ export default function ChatPost({
     >
       {/* Header */}
       <div className="flex items-center mb-3">
-        <span className="text-2xl mr-3">{post.avatar}</span>
+        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 mr-3">
+          <FaUser className="text-gray-400 text-lg" />
+        </div>
         <Link
           to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-          className="font-bold text-gray-800 dark:text-white flex items-center gap-1 hover:underline"
+          className="font-bold text-gray-800 dark:text-white flex items-center hover:underline"
         >
-          <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
-            <FaUser className="text-gray-400 text-lg" />
-          </span>
           {post.author?.username || post.user}
           {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
             <VerifiedBadge />
