@@ -22,7 +22,7 @@ function ReplyInput({ onSubmit, loading, postId, commentId }) {
         value={reply}
         onChange={e => setReply(e.target.value)}
         placeholder="Write a reply..."
-        className="flex-1 border rounded px-2 py-1"
+        className="flex-1 border rounded px-2 py-1 text-sm sm:text-base"
         disabled={loading}
       />
       <button
@@ -174,7 +174,7 @@ export default function ChatPost({
       _id: `temp-reply-${Date.now()}`,
       content: replyText,
       user: currentUserId,
-      author: { username: currentUsername, verified: currentUserVerified }, // <-- CORRECT
+      author: { username: currentUsername, verified: currentUserVerified },
       createdAt: new Date().toISOString(),
     };
 
@@ -355,12 +355,12 @@ export default function ChatPost({
 
       {/* Comments Section */}
       {showComments && (
-        <div className="mt-4 relative" ref={commentsRef}>
+        <div className="mt-4 relative w-full max-w-full" ref={commentsRef}>
           {/* Close button */}
           <div className="flex justify-between items-center mb-2">
             <div className="font-semibold text-sm text-blue-700">Comments</div>
             <button
-              className="text-gray-500 hover:text-red-500 text-xl font-bold px-2 py-0.5 rounded transition"
+              className="text-gray-500 hover:text-red-500 text-xl font-bold px-2 py-0.5 rounded transition shrink-0"
               onClick={() => setShowComments(false)}
               aria-label="Close comments"
               type="button"
@@ -370,11 +370,7 @@ export default function ChatPost({
           </div>
           {/* Add new comment input at the top */}
           {activeReply === null && showCommentInput && (
-            <form
-              onSubmit={handleCommentSubmit}
-              className="w-full mt-2"
-              style={{ maxWidth: "100%" }}
-            >
+            <div className="w-full mt-2">
               <MentionInput
                 value={comment}
                 onChange={setComment}
@@ -384,7 +380,7 @@ export default function ChatPost({
                 disabled={loadingComment}
                 onClose={() => setShowCommentInput(false)}
               />
-            </form>
+            </div>
           )}
           {activeReply === null && !showCommentInput && (
             <div className="mt-2">
@@ -397,7 +393,7 @@ export default function ChatPost({
               </button>
             </div>
           )}
-          <div className="max-h-80 overflow-y-auto pr-2 hide-scrollbar w-full" style={{ maxWidth: "100%" }}>
+          <div className="max-h-80 overflow-y-auto pr-2 hide-scrollbar w-full max-w-full">
             {localPost.comments && localPost.comments.length > 0 ? (
               localPost.comments.slice(0, 5).map((comment, idx) => {
                 const replies = comment.replies || [];
@@ -428,7 +424,7 @@ export default function ChatPost({
                       </span>
                       <span className="text-xs text-gray-400">{formatPostDate(comment.createdAt || comment.timestamp)}</span>
                     </div>
-                    <div className="text-gray-900 dark:text-gray-100 break-words w-full">
+                    <div className="text-gray-900 dark:text-gray-100 break-words w-full text-sm sm:text-base">
                       {renderHighlightedContent(comment.text || comment.content)}
                     </div>
                     {/* Replies to this comment */}
@@ -439,9 +435,9 @@ export default function ChatPost({
                             <div className="flex flex-col w-full">
                               <div className="flex items-center gap-1">
                                 <span className="text-xs text-blue-500 mr-1">
-                                  Replied to 
+                                  Replied to{" "}
                                   <Link
-                                    to={`/dashboard/community/user/${encodeURIComponent(comment.author?.username || comment.user)}`}
+                                    to={`/dashboard/community/user ${encodeURIComponent(comment.author?.username || comment.user)}`}
                                     className="hover:underline text-blue-600"
                                   >
                                     {comment.author?.username || comment.user}
@@ -457,7 +453,7 @@ export default function ChatPost({
                                 <span className="font-bold mx-1 text-gray-400">·</span>
                                 <span className="text-xs text-gray-400">{formatPostDate(reply.createdAt || reply.timestamp)}</span>
                               </div>
-                              <div className="text-gray-900 dark:text-gray-100 break-words w-full">
+                              <div className="text-gray-900 dark:text-gray-100 break-words w-full text-sm sm:text-base">
                                 {renderHighlightedContent(reply.content)}
                               </div>
                             </div>
@@ -491,25 +487,12 @@ export default function ChatPost({
                     </button>
                     {/* Reply input for this comment */}
                     {activeReply === idx && (
-                      <form
-                        className="ml-4 mt-2 w-full"
-                        onSubmit={e => {
-                          e.preventDefault();
-                          handleReply(localPost._id, replyInputs[idx] || "", comment._id || idx);
-                          setReplyInputs(inputs => ({ ...inputs, [idx]: "" }));
-                        }}
-                      >
-                        <MentionInput
-                          value={replyInputs[idx] || ""}
-                          onChange={val => setReplyInputs(inputs => ({ ...inputs, [idx]: val }))}
-                          onSubmit={e => {
-                            e.preventDefault();
-                            handleReply(localPost._id, replyInputs[idx] || "", comment._id || idx);
-                            setReplyInputs(inputs => ({ ...inputs, [idx]: "" }));
-                          }}
+                      <div className="ml-4 mt-2 w-full">
+                        <ReplyInput
+                          onSubmit={handleReply}
                           loading={loadingReply[comment._id || idx] || false}
-                          placeholder="Write a reply..."
-                          disabled={loadingReply[comment._id || idx] || false}
+                          postId={localPost._id}
+                          commentId={comment._id || idx}
                         />
                         <button
                           type="button"
@@ -518,7 +501,7 @@ export default function ChatPost({
                         >
                           Write a comment instead
                         </button>
-                      </form>
+                      </div>
                     )}
                   </div>
                 );
@@ -595,7 +578,7 @@ function MentionInput({
           onClick={e => setCaretPos(e.target.selectionStart)}
           onKeyUp={e => setCaretPos(e.target.selectionStart)}
           placeholder={placeholder}
-          className="flex-1 border rounded px-2 py-1 min-w-0"
+          className="flex-1 border rounded px-2 py-1 min-w-0 text-sm sm:text-base"
           disabled={disabled}
           style={{ maxWidth: "100%" }}
         />
