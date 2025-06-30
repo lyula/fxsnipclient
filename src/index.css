@@ -9,11 +9,50 @@ html, body, #root {
   overflow-x: hidden;
 }
 
+/* Prevent overscroll bounce and page-level scrolling issues */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Dashboard layout fixes */
+.dashboard-main {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Specific styles for Community component */
+.community-container {
+  overscroll-behavior: none !important;
+  touch-action: none;
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+.community-posts-section {
+  overscroll-behavior: contain !important;
+  touch-action: pan-y;
+}
+
 /* Hide scrollbar for elements with .hide-scrollbar */
 .hide-scrollbar {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none;  /* IE and Edge */
 }
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
+}
+
+/* Mobile-specific button fixes */
+@media (max-width: 640px) {
+  .mobile-button-text {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+  }
+  
+  .mobile-button-container {
+    max-width: calc(100vw - 2rem);
+    word-break: keep-all;
+    white-space: nowrap;
+  }
 }

@@ -564,35 +564,42 @@ export default function Dashboard() {
         {/* Dashboard Content */}
         <main className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 flex flex-col min-h-0">
-            <div
-              className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 hide-scrollbar"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
-              <Routes>
-                <Route path="" element={DashboardMain} />
-                <Route path="community/user/:username" element={<UserProfile />} />
-                <Route path="community/*" element={<Community user={user} />} />
-                <Route path="inbox" element={<Inbox />} />
-                <Route path="signals" element={<Signals />} />
-                <Route path="journal" element={<Journal />} />
-                <Route path="stats" element={<Stats />} />
-                <Route path="subscriptions" element={<Subscriptions />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="notifications" element={<Notifications />} />
-              </Routes>
-              {/* Only show footer if not in any community subpath */}
-              {!location.pathname.startsWith("/dashboard/community") &&
-                !location.pathname.startsWith("/dashboard/community/user/") &&
-                !location.pathname.startsWith("/dashboard/inbox") &&
-                !location.pathname.startsWith("/dashboard/notifications") ? (
-                <footer
-                  className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0 sm:static sm:z-auto"
-                  style={{}}
-                >
-                  &copy; {currentYear} FXsnip. All rights reserved.
-                </footer>
-              ) : null}
-            </div>
+            {/* Special handling for Community routes - no padding, no scrolling */}
+            {location.pathname.startsWith("/dashboard/community") ? (
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <Routes>
+                  <Route path="community/user/:username" element={<UserProfile />} />
+                  <Route path="community/*" element={<Community user={user} />} />
+                </Routes>
+              </div>
+            ) : (
+              <div
+                className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 hide-scrollbar"
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
+                <Routes>
+                  <Route path="" element={DashboardMain} />
+                  <Route path="inbox" element={<Inbox />} />
+                  <Route path="signals" element={<Signals />} />
+                  <Route path="journal" element={<Journal />} />
+                  <Route path="stats" element={<Stats />} />
+                  <Route path="subscriptions" element={<Subscriptions />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="notifications" element={<Notifications />} />
+                </Routes>
+                {/* Only show footer if not in community, inbox, or notifications */}
+                {!location.pathname.startsWith("/dashboard/community") &&
+                  !location.pathname.startsWith("/dashboard/inbox") &&
+                  !location.pathname.startsWith("/dashboard/notifications") ? (
+                  <footer
+                    className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0 sm:static sm:z-auto"
+                    style={{}}
+                  >
+                    &copy; {currentYear} FXsnip. All rights reserved.
+                  </footer>
+                ) : null}
+              </div>
+            )}
           </div>
         </main>
       </div>

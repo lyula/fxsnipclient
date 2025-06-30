@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useDashboard } from "../../context/dashboard";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import { getConversation, sendMessage } from "../../utils/api";
 import { jwtDecode } from "jwt-decode";
@@ -493,23 +493,33 @@ const Inbox = () => {
           {search && searchResults.length > 0 && (
             <div className="absolute top-full left-4 right-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-10 hide-scrollbar">
               {searchResults.map((user) => (
-                <button
+                <div
                   key={user._id}
                   className="w-full flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-                  onClick={() => {
-                    setSelectedUser(user);
-                    navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
-                    setSearch("");
-                  }}
                 >
-                  <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full mr-3" />
-                  <div className="flex-1 text-left">
+                  {/* Clickable avatar */}
+                  <Link 
+                    to={`/dashboard/community/user/${encodeURIComponent(user.username)}`}
+                    className="hover:opacity-80 transition-opacity mr-3"
+                  >
+                    <img src={user.avatar} alt={user.username} className="w-10 h-10 rounded-full cursor-pointer" />
+                  </Link>
+                  
+                  {/* Username area - clickable to start chat */}
+                  <button
+                    className="flex-1 text-left"
+                    onClick={() => {
+                      setSelectedUser(user);
+                      navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
+                      setSearch("");
+                    }}
+                  >
                     <div className="flex items-center">
                       <span className="font-medium text-gray-900 dark:text-white">{user.username}</span>
                       {user.verified && <VerifiedBadge />}
                     </div>
-                  </div>
-                </button>
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -584,7 +594,13 @@ const Inbox = () => {
               </svg>
             </button>
             
-            <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full mr-3" />
+            {/* Clickable avatar */}
+            <Link 
+              to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`}
+              className="hover:opacity-80 transition-opacity mr-3"
+            >
+              <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
+            </Link>
             
             <div className="flex-1">
               <button
@@ -674,11 +690,16 @@ const Inbox = () => {
                             >
                               {/* Avatar */}
                               {showAvatar && (
-                                <img
-                                  src={selectedUser.avatar}
-                                  alt={selectedUser.username}
-                                  className="w-6 h-6 rounded-full mr-2 mt-auto"
-                                />
+                                <Link 
+    to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`}
+    className="hover:opacity-80 transition-opacity"
+  >
+    <img
+      src={selectedUser.avatar}
+      alt={selectedUser.username}
+      className="w-6 h-6 rounded-full mr-2 mt-auto cursor-pointer"
+    />
+  </Link>
                               )}
                               {!isOwn && !showAvatar && <div className="w-8" />}
 

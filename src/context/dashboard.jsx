@@ -36,6 +36,9 @@ export function DashboardProvider({ children }) {
   // Mobile chat state
   const [isMobileChatOpen, setIsMobileChatOpen] = useState(false);
 
+  // Add to dashboard context state
+  const [cyclingInfo, setCyclingInfo] = useState(null);
+
   // Fetch conversations with caching
   const fetchConversations = useCallback(async () => {
     try {
@@ -82,19 +85,21 @@ export function DashboardProvider({ children }) {
     }
   }, []);
 
-  // Fetch community posts
-  const fetchCommunityPosts = useCallback(async () => {
+  // Enhanced Dashboard Context with Infinite Scroll and Fresh Content
+  const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
     try {
-      setLoadingStates(prev => ({ ...prev, posts: true }));
-      
-      // Check if we have cached posts
-      if (communityPosts.length > 0) {
-        // Load from cache first, then refresh in background
-        setLoadingStates(prev => ({ ...prev, posts: false }));
-      }
+      setLoadingStates(prev => ({ ...prev, posts: offset === 0 ? true : false }));
       
       const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-      const res = await fetch(`${API_BASE}/posts`, {
+      const params = new URLSearchParams({
+        limit: '20',
+        offset: offset.toString(),
+        scrollDirection: direction,
+        refreshFeed: refresh.toString(),
+        loadFresh: loadFresh.toString()  // Add fresh content parameter
+      });
+      
+      const res = await fetch(`${API_BASE}/posts?${params}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -102,23 +107,32 @@ export function DashboardProvider({ children }) {
       
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setCommunityPosts(
-            data
-              .map(post => ({
-                ...post,
-                avatar: post.author?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.username || "User")}&background=a99d6b&color=fff&size=40`
-              }))
-              .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Sort by newest first
-          );
+        
+        // Store cycling info separately
+        setCyclingInfo(data.cyclingInfo);
+        
+        if (refresh || loadFresh) {
+          setCommunityPosts(data.posts || []);
+        } else if (offset === 0) {
+          setCommunityPosts(data.posts || []);
         }
+        
+        return data;
       }
+      
+      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
     } catch (error) {
       console.error("Error fetching community posts:", error);
+      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
     } finally {
       setLoadingStates(prev => ({ ...prev, posts: false }));
     }
-  }, [communityPosts.length]);
+  }, []);
+
+  // Add refresh function for swipe up (add this after fetchCommunityPosts)
+  const refreshCommunityFeed = useCallback(async () => {
+    await fetchCommunityPosts(true);
+  }, [fetchCommunityPosts]);
 
   // Update conversation in the list
   const updateConversation = useCallback((conversationId, updates) => {
@@ -170,6 +184,92 @@ export function DashboardProvider({ children }) {
     return date.toLocaleDateString();
   }, []);
 
+  // Add infinite scroll functions
+  const loadMorePosts = async (currentOffset) => {
+    if (loadingStates.posts) return { hasMore: true };
+    
+    setLoadingStates(prev => ({ ...prev, posts: true }));
+    
+    try {
+      const result = await fetchCommunityPosts(false, currentOffset, 'down');
+      
+      // Update cycling info from the result
+      if (result?.cyclingInfo) {
+        setCyclingInfo(result.cyclingInfo);
+      }
+      
+      // Only append new posts, don't replace existing ones
+      if (result?.posts) {
+        setCommunityPosts(prev => {
+          // Create a map of existing posts by their unique scroll position
+          const existingPostMap = new Map();
+          prev.forEach(post => {
+            if (post._scrollPosition !== undefined) {
+              existingPostMap.set(post._scrollPosition, post);
+            }
+          });
+          
+          // Add new posts that don't already exist
+          const newPosts = result.posts.filter(post => 
+            !existingPostMap.has(post._scrollPosition)
+          );
+          
+          return [...prev, ...newPosts];
+        });
+      }
+      
+      return result;
+    } finally {
+      setLoadingStates(prev => ({ ...prev, posts: false }));
+    }
+  };
+
+  const loadNewerPosts = useCallback(async (forceFresh = false) => {
+    const result = await fetchCommunityPosts(true, 0, 'up');
+    
+    // Update cycling info when refreshing
+    if (result?.cyclingInfo) {
+      setCyclingInfo(result.cyclingInfo);
+    }
+    
+    // If forcing fresh content, prioritize very recent posts
+    if (forceFresh && result?.posts) {
+      // Sort by creation date to ensure newest first
+      const freshPosts = result.posts.sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setCommunityPosts(freshPosts);
+    }
+    
+    return result;
+  }, [fetchCommunityPosts]);
+
+  // Load fresh content specifically
+  const loadFreshContent = useCallback(async () => {
+    try {
+      setLoadingStates(prev => ({ ...prev, posts: true }));
+      
+      const result = await fetchCommunityPosts(false, 0, 'up', true); // loadFresh = true
+      
+      // Update cycling info
+      if (result?.cyclingInfo) {
+        setCyclingInfo(result.cyclingInfo);
+      }
+      
+      // Replace current posts with fresh content
+      if (result?.posts) {
+        setCommunityPosts(result.posts);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Error loading fresh content:", error);
+      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, posts: false }));
+    }
+  }, [fetchCommunityPosts]);
+
   // Context value
   const value = useMemo(() => ({
     // Conversations
@@ -184,6 +284,9 @@ export function DashboardProvider({ children }) {
     // Community posts
     communityPosts,
     fetchCommunityPosts,
+    loadMorePosts,
+    loadNewerPosts,
+    refreshCommunityFeed,
     addPostOptimistically,
     updatePost,
     deletePost,
@@ -201,6 +304,12 @@ export function DashboardProvider({ children }) {
     // Mobile chat
     isMobileChatOpen,
     setIsMobileChatOpen,
+
+    // Cycling info
+    cyclingInfo,
+
+    // Fresh content
+    loadFreshContent,  // Add this
   }), [
     conversations,
     fetchConversations,
@@ -209,6 +318,9 @@ export function DashboardProvider({ children }) {
     fetchNotifications,
     communityPosts,
     fetchCommunityPosts,
+    loadMorePosts,
+    loadNewerPosts,
+    refreshCommunityFeed,
     addPostOptimistically,
     updatePost,
     deletePost,
@@ -218,6 +330,8 @@ export function DashboardProvider({ children }) {
     setMessageCache,
     isMobileChatOpen,
     setIsMobileChatOpen,
+    cyclingInfo,
+    loadFreshContent,  // Add this
   ]);
 
   return (

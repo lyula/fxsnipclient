@@ -563,9 +563,12 @@ export default function ChatPost({
     >
       {/* Header */}
       <div className="flex items-center mb-3">
-        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 mr-3">
+        <Link 
+          to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 mr-3 hover:opacity-80 transition-opacity"
+        >
           <FaUser className="text-gray-400 text-lg" />
-        </div>
+        </Link>
         <Link
           to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
           className="font-bold text-gray-800 dark:text-white flex items-center hover:underline"
@@ -579,7 +582,37 @@ export default function ChatPost({
           {formatPostDate(post.createdAt)}
           <EditedIndicator item={localPost} />
         </span>
-        {post.isAd && <span className="ml-3 px-2 py-0.5 bg-yellow-300 text-xs rounded">Ad</span>}
+        {/* Add post status indicator */}
+        {post.postStatus && (
+          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
+            post.postStatus === 'viral' 
+              ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300'
+              : post.postStatus === 'trending'
+              ? 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300'
+              : post.postStatus === 'hot'
+              ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300'
+              : ''
+          }`}>
+            {post.postStatus === 'viral' && (
+              <>
+                <span>🔥</span>
+                <span>Viral</span>
+              </>
+            )}
+            {post.postStatus === 'trending' && (
+              <>
+                <span>📈</span>
+                <span>Trending</span>
+              </>
+            )}
+            {post.postStatus === 'hot' && (
+              <>
+                <span>🔥</span>
+                <span>Hot</span>
+              </>
+            )}
+          </span>
+        )}
         
         {/* Post menu */}
         {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (

@@ -2,7 +2,7 @@ import React from "react";
 import ChatPost from "./ChatPost";
 
 export default function ChatList({ 
-  posts, onReply, onComment, onLike, onView, onDelete, // Add onDelete here
+  posts, onReply, onComment, onLike, onView, onDelete,
   postRefs, currentUserId, currentUsername, currentUserVerified 
 }) {
   return (
@@ -22,7 +22,7 @@ export default function ChatList({
                   onComment={onComment}
                   onLike={onLike}
                   onView={onView}
-                  onDelete={onDelete} // Add this line
+                  onDelete={onDelete}
                   currentUserId={currentUserId}
                   currentUsername={currentUsername}
                   currentUserVerified={currentUserVerified}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaHeart, FaComment, FaEye } from "react-icons/fa";
+import { FaHeart, FaComment, FaEye, FaUser } from "react-icons/fa";
+import { Link } from "react-router-dom";
 import VerifiedBadge from "../VerifiedBadge";
 import { incrementPostViews } from "../../utils/api";
 
@@ -72,7 +73,18 @@ export default function Post({ post, onLike, onComment, trackViews = true }) {
   return (
     <div ref={postRef} className="border rounded-lg p-4 mb-4 bg-white dark:bg-gray-800">
       <div className="flex items-center gap-2 mb-2">
-        <span className="font-bold text-gray-900 dark:text-white">{post.author.username}</span>
+        {/* Clickable user avatar */}
+        <Link 
+          to={`/dashboard/community/user/${encodeURIComponent(post.author.username)}`}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
+          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            <FaUser className="text-sm text-gray-400 dark:text-gray-500" />
+          </div>
+          <span className="font-bold text-gray-900 dark:text-white hover:underline">
+            {post.author.username}
+          </span>
+        </Link>
         {post.author.verified && <VerifiedBadge />}
       </div>
       <p className="text-gray-700 dark:text-gray-300 mb-2">{post.content}</p>
@@ -98,17 +110,27 @@ export default function Post({ post, onLike, onComment, trackViews = true }) {
       </div>
       {showComments && (
         <div className="mt-4">
-          <div className="mb-2">
+          <div className="mb-2 space-y-2">
             {post.comments.map((comment) => (
-              <div key={comment._id} className="text-gray-700 dark:text-gray-300">
-                <span className="font-bold">{comment.author.username}</span>: {comment.content}
+              <div key={comment._id} className="flex items-start gap-2 text-gray-700 dark:text-gray-300">
+                {/* Clickable comment author avatar */}
+                <Link 
+                  to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
+                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                >
+                  <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                    <FaUser className="text-xs text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <span className="font-bold hover:underline">{comment.author.username}</span>
+                </Link>
+                <span>: {comment.content}</span>
               </div>
             ))}
           </div>
           <div className="flex gap-2">
             <input
               type="text"
-              className="border rounded-lg p-2 flex-grow dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              className="border rounded-lg p-2 flex-grow dark:bg-gray-700 dark:text-white dark:border-gray-600 bg-white text-gray-900"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Add a comment..."
