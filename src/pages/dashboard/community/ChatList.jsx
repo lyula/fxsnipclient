@@ -10,13 +10,13 @@ export default function ChatList({
       {posts.filter(post => post && post._id).map(post => (
         <div
           ref={el => postRefs && postRefs.current && (postRefs.current[post._id] = el)}
-          key={post._id}
+          key={`container-${post._id}`} // Changed: Add prefix to make unique
         >
           <div className="w-full flex flex-col gap-2 p-2 rounded bg-white dark:bg-gray-900 shadow mb-2">
             <div className="flex flex-col gap-2 w-full">
               <div className="flex-1">
                 <ChatPost
-                  key={post._id}
+                  key={`post-${post._id}`} // Changed: Add prefix to make unique
                   post={post}
                   onReply={onReply}
                   onComment={onComment}

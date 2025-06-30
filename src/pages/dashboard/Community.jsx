@@ -229,12 +229,13 @@ export default function Community({ user }) {
   };
 
   // Create a new post with optimistic updates
-  const handleNewPost = async (content, image) => {
+  const handleNewPost = async (content, image, video) => {  // Add video parameter
     const tempId = `temp-${Date.now()}`;
     const optimisticPost = {
       _id: tempId,
       content,
       image,
+      video,  // Add video field
       author: {
         _id: user._id,
         username: user.username,
@@ -261,7 +262,7 @@ export default function Community({ user }) {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, image }),
+        body: JSON.stringify({ content, image, video }),  // Add video to request body
       });
       
       if (res.ok) {

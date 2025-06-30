@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser, FaEdit, FaTrash, FaEllipsisV, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
+import MediaDisplay from '../../../components/media/MediaDisplay';
 import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply } from "../../../utils/api";
 import { formatPostDate } from '../../../utils/formatDate';
 
@@ -678,12 +679,12 @@ export default function ChatPost({
           </span>
         )}
       </div>
-      {post.image && (
+      {(post.image || post.video) && (
         <div className="mb-3">
-          <img
-            src={post.image}
-            alt="Post"
-            className="rounded-lg w-full max-h-60 object-cover border border-gray-200 dark:border-gray-600"
+          <MediaDisplay 
+            imageUrl={post.image} 
+            videoUrl={post.video}
+            altText={`${post.author?.username || 'User'}'s post media`}
           />
         </div>
       )}
@@ -1041,7 +1042,6 @@ export default function ChatPost({
                         )}
                         {isExpanded && (
                           <button
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline text-xs mt-2 transition-colors"
                             onClick={() => setExpandedReplies(null)}
                           >
                             Hide replies
