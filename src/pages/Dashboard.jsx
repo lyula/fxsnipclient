@@ -50,7 +50,9 @@ export default function Dashboard() {
     notifications,
     fetchConversations,
     fetchNotifications,
-    isMobileChatOpen
+    isMobileChatOpen,
+    startPolling,
+    stopPolling
   } = useDashboard();
 
   const { user, refreshUser } = useAuth();
@@ -153,6 +155,28 @@ export default function Dashboard() {
     fetchConversations();
     fetchNotifications();
   }, [fetchConversations, fetchNotifications]);
+
+  // Add polling lifecycle management
+  useEffect(() => {
+    // Start polling when dashboard mounts
+    startPolling();
+    
+    // Handle visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // User came back, refresh data
+        fetchConversations(true);
+        fetchNotifications(true);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [startPolling, stopPolling, fetchConversations, fetchNotifications]);
 
   // Main dashboard content (preserved original layout)
   const DashboardMain = (

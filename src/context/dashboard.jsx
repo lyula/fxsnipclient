@@ -39,51 +39,106 @@ export function DashboardProvider({ children }) {
   // Add to dashboard context state
   const [cyclingInfo, setCyclingInfo] = useState(null);
 
+  // Polling state
+  const [pollingInterval, setPollingInterval] = useState(null);
+  const [lastConversationFetch, setLastConversationFetch] = useState(0);
+  const [lastNotificationFetch, setLastNotificationFetch] = useState(0);
+
+  // Format relative time - MOVED HERE TO FIX CIRCULAR DEPENDENCY
+  const formatRelativeTime = useCallback((timestamp) => {
+    const now = Date.now();
+    const diffMs = now - timestamp;
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSeconds < 60) return "now";
+    if (diffMinutes < 60) return `${diffMinutes}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    
+    const date = new Date(timestamp);
+    return date.toLocaleDateString();
+  }, []);
+
   // Fetch conversations with caching
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (forceRefresh = false) => {
+    const now = Date.now();
+    
+    // Skip if we just fetched (within 30 seconds) unless forced
+    if (!forceRefresh && (now - lastConversationFetch < 30000)) {
+      return conversations;
+    }
+    
     try {
       setLoadingStates(prev => ({ ...prev, conversations: true }));
       const data = await getConversations();
       
       if (Array.isArray(data)) {
-        // Process conversations to add avatar URLs and format data
-        const processedConversations = data.map(conv => ({
-          _id: conv._id,
-          username: conv.user?.username || conv.username,
-          verified: conv.user?.verified || conv.verified,
-          avatar: conv.user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(conv.user?.username || conv.username)}&background=a99d6b&color=fff&size=40`,
-          lastMessage: conv.lastMessage?.text || conv.lastMessage?.message || "No messages yet",
-          lastTime: formatRelativeTime(new Date(conv.lastMessage?.createdAt || Date.now()).getTime()),
-          lastTimestamp: new Date(conv.lastMessage?.createdAt || Date.now()).getTime(),
-          unreadCount: conv.unreadCount || 0
-        }));
+        // Filter out invalid conversations
+        const validConversations = data.filter(conv => 
+          conv && conv.user && conv.user.username
+        );
+        
+        // Process conversations to match frontend expectations
+        const processedConversations = validConversations.map(conv => {
+          const user = conv.user || {};
+          const lastMsg = conv.lastMessage || {};
+          
+          return {
+            _id: conv._id,
+            username: user.username || 'Unknown User',
+            avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username || 'User')}`,
+            verified: user.verified || false,
+            lastMessage: lastMsg.text || '', // This should now correctly show the last message
+            lastTime: formatRelativeTime(new Date(lastMsg.createdAt || Date.now()).getTime()),
+            lastTimestamp: new Date(lastMsg.createdAt || Date.now()).getTime(),
+            unreadCount: conv.unreadCount || 0
+          };
+        });
         
         setConversations(processedConversations);
+        setLastConversationFetch(now);
+        return processedConversations;
       }
+      
+      return [];
     } catch (error) {
       console.error("Error fetching conversations:", error);
-      setConversations([]);
+      return [];
     } finally {
       setLoadingStates(prev => ({ ...prev, conversations: false }));
     }
-  }, []);
+  }, [lastConversationFetch, formatRelativeTime, conversations]);
 
   // Fetch notifications
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (forceRefresh = false) => {
+    const now = Date.now();
+    
+    // Skip if we just fetched (within 15 seconds) unless forced
+    if (!forceRefresh && (now - lastNotificationFetch < 15000)) {
+      return notifications;
+    }
+    
     try {
       setLoadingStates(prev => ({ ...prev, notifications: true }));
       const data = await getNotifications();
       
       if (Array.isArray(data)) {
         setNotifications(data);
+        setLastNotificationFetch(now);
+        return data;
       }
+      
+      return [];
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      setNotifications([]);
+      return [];
     } finally {
       setLoadingStates(prev => ({ ...prev, notifications: false }));
     }
-  }, []);
+  }, [lastNotificationFetch, notifications]);
 
   // Enhanced Dashboard Context with Infinite Scroll and Fresh Content
   const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
@@ -129,10 +184,38 @@ export function DashboardProvider({ children }) {
     }
   }, []);
 
-  // Add refresh function for swipe up (add this after fetchCommunityPosts)
+  // Add refresh function for swipe up
   const refreshCommunityFeed = useCallback(async () => {
     await fetchCommunityPosts(true);
   }, [fetchCommunityPosts]);
+
+  // Start polling for real-time updates
+  const startPolling = useCallback(() => {
+    if (pollingInterval) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        if (document.visibilityState === 'visible') {
+          await Promise.all([
+            fetchConversations(true),
+            fetchNotifications(true)
+          ]);
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 300000); // 5 minutes instead of 30 seconds
+    
+    setPollingInterval(interval);
+  }, [pollingInterval, fetchConversations, fetchNotifications]);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      setPollingInterval(null);
+    }
+  }, [pollingInterval]);
 
   // Update conversation in the list
   const updateConversation = useCallback((conversationId, updates) => {
@@ -143,7 +226,12 @@ export function DashboardProvider({ children }) {
           : conv
       )
     );
-  }, []);
+    
+    // If this is a new message, refresh conversations after a delay
+    if (updates.lastMessage || updates.unreadCount) {
+      setTimeout(() => fetchConversations(true), 2000);
+    }
+  }, [fetchConversations]);
 
   // Add post optimistically
   const addPostOptimistically = useCallback((post) => {
@@ -162,30 +250,12 @@ export function DashboardProvider({ children }) {
   }, []);
 
   // Delete a post
-  const deletePost = useCallback((postId) => {
+  const deletePostFromList = useCallback((postId) => {
     setCommunityPosts(prev => prev.filter(post => post._id !== postId));
   }, []);
 
-  // Format relative time
-  const formatRelativeTime = useCallback((timestamp) => {
-    const now = Date.now();
-    const diffMs = now - timestamp;
-    const diffSeconds = Math.floor(diffMs / 1000);
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    const diffHours = Math.floor(diffMinutes / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffSeconds < 60) return "now";
-    if (diffMinutes < 60) return `${diffMinutes}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    
-    const date = new Date(timestamp);
-    return date.toLocaleDateString();
-  }, []);
-
   // Add infinite scroll functions
-  const loadMorePosts = async (currentOffset) => {
+  const loadMorePosts = useCallback(async (currentOffset) => {
     if (loadingStates.posts) return { hasMore: true };
     
     setLoadingStates(prev => ({ ...prev, posts: true }));
@@ -222,7 +292,7 @@ export function DashboardProvider({ children }) {
     } finally {
       setLoadingStates(prev => ({ ...prev, posts: false }));
     }
-  };
+  }, [fetchCommunityPosts, loadingStates.posts]);
 
   const loadNewerPosts = useCallback(async (forceFresh = false) => {
     const result = await fetchCommunityPosts(true, 0, 'up');
@@ -289,7 +359,7 @@ export function DashboardProvider({ children }) {
     refreshCommunityFeed,
     addPostOptimistically,
     updatePost,
-    deletePost,
+    deletePost: deletePostFromList,
     
     // Loading states
     loadingStates,
@@ -309,7 +379,11 @@ export function DashboardProvider({ children }) {
     cyclingInfo,
 
     // Fresh content
-    loadFreshContent,  // Add this
+    loadFreshContent,
+
+    // Polling control
+    startPolling,
+    stopPolling,
   }), [
     conversations,
     fetchConversations,
@@ -323,7 +397,7 @@ export function DashboardProvider({ children }) {
     refreshCommunityFeed,
     addPostOptimistically,
     updatePost,
-    deletePost,
+    deletePostFromList,
     loadingStates,
     formatRelativeTime,
     messageCache,
@@ -331,7 +405,9 @@ export function DashboardProvider({ children }) {
     isMobileChatOpen,
     setIsMobileChatOpen,
     cyclingInfo,
-    loadFreshContent,  // Add this
+    loadFreshContent,
+    startPolling,
+    stopPolling,
   ]);
 
   return (

@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import { getConversation, sendMessage } from "../../utils/api";
 import { jwtDecode } from "jwt-decode";
+import { debounce } from "lodash";
 
 const Inbox = () => {
   // Context and navigation
@@ -25,11 +26,17 @@ const Inbox = () => {
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [error, setError] = useState(null);
+  const [lastFetchedUser, setLastFetchedUser] = useState(null);
+  
+  // Anti-flickering states
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [messagesFetched, setMessagesFetched] = useState(false);
   
   // Refs
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const fetchTimeoutRef = useRef(null);
   
   // Get user ID from token
   const token = localStorage.getItem("token");
@@ -43,7 +50,7 @@ const Inbox = () => {
     }
   }
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom with debouncing
   const scrollToBottom = useCallback((smooth = false) => {
     if (messagesContainerRef.current) {
       const scrollOptions = {
@@ -54,10 +61,18 @@ const Inbox = () => {
     }
   }, []);
 
-  // Load conversations on mount
+  // Debounced scroll to prevent excessive calls
+  const debouncedScrollToBottom = useCallback(
+    debounce((smooth = false) => scrollToBottom(smooth), 100),
+    [scrollToBottom]
+  );
+
+  // Load conversations on mount (ONCE ONLY)
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    if (conversations.length === 0) {
+      fetchConversations();
+    }
+  }, []); // Remove fetchConversations from dependencies to prevent loops
 
   // Handle URL parameters for deep linking
   useEffect(() => {
@@ -94,7 +109,7 @@ const Inbox = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [selectedUser, setIsMobileChatOpen]);
 
-  // Debounced search functionality
+  // Optimized search functionality with better debouncing
   useEffect(() => {
     if (search.trim().length === 0) {
       setSearchResults([]);
@@ -116,7 +131,7 @@ const Inbox = () => {
             (data.users || []).map((u) => ({
               _id: u._id,
               username: u.username,
-              avatar: u.countryFlag || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}`,
+              avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.username)}`,
               verified: u.verified || false,
             }))
           );
@@ -126,7 +141,7 @@ const Inbox = () => {
           setSearchResults([]);
         }
       }
-    }, 300);
+    }, 500); // Increased debounce time
 
     return () => {
       clearTimeout(timeout);
@@ -134,14 +149,19 @@ const Inbox = () => {
     };
   }, [search]);
 
-  // Fetch messages from database (simple one-time fetch)
+  // Optimized message fetching with anti-flickering
   const fetchMessages = useCallback(async (conversationId) => {
-    if (!conversationId) return;
+    if (!conversationId || isLoadingMessages) return;
     
+    setIsLoadingMessages(true);
     setError(null);
     
+    // Clear any pending fetch timeout
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    
     try {
-      console.log("Fetching messages for conversation:", conversationId);
       const freshMessages = await getConversation(conversationId);
       let messagesArray = [];
       
@@ -153,44 +173,59 @@ const Inbox = () => {
         messagesArray = freshMessages.data;
       }
       
-      console.log("Fetched messages:", messagesArray);
-      setMessages(messagesArray);
+      // Only update if we actually got different messages
+      setMessages(prevMessages => {
+        const messageIds = messagesArray.map(m => m._id);
+        const prevMessageIds = prevMessages.map(m => m._id);
+        
+        // Check if messages are actually different
+        if (messageIds.length !== prevMessageIds.length || 
+            !messageIds.every(id => prevMessageIds.includes(id))) {
+          return messagesArray;
+        }
+        
+        return prevMessages; // No change, prevent re-render
+      });
 
-      // Update conversation with the actual last message from the fetched messages
-      if (messagesArray.length > 0) {
-        const lastMessage = messagesArray[messagesArray.length - 1];
-        updateConversation(conversationId, {
-          lastMessage: lastMessage.text || lastMessage.message || "",
-          lastTime: formatRelativeTime(new Date(lastMessage.createdAt).getTime()),
-          lastTimestamp: new Date(lastMessage.createdAt).getTime()
-        });
-      }
+      setMessagesFetched(true);
       
-      // Scroll to bottom after messages load
-      setTimeout(() => scrollToBottom(false), 100);
+      // Delayed scroll to ensure DOM is updated
+      fetchTimeoutRef.current = setTimeout(() => {
+        debouncedScrollToBottom(false);
+      }, 150);
       
     } catch (error) {
       console.error("Error fetching messages:", error);
       setError("Failed to load messages");
-      setMessages([]);
+    } finally {
+      setIsLoadingMessages(false);
     }
-  }, [scrollToBottom, updateConversation, formatRelativeTime]);
+  }, [isLoadingMessages, debouncedScrollToBottom]);
 
-  // Load messages when user is selected (one-time fetch only)
+  // Optimized message loading when user is selected
   useEffect(() => {
-    if (selectedUser?._id) {
+    if (selectedUser?._id && selectedUser._id !== lastFetchedUser) {
+      // IMMEDIATELY clear messages when switching conversations to prevent cross-contamination
       setMessages([]);
       setError(null);
+      setMessagesFetched(false);
+      setIsLoadingMessages(true); // Show loading state immediately
+      setLastFetchedUser(selectedUser._id);
       
-      // Mark conversation as read
-      updateConversation(selectedUser._id, { unreadCount: 0 });
+      // Mark conversation as read (debounced to prevent excessive updates)
+      const markAsRead = debounce(() => {
+        updateConversation(selectedUser._id, { unreadCount: 0 });
+      }, 300);
+      markAsRead();
       
-      // Fetch messages once
-      fetchMessages(selectedUser._id);
+      // Fetch messages with a small delay to ensure state is cleared
+      setTimeout(() => {
+        fetchMessages(selectedUser._id);
+      }, 50);
     }
-  }, [selectedUser, fetchMessages, updateConversation]);
+  }, [selectedUser?._id, lastFetchedUser, fetchMessages, updateConversation]);
 
-  // Message sending with optimistic updates
+  // Message sending with optimistic updates (unchanged but with better error handling)
   const handleSendMessage = useCallback(async (e) => {
     e.preventDefault();
     if (!input.trim() || !selectedUser?._id || isSending) return;
@@ -217,10 +252,14 @@ const Inbox = () => {
     setIsSending(true);
 
     // Auto scroll to bottom
-    setTimeout(() => scrollToBottom(true), 50);
+    setTimeout(() => debouncedScrollToBottom(true), 50);
 
-    // Update conversation list with the message I just sent
-    updateConversation(selectedUser._id, {
+    // Debounced conversation update to prevent excessive re-renders
+    const updateConv = debounce((id, updates) => {
+      updateConversation(id, updates);
+    }, 500);
+
+    updateConv(selectedUser._id, {
       lastMessage: messageText,
       lastTime: formatRelativeTime(now.getTime()),
       lastTimestamp: now.getTime()
@@ -239,8 +278,8 @@ const Inbox = () => {
           msg._id === tempId ? realMessage : msg
         ));
 
-        // Update conversation list with the real message
-        updateConversation(selectedUser._id, {
+        // Update conversation list with the real message (debounced)
+        updateConv(selectedUser._id, {
           lastMessage: realMessage.text,
           lastTime: formatRelativeTime(new Date(realMessage.createdAt).getTime()),
           lastTimestamp: new Date(realMessage.createdAt).getTime()
@@ -256,9 +295,9 @@ const Inbox = () => {
     } finally {
       setIsSending(false);
     }
-  }, [input, selectedUser, myUserId, isSending, scrollToBottom, updateConversation, formatRelativeTime]);
+  }, [input, selectedUser, myUserId, isSending, debouncedScrollToBottom, updateConversation, formatRelativeTime]);
 
-  // Retry failed message
+  // Retry failed message (unchanged)
   const handleRetryMessage = useCallback(async (message) => {
     if (isSending) return;
     
@@ -292,8 +331,8 @@ const Inbox = () => {
     } catch (error) {
       console.error("Retry error:", error);
       setMessages(prev => prev.map(msg => 
-  msg._id === message._id ? { ...msg, failed: true, isOptimistic: false } : msg
-));
+        msg._id === message._id ? { ...msg, failed: true, isOptimistic: false } : msg
+      ));
     } finally {
       setIsSending(false);
     }
@@ -303,15 +342,21 @@ const Inbox = () => {
   const handleBackToConversations = useCallback(() => {
     setSelectedUser(null);
     navigate("/dashboard/inbox", { replace: true });
-    setIsMobileChatOpen(false); // Show header when going back
+    setIsMobileChatOpen(false);
   }, [navigate, setIsMobileChatOpen]);
 
-  // Add cleanup effect when component unmounts
+  // Cleanup effect
   useEffect(() => {
     return () => {
       setIsMobileChatOpen(false);
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+      }
     };
   }, [setIsMobileChatOpen]);
+
+  // REMOVE THE AGGRESSIVE POLLING - This was causing major flickering
+  // The original useEffect with setInterval has been removed
 
   // Format date for chat separators
   const formatDateSeparator = useCallback((timestamp) => {
@@ -448,8 +493,14 @@ const Inbox = () => {
     return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
   }, []);
 
-  // Loading state
-  if (!conversations.length) {
+  // In the updateConversation function calls, add a debounce
+  const debouncedUpdateConversation = useCallback(
+    debounce((id, updates) => updateConversation(id, updates), 500),
+    [updateConversation]
+  );
+
+  // Loading state with better UX
+  if (!conversations.length && !selectedUser) {
     return (
       <div className="h-full flex items-center justify-center bg-white dark:bg-gray-900">
         <div className="text-center">
@@ -570,7 +621,7 @@ const Inbox = () => {
                     </span>
                   </div>
                   <div className={`text-sm truncate ${user.unreadCount > 0 ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {truncateMessage(user.lastMessage, window.innerWidth < 768)}
+                    {truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
                   </div>
                 </div>
               </button>
@@ -619,78 +670,67 @@ const Inbox = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                 </svg>
               </button>
-              <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              </button>
-              <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </button>
             </div>
           </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-hidden relative">
-            <div
-              ref={messagesContainerRef}
-              className="h-full overflow-y-auto px-4 py-4 space-y-4 hide-scrollbar"
-            >
-              {error ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <p className="text-red-500 mb-2">{error}</p>
-                    <button
-                      onClick={() => fetchMessages(selectedUser._id)}
-                      className="text-blue-500 hover:underline"
-                    >
-                      Try again
-                    </button>
-                  </div>
+          {/* Messages Container */}
+          <div
+            ref={messagesContainerRef}
+            className="h-full overflow-y-auto px-4 py-4 space-y-4 hide-scrollbar"
+          >
+            {error ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <p className="text-red-500 mb-2">{error}</p>
+                  <button
+                    onClick={() => fetchMessages(selectedUser._id)}
+                    className="text-blue-500 hover:underline"
+                  >
+                    Try again
+                  </button>
                 </div>
-              ) : messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                    </div>
-                    <p className="text-gray-500 dark:text-gray-400">No messages yet. Say hello!</p>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
                   </div>
+                  <p className="text-gray-500 dark:text-gray-400">No messages yet. Say hello!</p>
                 </div>
-              ) : (
-                groupedMessages.map((dateGroup, dateIndex) => (
-                  <div key={dateGroup.timestamp} className="space-y-4">
-                    {/* Date Separator */}
-                    <div className="flex items-center justify-center my-6">
-                      <div className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
-                        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
-                          {dateGroup.date}
-                        </span>
-                      </div>
+              </div>
+            ) : (
+              groupedMessages.map((dateGroup, dateIndex) => (
+                <div key={dateGroup.timestamp} className="space-y-4">
+                  {/* Date Separator */}
+                  <div className="flex items-center justify-center my-6">
+                    <div className="bg-gray-100 dark:bg-gray-700 px-3 py-1 rounded-full">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                        {dateGroup.date}
+                      </span>
                     </div>
-                    
-                    {/* Messages for this date */}
-                    {dateGroup.messages.map((group, groupIndex) => (
-                      <div key={`${dateGroup.timestamp}-${groupIndex}`} className="space-y-1">
-                        {group.map((message, messageIndex) => {
-                          const isOwn = message.from === myUserId;
-                          const showAvatar = !isOwn && message.isFirst;
-                          const showTime = message.isLast;
+                  </div>
+                  
+                  {/* Messages for this date */}
+                  {dateGroup.messages.map((group, groupIndex) => (
+                    <div key={`${dateGroup.timestamp}-${groupIndex}`} className="space-y-1">
+                      {group.map((message, messageIndex) => {
+                        const isOwn = message.from === myUserId;
+                        const showAvatar = !isOwn && message.isFirst;
+                        const showTime = message.isLast;
 
-                          return (
-                            <div
-                              key={message._id}
-                              className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
-                                message.isFirst ? 'mt-4' : 'mt-1'
-                              }`}
-                            >
-                              {/* Avatar */}
-                              {showAvatar && (
-                                <Link 
+                        return (
+                          <div
+                            key={message._id}
+                            className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${
+                              message.isFirst ? 'mt-4' : 'mt-1'
+                            }`}
+                          >
+                            {/* Avatar */}
+                            {showAvatar && (
+                              <Link 
     to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`}
     className="hover:opacity-80 transition-opacity"
   >
@@ -700,90 +740,88 @@ const Inbox = () => {
       className="w-6 h-6 rounded-full mr-2 mt-auto cursor-pointer"
     />
   </Link>
-                              )}
-                              {!isOwn && !showAvatar && <div className="w-8" />}
+                            )}
+                            {!isOwn && !showAvatar && <div className="w-8" />}
 
-                              {/* Message Bubble */}
-                              <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
-                                <div
-                                  className={`px-4 py-2 rounded-2xl text-sm break-words ${
-                                    isOwn
-                                      ? message.failed
-                                        ? 'bg-red-500 text-white'
-                                        : message.isOptimistic
-                                        ? 'bg-blue-400 text-white opacity-80'
-                                        : 'bg-blue-500 text-white'
-                                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                                  } ${
-                                    isOwn
-                                      ? message.isFirst && message.isLast
-                                        ? 'rounded-2xl'
-                                        : message.isFirst
-                                        ? 'rounded-br-md'
-                                        : message.isLast
-                                        ? 'rounded-tr-md'
-                                        : 'rounded-r-md'
-                                      : message.isFirst && message.isLast
+                            {/* Message Bubble */}
+                            <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
+                              <div
+                                className={`px-4 py-2 rounded-2xl text-sm break-words ${
+                                  isOwn
+                                    ? message.failed
+                                      ? 'bg-red-500 text-white'
+                                      : message.isOptimistic
+                                      ? 'bg-blue-400 text-white opacity-80'
+                                      : 'bg-blue-500 text-white'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
+                                } ${
+                                  isOwn
+                                    ? message.isFirst && message.isLast
                                       ? 'rounded-2xl'
                                       : message.isFirst
-                                      ? 'rounded-bl-md'
+                                      ? 'rounded-br-md'
                                       : message.isLast
-                                      ? 'rounded-tl-md'
-                                      : 'rounded-l-md'
-                                  }`}
-                                >
-                                  {/* Message Text */}
-                                  <div className="mb-1">
-                                    {message.text}
-                                  </div>
-                                  
-                                  {/* Exact Time inside bubble */}
-                                  <div className={`text-xs ${
-                                    isOwn 
-                                      ? 'text-blue-100 dark:text-blue-200' 
-                                      : 'text-gray-500 dark:text-gray-400'
-                                  }`}>
-                                    {formatExactTime(message.createdAt)}
-                                  </div>
-                                  
-                                  {/* Retry button for failed messages */}
-                                  {message.failed && (
-                                    <button
-                                      onClick={() => handleRetryMessage(message)}
-                                      className="block mt-2 text-xs underline hover:no-underline"
-                                      disabled={isSending}
-                                    >
-                                      Tap to retry
-                                    </button>
-                                  )}
+                                      ? 'rounded-tr-md'
+                                      : 'rounded-r-md'
+                                    : message.isFirst && message.isLast
+                                    ? 'rounded-2xl'
+                                    : message.isFirst
+                                    ? 'rounded-bl-md'
+                                    : message.isLast
+                                    ? 'rounded-tl-md'
+                                    : 'rounded-l-md'
+                                }`}
+                              >
+                                {/* Message Text */}
+                                <div className="mb-1">
+                                  {message.text}
                                 </div>
-
-                                {/* Message status below bubble */}
-                                <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${
-                                  isOwn ? 'justify-end' : 'justify-start'
+                                
+                                {/* Exact Time inside bubble */}
+                                <div className={`text-xs ${
+                                  isOwn 
+                                    ? 'text-blue-100 dark:text-blue-200' 
+                                    : 'text-gray-500 dark:text-gray-400'
                                 }`}>
-                                  {isOwn && !message.failed && (
-                                    <span>
-                                      {message.isOptimistic ? (
-                                        <span className="text-gray-400">sending...</span>
-                                      ) : message.read ? (
-                                        <span className="text-blue-500">seen</span>
-                                      ) : (
-                                        <span className="text-gray-400">delivered</span>
-                                      )}
-                                    </span>
-                                  )}
+                                  {formatExactTime(message.createdAt)}
                                 </div>
+                                
+                                {/* Retry button for failed messages */}
+                                {message.failed && (
+                                  <button
+                                    onClick={() => handleRetryMessage(message)}
+                                    className="block mt-2 text-xs underline hover:no-underline"
+                                    disabled={isSending}
+                                  >
+                                    Tap to retry
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Message status below bubble */}
+                              <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${
+                                isOwn ? 'justify-end' : 'justify-start'
+                              }`}>
+                                {isOwn && !message.failed && (
+                                  <span>
+                                    {message.isOptimistic ? (
+                                      <span className="text-gray-400">sending...</span>
+                                    ) : message.read ? (
+                                      <span className="text-blue-500">seen</span>
+                                    ) : (
+                                      <span className="text-gray-400">delivered</span>
+                                    )}
+                                  </span>
+                                )}
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )))}
           </div>
 
           {/* Message Input */}

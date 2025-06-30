@@ -1,6 +1,7 @@
 /* Prevent overscroll bounce and page-level scrolling issues */
 html, body {
-  overscroll-behavior: none;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: auto; /* Allow vertical overscroll for refresh */
 }
 
 /* App.css or a global CSS file */
@@ -20,8 +21,9 @@ html, body {
 
 /* Specific styles for Community component */
 .community-container {
-  overscroll-behavior: none !important;
-  touch-action: none;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y pinch-zoom;
   height: 100% !important;
   max-height: 100% !important;
 }
