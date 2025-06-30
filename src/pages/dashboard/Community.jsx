@@ -24,6 +24,7 @@ export default function Community({ user }) {
   const [scrollUpDistance, setScrollUpDistance] = useState(0);
   const [buttonHideTimeout, setButtonHideTimeout] = useState(null);
   const [isLoadingFresh, setIsLoadingFresh] = useState(false);
+  const [topScrollAttempts, setTopScrollAttempts] = useState(0);
   const location = useLocation();
   const postRefs = useRef({});
   const containerRef = useRef(null);
@@ -92,12 +93,25 @@ export default function Community({ user }) {
       setLastScrollTop(scrollTop);
       
       // Track upward scroll distance for "Load new posts" button
-      if (currentScrollDirection === 'up' && scrollDistance > 10) {
-        setScrollUpDistance(prev => prev + scrollDistance);
+      if (currentScrollDirection === 'up' && scrollDistance > 3) {
+        // Only track upward scroll distance when NOT at the very top
+        if (scrollTop > 20) {
+          setScrollUpDistance(prev => prev + scrollDistance);
+        }
         
-        // Show button if scrolling up through old content and have scrolled significant distance
-        if (cyclingInfo?.isRepeatingContent && scrollUpDistance > 300) {
+        // Detect overscroll at the top - user is at top and trying to scroll up
+        const isAtVeryTop = scrollTop <= 5;
+        const isOverscrollAttempt = isAtVeryTop && lastScrollTop <= 5 && scrollDistance > 5;
+        
+        // Show button in two scenarios:
+        // 1. User is cycling through content and scrolling up significantly
+        // 2. User tries to overscroll at the very top
+        const shouldShowForCycling = cyclingInfo?.isRepeatingContent && scrollUpDistance > 300;
+        const shouldShowForOverscroll = isOverscrollAttempt && !isRefreshing && !isLoadingFresh;
+        
+        if (shouldShowForCycling || shouldShowForOverscroll) {
           setShowLoadNewButton(true);
+          setTopScrollAttempts(prev => prev + 1);
           
           // Clear existing timeout and set new one
           if (buttonHideTimeout) {
@@ -107,13 +121,24 @@ export default function Community({ user }) {
           const timeout = setTimeout(() => {
             setShowLoadNewButton(false);
             setScrollUpDistance(0);
+            setTopScrollAttempts(0);
           }, 8000); // Hide after 8 seconds of no interaction
           
           setButtonHideTimeout(timeout);
         }
       } else if (currentScrollDirection === 'down') {
-        // Reset upward scroll distance when scrolling down
+        // Reset tracking when scrolling down
         setScrollUpDistance(0);
+        setTopScrollAttempts(0);
+        
+        // Hide button when scrolling down from top
+        if (scrollTop > 50 && showLoadNewButton) {
+          setShowLoadNewButton(false);
+          if (buttonHideTimeout) {
+            clearTimeout(buttonHideTimeout);
+            setButtonHideTimeout(null);
+          }
+        }
       }
       
       // Load more when within 500px of bottom
