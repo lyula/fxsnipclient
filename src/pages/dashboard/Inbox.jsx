@@ -154,9 +154,33 @@ const Inbox = () => {
     };
   }, [search]);
 
-  // Optimized message fetching with anti-flickering
-  const fetchMessages = useCallback(async (conversationId) => {
+  // Message caching to prevent unnecessary reloads
+  const [messagesCache, setMessagesCache] = useState(new Map());
+  const [lastMessageTimestamps, setLastMessageTimestamps] = useState(new Map());
+
+  // Optimized message fetching with caching and anti-flickering
+  const fetchMessages = useCallback(async (conversationId, forceRefresh = false) => {
     if (!conversationId || isLoadingMessages) return;
+    
+    // Check if we have cached messages and don't need to refetch
+    const cachedMessages = messagesCache.get(conversationId);
+    const lastTimestamp = lastMessageTimestamps.get(conversationId);
+    
+    if (!forceRefresh && cachedMessages && cachedMessages.length > 0) {
+      // Use cached messages and only check for new ones
+      setMessages(cachedMessages);
+      setMessagesFetched(true);
+      setIsLoadingMessages(false);
+      
+      // Scroll to bottom with cached messages
+      setTimeout(() => {
+        debouncedScrollToBottom(false);
+      }, 100);
+      
+      // Optionally check for new messages in background
+      checkForNewMessages(conversationId, lastTimestamp);
+      return;
+    }
     
     setIsLoadingMessages(true);
     setError(null);
@@ -176,6 +200,16 @@ const Inbox = () => {
         messagesArray = freshMessages.messages;
       } else if (freshMessages?.data) {
         messagesArray = freshMessages.data;
+      }
+      
+      // Cache the messages
+      setMessagesCache(prev => new Map(prev).set(conversationId, messagesArray));
+      
+      // Update last message timestamp for this conversation
+      if (messagesArray.length > 0) {
+        const lastMessage = messagesArray[messagesArray.length - 1];
+        const timestamp = new Date(lastMessage.createdAt).getTime();
+        setLastMessageTimestamps(prev => new Map(prev).set(conversationId, timestamp));
       }
       
       // Only update if we actually got different messages
@@ -205,7 +239,44 @@ const Inbox = () => {
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [isLoadingMessages, debouncedScrollToBottom]);
+  }, [isLoadingMessages, debouncedScrollToBottom, messagesCache, lastMessageTimestamps]);
+
+  // Function to check for new messages without full reload
+  const checkForNewMessages = useCallback(async (conversationId, lastKnownTimestamp) => {
+    try {
+      const freshMessages = await getConversation(conversationId);
+      let messagesArray = [];
+      
+      if (Array.isArray(freshMessages)) {
+        messagesArray = freshMessages;
+      } else if (freshMessages?.messages) {
+        messagesArray = freshMessages.messages;
+      } else if (freshMessages?.data) {
+        messagesArray = freshMessages.data;
+      }
+      
+      if (messagesArray.length > 0) {
+        const latestTimestamp = new Date(messagesArray[messagesArray.length - 1].createdAt).getTime();
+        
+        // Only update if there are actually new messages
+        if (!lastKnownTimestamp || latestTimestamp > lastKnownTimestamp) {
+          // Update cache
+          setMessagesCache(prev => new Map(prev).set(conversationId, messagesArray));
+          setLastMessageTimestamps(prev => new Map(prev).set(conversationId, latestTimestamp));
+          
+          // Update messages state
+          setMessages(messagesArray);
+          
+          // Scroll to bottom smoothly for new messages
+          setTimeout(() => {
+            debouncedScrollToBottom(true);
+          }, 100);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking for new messages:", error);
+    }
+  }, [debouncedScrollToBottom]);
 
   // Optimized message loading when user is selected
   useEffect(() => {
@@ -223,10 +294,8 @@ const Inbox = () => {
       }, 300);
       markAsRead();
       
-      // Fetch messages with a small delay to ensure state is cleared
-      setTimeout(() => {
-        fetchMessages(selectedUser._id);
-      }, 50);
+      // Fetch messages with caching - no delay needed since we check cache first
+      fetchMessages(selectedUser._id, false); // false = don't force refresh, use cache if available
     }
   }, [selectedUser?._id, lastFetchedUser, fetchMessages, updateConversation]);
 
@@ -282,6 +351,20 @@ const Inbox = () => {
         setMessages(prev => prev.map(msg => 
           msg._id === tempId ? realMessage : msg
         ));
+
+        // Update cache with new message
+        setMessagesCache(prev => {
+          const cached = prev.get(selectedUser._id) || [];
+          const updatedCache = cached.map(msg => 
+            msg._id === tempId ? realMessage : msg
+          );
+          return new Map(prev).set(selectedUser._id, updatedCache);
+        });
+
+        // Update timestamp
+        setLastMessageTimestamps(prev => 
+          new Map(prev).set(selectedUser._id, new Date(realMessage.createdAt).getTime())
+        );
 
         // Update conversation list with the real message (debounced)
         updateConv(selectedUser._id, {
@@ -496,6 +579,325 @@ const Inbox = () => {
     debounce((id, updates) => updateConversation(id, updates), 500),
     [updateConversation]
   );
+
+  // Link preview states
+  const [linkPreviews, setLinkPreviews] = useState(new Map());
+  const [loadingPreviews, setLoadingPreviews] = useState(new Set());
+  const fetchedUrls = useRef(new Set()); // Track what we've already attempted to fetch
+
+  // Stable link preview fetcher with proper memoization
+  const fetchLinkPreview = useCallback(async (url) => {
+    // Check if already fetched or currently loading
+    if (fetchedUrls.current.has(url)) return;
+    
+    // Mark as being fetched
+    fetchedUrls.current.add(url);
+    
+    setLoadingPreviews(prev => {
+      if (prev.has(url)) return prev; // Already loading
+      return new Set(prev).add(url);
+    });
+
+    try {
+      // Using a free link preview API service
+      const API_KEY = import.meta.env.VITE_LINK_PREVIEW_API_KEY || 'demo';
+      const response = await fetch(`https://api.linkpreview.net/?key=${API_KEY}&q=${encodeURIComponent(url)}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        const preview = {
+          url: url,
+          title: data.title || '',
+          description: data.description || '',
+          image: data.image || '',
+          domain: new URL(url).hostname,
+          favicon: `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=32`
+        };
+
+        setLinkPreviews(prev => {
+          if (prev.has(url)) return prev; // Already exists
+          return new Map(prev).set(url, preview);
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching link preview:', error);
+      // Fallback preview with basic info
+      setLinkPreviews(prev => {
+        if (prev.has(url)) return prev; // Already exists
+        return new Map(prev).set(url, {
+          url: url,
+          title: new URL(url).hostname,
+          description: url,
+          image: '',
+          domain: new URL(url).hostname,
+          favicon: `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=32`
+        });
+      });
+    } finally {
+      setLoadingPreviews(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(url);
+        return newSet;
+      });
+    }
+  }, []); // Remove all dependencies to prevent recreation
+
+  // Memoized URL extraction and processing
+  const extractUrlsFromText = useMemo(() => {
+    const cache = new Map();
+    return (text) => {
+      if (cache.has(text)) return cache.get(text);
+      
+      const urlRegex = /(https?:\/\/(?:[-\w.])+(?:[:\d]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:#(?:[\w.])*)?)?)|(?:www\.(?:[-\w.])+(?:[:\d]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:#(?:[\w.])*)?)?)/gi;
+      const parts = text.split(urlRegex).filter(Boolean);
+      const urls = [];
+      
+      parts.forEach(part => {
+        urlRegex.lastIndex = 0;
+        if (urlRegex.test(part)) {
+          let href = part;
+          if (part.toLowerCase().startsWith('www.')) {
+            href = `https://${part}`;
+          }
+          urls.push(href);
+        }
+      });
+      
+      cache.set(text, urls);
+      return urls;
+    };
+  }, []);
+
+  // Enhanced function to render message with link previews - FIXED
+  const renderMessageWithLinksAndPreviews = useCallback((text, isOwn, messageId) => {
+    if (!text) return { textContent: "", urls: [] };
+    
+    const urlRegex = /(https?:\/\/(?:[-\w.])+(?:[:\d]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:#(?:[\w.])*)?)?)|(?:www\.(?:[-\w.])+(?:[:\d]+)?(?:\/(?:[\w\/_.])*(?:\?(?:[\w&=%.])*)?(?:#(?:[\w.])*)?)?)/gi;
+    
+    const parts = text.split(urlRegex).filter(Boolean);
+    const urls = extractUrlsFromText(text);
+    
+    // Trigger fetch for new URLs only once
+    urls.forEach(url => {
+      if (!fetchedUrls.current.has(url) && !linkPreviews.has(url)) {
+        // Use requestIdleCallback or setTimeout to avoid blocking render
+        if (typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(() => fetchLinkPreview(url));
+        } else {
+          setTimeout(() => fetchLinkPreview(url), 0);
+        }
+      }
+    });
+    
+    const textContent = parts.map((part, index) => {
+      urlRegex.lastIndex = 0;
+      
+      if (urlRegex.test(part)) {
+        let href = part;
+        let displayText = part;
+        
+        if (part.toLowerCase().startsWith('www.')) {
+          href = `https://${part}`;
+        }
+        
+        if (displayText.length > 50) {
+          displayText = displayText.substring(0, 47) + '...';
+        }
+        
+        return (
+          <a
+            key={`${messageId}-link-${index}`} // More stable key
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={part}
+            className={`underline hover:no-underline transition-all duration-200 break-all font-medium ${
+              isOwn 
+                ? 'text-blue-100 hover:text-white' 
+                : 'text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300'
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            {displayText}
+          </a>
+        );
+      }
+      
+      return part;
+    });
+
+    return { textContent, urls };
+  }, [extractUrlsFromText, fetchLinkPreview, linkPreviews]);
+
+  // Optimized Link Preview Component with better image handling
+  const LinkPreview = useMemo(() => {
+    return ({ url, isOwn, messageId }) => {
+      const preview = linkPreviews.get(url);
+      const isLoading = loadingPreviews.has(url);
+
+      if (isLoading) {
+        return (
+          <div 
+            key={`${messageId}-preview-loading-${url}`}
+            className={`mt-2 p-3 rounded-lg border ${
+              isOwn 
+                ? 'bg-blue-400 bg-opacity-20 border-blue-300' 
+                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600'
+            } animate-pulse`}
+          >
+            <div className="flex space-x-3">
+              <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded"></div>
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-full"></div>
+                <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-1/2"></div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (!preview) return null;
+
+      return (
+        <a
+          key={`${messageId}-preview-${url}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`mt-2 block p-3 rounded-lg border transition-all duration-200 hover:shadow-md ${
+            isOwn 
+              ? 'bg-blue-400 bg-opacity-20 border-blue-300 hover:bg-opacity-30' 
+              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-750'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex space-x-3">
+            {/* Preview Image with better fallback handling */}
+            <div className="flex-shrink-0 w-16 h-16 relative">
+              {preview.image && (
+                <img
+                  src={preview.image}
+                  alt={preview.title || preview.domain}
+                  className="w-16 h-16 object-cover rounded absolute top-0 left-0"
+                  crossOrigin="anonymous"
+                  loading="lazy"
+                  onLoad={(e) => {
+                    // Image loaded successfully, hide fallback
+                    const fallback = e.target.parentNode.querySelector('.fallback-container');
+                    if (fallback) fallback.style.display = 'none';
+                  }}
+                  onError={(e) => {
+                    // Primary image failed, show fallback
+                    e.target.style.display = 'none';
+                    const fallback = e.target.parentNode.querySelector('.fallback-container');
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              )}
+              
+              {/* Fallback container with favicon or domain initial */}
+              <div 
+                className={`fallback-container w-16 h-16 ${preview.image ? 'absolute' : 'static'} top-0 left-0 flex items-center justify-center bg-gray-200 dark:bg-gray-600 rounded`}
+                style={{ display: preview.image ? 'none' : 'flex' }}
+              >
+                {preview.favicon ? (
+                  <img
+                    src={preview.favicon}
+                    alt={preview.domain}
+                    className="w-8 h-8"
+                    loading="lazy"
+                    onError={(e) => {
+                      // Favicon failed, show domain initial
+                      e.target.style.display = 'none';
+                      const textFallback = e.target.parentNode.querySelector('.text-fallback');
+                      if (textFallback) {
+                        textFallback.style.display = 'flex';
+                      }
+                    }}
+                  />
+                ) : null}
+                
+                {/* Text fallback with domain initial */}
+                <div 
+                  className={`text-fallback w-8 h-8 ${preview.favicon ? 'hidden' : 'flex'} items-center justify-center bg-gray-300 dark:bg-gray-500 rounded text-white font-bold text-sm`}
+                  style={{ display: preview.favicon ? 'none' : 'flex' }}
+                >
+                  {preview.domain.charAt(0).toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            {/* Preview Content */}
+            <div className="flex-1 min-w-0">
+              <div className={`font-medium text-sm leading-tight mb-1 ${
+                isOwn 
+                  ? 'text-white' 
+                  : 'text-gray-900 dark:text-white'
+              }`}>
+                {preview.title || preview.domain}
+              </div>
+              
+              {preview.description && (
+                <div className={`text-xs leading-relaxed mb-2 line-clamp-2 ${
+                  isOwn 
+                    ? 'text-blue-100' 
+                    : 'text-gray-600 dark:text-gray-300'
+                }`}>
+                  {preview.description}
+                </div>
+              )}
+              
+              <div className={`text-xs flex items-center ${
+                isOwn 
+                  ? 'text-blue-200' 
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}>
+                <div className="w-3 h-3 mr-1 flex items-center justify-center">
+                  {preview.favicon ? (
+                    <img
+                      src={preview.favicon}
+                      alt=""
+                      className="w-3 h-3"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-3 h-3 bg-gray-400 rounded-sm"></div>
+                  )}
+                </div>
+                {preview.domain}
+              </div>
+            </div>
+          </div>
+        </a>
+      );
+    };
+  }, [linkPreviews, loadingPreviews]);
+
+  // Clear caches when switching conversations and manage memory
+  useEffect(() => {
+    if (selectedUser?._id !== lastFetchedUser) {
+      fetchedUrls.current.clear();
+      setLinkPreviews(new Map());
+      setLoadingPreviews(new Set());
+      
+      // Clear message cache for conversations not accessed recently (keep last 5)
+      setMessagesCache(prev => {
+        if (prev.size > 5) {
+          const entries = Array.from(prev.entries());
+          const recent = entries.slice(-5);
+          return new Map(recent);
+        }
+        return prev;
+      });
+    }
+  }, [selectedUser?._id, lastFetchedUser]);
 
   // Loading state with better UX
   if (!conversations.length && !selectedUser) {
@@ -773,9 +1175,24 @@ const Inbox = () => {
                                     : 'rounded-l-md'
                                 }`}
                               >
-                                {/* Message Text */}
+                                {/* Message Text with Context-Aware Clickable Links */}
                                 <div className="mb-1">
-                                  {message.text}
+                                  {(() => {
+    const { textContent, urls } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
+    return (
+      <>
+        <div className="mb-1">{textContent}</div>
+        {urls.map((url, index) => (
+          <LinkPreview 
+            key={`${message._id}-${index}-${url}`} 
+            url={url} 
+            isOwn={isOwn} 
+            messageId={message._id}
+          />
+        ))}
+      </>
+    );
+  })()}
                                 </div>
                                 
                                 {/* Exact Time inside bubble */}
