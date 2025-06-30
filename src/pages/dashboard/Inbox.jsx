@@ -74,40 +74,45 @@ const Inbox = () => {
     }
   }, []); // Remove fetchConversations from dependencies to prevent loops
 
-  // Handle URL parameters for deep linking
+  // Add these state variables for smooth transitions (add after existing state declarations)
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [shouldShowChat, setShouldShowChat] = useState(() => {
+    // Initialize shouldShowChat based on URL params
+    const chatParam = new URLSearchParams(window.location.search).get("chat");
+    return !!chatParam;
+  });
+
+  // CONSOLIDATED URL parameter handling with smooth transitions
   useEffect(() => {
     const chatParam = searchParams.get("chat");
+    
     if (chatParam && conversations.length > 0) {
       const user = conversations.find(c => c.username === decodeURIComponent(chatParam));
       if (user && (!selectedUser || selectedUser._id !== user._id)) {
         setSelectedUser(user);
-        // Hide header on mobile when chat is selected
+        setShouldShowChat(true);
         if (window.innerWidth < 768) {
           setIsMobileChatOpen(true);
         }
       }
     } else if (!chatParam && selectedUser) {
       setSelectedUser(null);
-      // Show header when no chat is selected
+      setShouldShowChat(false);
       setIsMobileChatOpen(false);
     }
   }, [searchParams, conversations, selectedUser, setIsMobileChatOpen]);
 
-  // Add window resize handler
-  useEffect(() => {
-    const handleResize = () => {
-      // If screen becomes desktop size, always show header
-      if (window.innerWidth >= 768) {
-        setIsMobileChatOpen(false);
-      } else if (selectedUser) {
-        // If screen becomes mobile and chat is open, hide header
-        setIsMobileChatOpen(true);
-      }
-    };
+  // SIMPLIFY the handleConversationSelect function:
+  const handleConversationSelect = useCallback((user) => {
+    if (selectedUser?._id === user._id) return;
+    
+    navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
+  }, [selectedUser, navigate]);
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [selectedUser, setIsMobileChatOpen]);
+  // SIMPLIFY the handleBackToConversations function:
+  const handleBackToConversations = useCallback(() => {
+    navigate("/dashboard/inbox", { replace: true });
+  }, [navigate]);
 
   // Optimized search functionality with better debouncing
   useEffect(() => {
@@ -338,13 +343,6 @@ const Inbox = () => {
     }
   }, [selectedUser, isSending, updateConversation, formatRelativeTime]);
 
-  // Handle back to conversations (mobile)
-  const handleBackToConversations = useCallback(() => {
-    setSelectedUser(null);
-    navigate("/dashboard/inbox", { replace: true });
-    setIsMobileChatOpen(false);
-  }, [navigate, setIsMobileChatOpen]);
-
   // Cleanup effect
   useEffect(() => {
     return () => {
@@ -512,9 +510,13 @@ const Inbox = () => {
   }
 
   return (
-    <div className={`h-full flex bg-white dark:bg-gray-900 ${selectedUser ? 'fixed inset-0 lg:relative lg:inset-auto' : ''}`}>
+    <div className={`h-full flex bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out ${
+      selectedUser && shouldShowChat ? 'fixed inset-0 lg:relative lg:inset-auto' : ''
+    }`}>
       {/* Sidebar - Conversation List */}
-      <div className={`${selectedUser ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 xl:w-96 border-r border-gray-200 dark:border-gray-700`}>
+      <div className={`${
+        selectedUser && shouldShowChat ? 'hidden lg:flex' : 'flex'
+      } flex-col w-full lg:w-80 xl:w-96 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h1>
@@ -592,13 +594,10 @@ const Inbox = () => {
             conversations.map((user) => (
               <button
                 key={user._id}
-                className={`w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition ${
+                className={`w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-150 ${
                   selectedUser?._id === user._id ? 'bg-gray-50 dark:bg-gray-800' : ''
                 }`}
-                onClick={() => {
-                  setSelectedUser(user);
-                  navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
-                }}
+                onClick={() => handleConversationSelect(user)}
               >
                 <div className="relative mr-3">
                   {user.unreadCount > 0 && (
@@ -631,8 +630,10 @@ const Inbox = () => {
       </div>
 
       {/* Main Chat Area */}
-      {selectedUser ? (
-        <div className={`flex-1 flex flex-col ${selectedUser ? 'fixed inset-0 lg:relative lg:inset-auto' : ''}`}>
+      {selectedUser && shouldShowChat ? (
+        <div className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${
+          selectedUser && shouldShowChat ? 'fixed inset-0 lg:relative lg:inset-auto' : ''
+        }`}>
           {/* Chat Header - ENHANCED FOR MOBILE */}
           <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
             {/* Back button for mobile */}
