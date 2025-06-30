@@ -685,6 +685,7 @@ export default function ChatPost({
             imageUrl={post.image} 
             videoUrl={post.video}
             altText={`${post.author?.username || 'User'}'s post media`}
+            caption={post.content} // Add this line to pass the post content as caption
           />
         </div>
       )}
@@ -1013,22 +1014,22 @@ export default function ChatPost({
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleLikeReply(comment._id, reply._id)}
-                                className={`flex items-center gap-1 transition-colors ${
-                                  Array.isArray(reply.likes) && reply.likes.map(String).includes(String(currentUserId)) 
-                                    ? "text-red-500" 
-                                    : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-                                }`}
-                                disabled={loadingReplyLike[reply._id]}
-                                aria-label="Like reply"
-                                type="button"
-                              >
-                                {Array.isArray(reply.likes) && reply.likes.map(String).includes(String(currentUserId)) 
-                                  ? <FaHeart /> 
-                                  : <FaRegHeart />}
-                                <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
-                              </button>
+                                                          <button
+                              onClick={() => handleLikeReply(comment._id, reply._id)}
+                              className={`flex items-center gap-1 transition-colors ${
+                                Array.isArray(reply.likes) && reply.likes.map(String).includes(String(currentUserId)) 
+                                  ? "text-red-500" 
+                                  : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                              }`}
+                              disabled={loadingReplyLike[reply._id]}
+                              aria-label="Like reply"
+                              type="button"
+                            >
+                              {Array.isArray(reply.likes) && reply.likes.map(String).includes(String(currentUserId)) 
+                                ? <FaHeart /> 
+                                : <FaRegHeart />}
+                              <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
+                            </button>
                             </div>
                           </div>
                         ))}
