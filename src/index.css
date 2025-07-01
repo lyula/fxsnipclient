@@ -3,10 +3,13 @@
 @tailwind utilities;
 
 /* Prevent horizontal scroll and white space on mobile */
+/* index.css */
 html, body, #root {
   width: 100vw;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: hidden !important;
+  margin: 0 !important; /* Remove any default margins */
+  padding: 0 !important; /* Remove any default padding */
 }
 
 /* Prevent overscroll bounce and page-level scrolling issues */
@@ -72,4 +75,9 @@ html, body {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+}
+
+body, html, #root {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
 }

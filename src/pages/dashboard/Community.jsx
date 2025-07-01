@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
 import ChatList from "./community/ChatList";
@@ -31,8 +31,8 @@ export default function Community({ user }) {
   const isLoadingRef = useRef(false);
 
   const {
-    communityPosts,
-    cyclingInfo,  // Add this
+    dedupedCommunityPosts: communityPosts, // Use deduplicated posts
+    cyclingInfo,
     fetchCommunityPosts,
     loadMorePosts,
     loadNewerPosts,
@@ -91,48 +91,54 @@ export default function Community({ user }) {
       
       setScrollDirection(currentScrollDirection);
       setLastScrollTop(scrollTop);
+
+      // Temporary debugging
+      console.log('Scroll Debug:', {
+        direction: currentScrollDirection,
+        distance: scrollDistance,
+        upDistance: scrollUpDistance,
+        showButton: showLoadNewButton,
+        hasMore,
+        isLoading: isLoadingMore,
+        cycling: cyclingInfo?.isRepeatingContent
+      });
       
       // Track upward scroll distance for "Load new posts" button
-      if (currentScrollDirection === 'up' && scrollDistance > 3) {
-        // Only track upward scroll distance when NOT at the very top
-        if (scrollTop > 20) {
-          setScrollUpDistance(prev => prev + scrollDistance);
-        }
-        
-        // Detect overscroll at the top - user is at top and trying to scroll up
-        const isAtVeryTop = scrollTop <= 5;
-        const isOverscrollAttempt = isAtVeryTop && lastScrollTop <= 5 && scrollDistance > 5;
-        
-        // Show button in two scenarios:
-        // 1. User is cycling through content and scrolling up significantly
-        // 2. User tries to overscroll at the very top
-        const shouldShowForCycling = cyclingInfo?.isRepeatingContent && scrollUpDistance > 300;
-        const shouldShowForOverscroll = isOverscrollAttempt && !isRefreshing && !isLoadingFresh;
-        
-        if (shouldShowForCycling || shouldShowForOverscroll) {
-          setShowLoadNewButton(true);
-          setTopScrollAttempts(prev => prev + 1);
+      if (currentScrollDirection === 'up' && scrollDistance > 5) {
+        setScrollUpDistance(prev => {
+          const newDistance = prev + scrollDistance;
           
-          // Clear existing timeout and set new one
-          if (buttonHideTimeout) {
-            clearTimeout(buttonHideTimeout);
+          // Show button when accumulated scroll up distance exceeds threshold
+          // Reduced threshold and made conditions less strict
+          if (newDistance > 100 && !showLoadNewButton && !isRefreshing && !isLoadingFresh) {
+            setShowLoadNewButton(true);
+            setTopScrollAttempts(prevAttempts => prevAttempts + 1);
+            
+            // Clear existing timeout and set new one
+            if (buttonHideTimeout) {
+              clearTimeout(buttonHideTimeout);
+            }
+            
+            const timeout = setTimeout(() => {
+              setShowLoadNewButton(false);
+              setScrollUpDistance(0);
+              setTopScrollAttempts(0);
+            }, 8000); // Reduced timeout for better UX
+            
+            setButtonHideTimeout(timeout);
           }
           
-          const timeout = setTimeout(() => {
-            setShowLoadNewButton(false);
-            setScrollUpDistance(0);
-            setTopScrollAttempts(0);
-          }, 8000); // Hide after 8 seconds of no interaction
-          
-          setButtonHideTimeout(timeout);
-        }
+          return newDistance;
+        });
       } else if (currentScrollDirection === 'down') {
-        // Reset tracking when scrolling down
-        setScrollUpDistance(0);
-        setTopScrollAttempts(0);
+        // Reset tracking when scrolling down significantly
+        if (scrollDistance > 20) {
+          setScrollUpDistance(0);
+          setTopScrollAttempts(0);
+        }
         
         // Hide button when scrolling down from top
-        if (scrollTop > 50 && showLoadNewButton) {
+        if (scrollTop > 100 && showLoadNewButton) {
           setShowLoadNewButton(false);
           if (buttonHideTimeout) {
             clearTimeout(buttonHideTimeout);
@@ -141,16 +147,55 @@ export default function Community({ user }) {
         }
       }
       
-      // Load more when within 500px of bottom
-      if (scrollBottom < 500) {
+      // Load more when within 500px of bottom OR implement cycling
+      if (scrollBottom < 500 && !isLoadingRef.current) {
         isLoadingRef.current = true;
         setIsLoadingMore(true);
         
+        // Store current scroll position for restoration
+        const currentScrollHeight = container.scrollHeight;
+        const currentScrollTop = container.scrollTop;
+        
         try {
           const result = await loadMorePosts(currentOffset);
-          setCurrentOffset(prev => prev + 20);
+          
+          if (result) {
+            // Check if we have more posts OR if we should cycle
+            if (result.hasMore === true) {
+              setHasMore(true);
+            } else if (!result.hasMore && cyclingInfo?.totalPostsInCycle > 0) {
+              // Implement cycling: restart from beginning
+              console.log('End of posts reached, cycling back to start...');
+              setHasMore(true); // Keep loading enabled for cycling
+              setCurrentOffset(0); // Reset offset to start cycling
+              
+              // Load posts from the beginning to implement cycling
+              const cyclingResult = await loadMorePosts(0);
+              if (cyclingResult?.posts) {
+                setCurrentOffset(cyclingResult.posts.length);
+              }
+            } else {
+              setHasMore(false);
+            }
+            
+            if (result.posts && result.posts.length > 0) {
+              // Update offset based on actual new posts added
+              setCurrentOffset(prev => prev + result.posts.length);
+              
+              // Use requestAnimationFrame to ensure DOM has updated before adjusting scroll
+              requestAnimationFrame(() => {
+                if (container && container.scrollHeight > currentScrollHeight) {
+                  container.scrollTop = currentScrollTop;
+                }
+              });
+            }
+          } else {
+            // No response - stop loading
+            setHasMore(false);
+          }
         } catch (error) {
           console.error('Error loading more posts:', error);
+          // Don't set hasMore to false on network errors - allow retry
         } finally {
           setIsLoadingMore(false);
           isLoadingRef.current = false;
@@ -158,25 +203,25 @@ export default function Community({ user }) {
       }
       
       // Load newer content when at top and scrolling up
-      if (scrollTop < 100) {
-        const scrollUpVelocity = container.dataset.lastScrollTop 
-          ? parseInt(container.dataset.lastScrollTop) - scrollTop 
-          : 0;
-        
-        if (scrollUpVelocity > 50 && !isRefreshing) {
-          setIsRefreshing(true);
-          
-          try {
-            const result = await loadNewerPosts();
-            setCurrentOffset(20);
-            setHasMore(true);
-          } catch (error) {
-            console.error('Error loading newer posts:', error);
-          } finally {
-            setIsRefreshing(false);
-          }
-        }
-      }
+      // if (scrollTop < 100) {
+      //   const scrollUpVelocity = container.dataset.lastScrollTop 
+      //     ? parseInt(container.dataset.lastScrollTop) - scrollTop 
+      //     : 0;
+      //   
+      //   if (scrollUpVelocity > 50 && !isRefreshing) {
+      //     setIsRefreshing(true);
+      //     
+      //     try {
+      //       const result = await loadNewerPosts();
+      //       setCurrentOffset(20);
+      //       setHasMore(true);
+      //     } catch (error) {
+      //       console.error('Error loading newer posts:', error);
+      //     } finally {
+      //       setIsRefreshing(false);
+      //     }
+      //   }
+      // }
       
       container.dataset.lastScrollTop = scrollTop;
     };
@@ -191,7 +236,7 @@ export default function Community({ user }) {
         }
       };
     }
-  }, [currentOffset, loadMorePosts, lastScrollTop, scrollUpDistance, cyclingInfo, buttonHideTimeout]);
+  }, [loadMorePosts, hasMore, cyclingInfo]); // Remove frequently changing dependencies
 
   // Enhanced touch handling for pull-to-refresh (SINGLE DECLARATION)
   const handleTouchStart = (e) => {
@@ -205,11 +250,12 @@ export default function Community({ user }) {
   const handleTouchEnd = async () => {
     if (!touchStart || !touchEnd) return;
     
-    const distance = touchStart - touchEnd;
-    const isUpSwipe = distance > 100;
+    const distance = touchEnd - touchStart; // Fixed: should be touchEnd - touchStart for down swipe
+    const isDownSwipe = distance > 100; // This is actually a downward swipe (pull down)
     const container = containerRef.current;
     
-    if (isUpSwipe && container && container.scrollTop < 50) {
+    // Pull down to refresh when at the top
+    if (isDownSwipe && container && container.scrollTop < 50) {
       setIsRefreshing(true);
       
       try {
@@ -228,14 +274,14 @@ export default function Community({ user }) {
     setTouchEnd(0);
   };
 
-  // Create a new post with optimistic updates
-  const handleNewPost = async (content, image, video) => {  // Add video parameter
+3  // Enhanced handleNewPost with proper optimistic updates
+  const handleNewPost = async (content, image, video) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticPost = {
       _id: tempId,
       content,
       image,
-      video,  // Add video field
+      video,
       author: {
         _id: user._id,
         username: user.username,
@@ -246,15 +292,22 @@ export default function Community({ user }) {
       comments: [],
       views: 0,
       createdAt: new Date().toISOString(),
-      sending: true
+      sending: true,
+      isOptimistic: true
     };
 
-    // Add optimistically
+    // Add optimistically first
     addPostOptimistically(optimisticPost);
     setActiveTab("forYou");
     setShowCreate(false);
 
+    // Scroll to top to show the new post
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    
     try {
       const res = await fetch(`${API_BASE}/posts`, {
         method: "POST",
@@ -262,22 +315,34 @@ export default function Community({ user }) {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content, image, video }),  // Add video to request body
+        body: JSON.stringify({ content, image, video }),
       });
       
       if (res.ok) {
         const newPost = await res.json();
         // Replace optimistic post with real post
-        updatePost(tempId, { ...newPost, sending: false });
+        updatePost(tempId, { ...newPost, sending: false, isOptimistic: false });
+        console.log('Post created successfully:', newPost);
       } else {
-        // Mark as failed
-        updatePost(tempId, { ...optimisticPost, sending: false, failed: true });
-        console.error("Failed to create post");
+        const errorData = await res.json();
+        console.error("Failed to create post:", errorData);
+        // Mark as failed but keep visible with retry option
+        updatePost(tempId, { 
+          ...optimisticPost, 
+          sending: false, 
+          failed: true, 
+          error: errorData.message || "Failed to post" 
+        });
       }
     } catch (error) {
-      // Mark as failed
-      updatePost(tempId, { ...optimisticPost, sending: false, failed: true });
       console.error("Error creating post:", error);
+      // Mark as failed but keep visible with retry option
+      updatePost(tempId, { 
+        ...optimisticPost, 
+        sending: false, 
+        failed: true, 
+        error: "Network error. Check your connection." 
+      });
     }
   };
 
@@ -367,9 +432,13 @@ export default function Community({ user }) {
     }
   };
 
-  // Delete a post
+  // Enhanced handleDeletePost with immediate optimistic removal
   const handleDeletePost = async (postId) => {
+    // Immediately remove from UI (optimistic delete)
+    deletePost(postId);
+    
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    
     try {
       const res = await fetch(`${API_BASE}/posts/${postId}`, {
         method: "DELETE",
@@ -377,18 +446,19 @@ export default function Community({ user }) {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      if (res.ok) {
-        // Remove from cache
-        deletePost(postId);
-      } else {
-        console.error("Failed to delete post");
+      
+      if (!res.ok) {
+        console.error("Failed to delete post on server");
+        // Could re-add the post here if you want to handle failure
+        // But for UX, we keep it deleted from UI
       }
     } catch (error) {
       console.error("Error deleting post:", error);
+      // Could re-add the post here if you want to handle failure
     }
   };
 
-  // Load fresh posts when button is clicked
+  // Enhanced fresh content loading with actual database queries
   const handleLoadFreshPosts = async () => {
     setIsLoadingFresh(true);
     setShowLoadNewButton(false);
@@ -400,15 +470,20 @@ export default function Community({ user }) {
     }
     
     try {
-      // Load truly fresh content using the new function
-      const result = await loadFreshContent(); // Use the new function from context
+      // Force a completely fresh database query
+      const result = await loadFreshContent();
       setCurrentOffset(result?.nextOffset || 20);
       setHasMore(true);
+      
+      // Reset view tracking for fresh content
+      localStorage.removeItem("viewedPosts");
       
       // Scroll to top to show fresh content
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
       }
+      
+      console.log('Fresh content loaded:', result?.posts?.length || 0, 'posts');
     } catch (error) {
       console.error('Error loading fresh posts:', error);
     } finally {
@@ -416,12 +491,48 @@ export default function Community({ user }) {
     }
   };
 
+  // Helper function to preserve scroll position during content updates
+  const preserveScrollPosition = useCallback((callback) => {
+    const container = containerRef.current;
+    if (!container) return callback();
+    
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    
+    callback();
+    
+    // Use requestAnimationFrame to ensure DOM updates are complete
+    requestAnimationFrame(() => {
+      if (container.scrollHeight !== scrollHeight) {
+        container.scrollTop = scrollTop;
+      }
+    });
+  }, []);
+
   // Show cached data immediately with background refresh indicator
   const showLoading = loadingStates.posts && communityPosts.length === 0;
 
+  // Scroll position restoration effect
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    // Store scroll position when posts change
+    const currentScrollTop = container.scrollTop;
+    
+    // Restore scroll position after a short delay to allow for rendering
+    const timeoutId = setTimeout(() => {
+      if (container && currentScrollTop > 0) {
+        container.scrollTop = currentScrollTop;
+      }
+    }, 10);
+    
+    return () => clearTimeout(timeoutId);
+  }, [communityPosts.length]); // Only trigger when the number of posts changes
+
   return (
     <div 
-      className="w-full h-full flex flex-col overflow-hidden community-container"
+      className="w-full h-full flex flex-col overflow-x-hidden overflow-y-hidden community-container"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -432,29 +543,31 @@ export default function Community({ user }) {
         overscrollBehavior: 'none'
       }}
     >
-      {/* Fresh content indicator */}
+      {/* Fresh content indicator - Improved mobile styling */}
       {isRefreshing && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg z-50">
-          <div className="flex items-center gap-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            Loading fresh content...
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-lg z-50">
+          <div className="flex items-center gap-1 sm:gap-2 whitespace-nowrap">
+            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white flex-shrink-0"></div>
+            <span className="text-xs sm:text-sm font-medium">Loading fresh content...</span>
           </div>
         </div>
       )}
 
-      {/* Tabs Section - Fixed at top */}
+      {/* Tabs Section - Keep padding */}
       <div className="flex-shrink-0 px-4 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-        <CommunityTabs
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onCreatePost={() => setShowCreate(true)}
-        />
+        <div className="flex w-full max-w-full overflow-x-auto no-scrollbar">
+          <CommunityTabs
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onCreatePost={() => setShowCreate(true)}
+          />
+        </div>
       </div>
 
-      {/* Scrollable Posts Section - Takes remaining space */}
+      {/* Posts Section - Remove horizontal padding */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 bg-gray-50 dark:bg-gray-800 hide-scrollbar community-posts-section"
+        className="flex-1 overflow-y-auto overflow-x-hidden py-4 bg-gray-50 dark:bg-gray-800 hide-scrollbar community-posts-section"
         style={{ 
           minHeight: 0,
           maxHeight: '100%',
@@ -483,20 +596,22 @@ export default function Community({ user }) {
           </div>
         ) : (
           <>
-            <ChatList
-              posts={communityPosts}
-              postRefs={postRefs}
-              onReply={handleReply}
-              onComment={handleComment}
-              onLike={handleLike}
-              onView={handleView}
-              onDelete={handleDeletePost}
-              currentUserId={user?._id}
-              currentUsername={user?.username}
-              currentUserVerified={user?.verified}
-            />
+            <div className="w-full max-w-full overflow-x-hidden px-0 sm:max-w-2xl sm:mx-auto sm:px-4">
+              <ChatList
+                posts={communityPosts}
+                postRefs={postRefs}
+                onReply={handleReply}
+                onComment={handleComment}
+                onLike={handleLike}
+                onView={handleView}
+                onDelete={handleDeletePost}
+                currentUserId={user?._id}
+                currentUsername={user?.username}
+                currentUserVerified={user?.verified}
+              />
+            </div>
             
-            {/* Loading more indicator */}
+            {/* Loading more indicator - Always show when loading */}
             {isLoadingMore && (
               <div className="p-6 text-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -504,16 +619,24 @@ export default function Community({ user }) {
               </div>
             )}
             
-            {/* Cycling indicator at bottom */}
+            {/* Show appropriate message when not loading */}
             {!isLoadingMore && communityPosts.length > 0 && (
               <div className="p-6 text-center">
-                {cyclingInfo?.isRepeatingContent ? (
+                {isLoadingMore ? (
+                  <p className="text-gray-400 dark:text-gray-500 text-xs">
+                    Loading more content...
+                  </p>
+                ) : cyclingInfo?.isRepeatingContent ? (
                   <p className="text-blue-400 dark:text-blue-300 text-xs">
                     🔄 Cycling through posts (Round {cyclingInfo.completedCycles + 1})
                   </p>
-                ) : (
+                ) : hasMore ? (
                   <p className="text-gray-400 dark:text-gray-500 text-xs">
                     ∞ Scroll for more content ∞
+                  </p>
+                ) : (
+                  <p className="text-gray-400 dark:text-gray-500 text-xs">
+                    🔄 Scroll more to see posts again
                   </p>
                 )}
               </div>
@@ -522,10 +645,10 @@ export default function Community({ user }) {
         )}
       </div>
 
-      {/* Floating "Load New Posts" Button - Near bottom */}
+      {/* Floating "Load New Posts" Button - Improved mobile styling */}
       {showLoadNewButton && !isLoadingFresh && (
         <button
-          className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-3 py-2 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm sm:px-4 sm:py-2.5 sm:gap-1.5"
+          className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
           onClick={handleLoadFreshPosts}
         >
           <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -535,9 +658,9 @@ export default function Community({ user }) {
         </button>
       )}
 
-      {/* Loading fresh posts indicator - Near bottom */}
+      {/* Loading fresh posts indicator - Improved mobile styling */}
       {isLoadingFresh && (
-        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-3 py-2 rounded-full shadow-lg z-50 sm:px-4 sm:py-2.5">
+        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-2 py-1.5 sm:px-4 sm:py-2.5 rounded-full shadow-lg z-50">
           <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
             <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white flex-shrink-0"></div>
             <span className="text-xs sm:text-sm font-medium">Loading fresh posts...</span>
@@ -547,7 +670,7 @@ export default function Community({ user }) {
 
       {/* Floating Create Post Button */}
       <button
-        className="fixed bottom-20 sm:bottom-8 right-8 md:right-24 z-50 flex items-center gap-2 px-5 py-3 bg-[#a99d6b] text-white rounded-full font-semibold shadow-lg hover:bg-[#c2b77a] transition"
+        className="fixed bottom-20 sm:bottom-8 right-8 md:right-24 z-50 flex items-center gap-2 px-5 py-3 bg-[#a99d6b] text-white rounded-full font-semibold shadow-lg hover:bg-[#c2b77a] transition max-w-[95vw] truncate"
         onClick={() => setShowCreate(true)}
       >
         <FaPlus className="text-lg" />

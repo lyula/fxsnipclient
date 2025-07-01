@@ -44,7 +44,7 @@ export function DashboardProvider({ children }) {
   const [lastConversationFetch, setLastConversationFetch] = useState(0);
   const [lastNotificationFetch, setLastNotificationFetch] = useState(0);
 
-  // Format relative time - MOVED HERE TO FIX CIRCULAR DEPENDENCY
+  // Format relative time
   const formatRelativeTime = useCallback((timestamp) => {
     const now = Date.now();
     const diffMs = now - timestamp;
@@ -65,44 +65,34 @@ export function DashboardProvider({ children }) {
   // Fetch conversations with caching
   const fetchConversations = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
-    
-    // Skip if we just fetched (within 30 seconds) unless forced
     if (!forceRefresh && (now - lastConversationFetch < 30000)) {
       return conversations;
     }
-    
     try {
       setLoadingStates(prev => ({ ...prev, conversations: true }));
       const data = await getConversations();
-      
       if (Array.isArray(data)) {
-        // Filter out invalid conversations
         const validConversations = data.filter(conv => 
           conv && conv.user && conv.user.username
         );
-        
-        // Process conversations to match frontend expectations
         const processedConversations = validConversations.map(conv => {
           const user = conv.user || {};
           const lastMsg = conv.lastMessage || {};
-          
           return {
             _id: conv._id,
             username: user.username || 'Unknown User',
             avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username || 'User')}`,
             verified: user.verified || false,
-            lastMessage: lastMsg.text || '', // This should now correctly show the last message
+            lastMessage: lastMsg.text || '',
             lastTime: formatRelativeTime(new Date(lastMsg.createdAt || Date.now()).getTime()),
             lastTimestamp: new Date(lastMsg.createdAt || Date.now()).getTime(),
             unreadCount: conv.unreadCount || 0
           };
         });
-        
         setConversations(processedConversations);
         setLastConversationFetch(now);
         return processedConversations;
       }
-      
       return [];
     } catch (error) {
       console.error("Error fetching conversations:", error);
@@ -115,22 +105,17 @@ export function DashboardProvider({ children }) {
   // Fetch notifications
   const fetchNotifications = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
-    
-    // Skip if we just fetched (within 15 seconds) unless forced
     if (!forceRefresh && (now - lastNotificationFetch < 15000)) {
       return notifications;
     }
-    
     try {
       setLoadingStates(prev => ({ ...prev, notifications: true }));
       const data = await getNotifications();
-      
       if (Array.isArray(data)) {
         setNotifications(data);
         setLastNotificationFetch(now);
         return data;
       }
-      
       return [];
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -140,42 +125,44 @@ export function DashboardProvider({ children }) {
     }
   }, [lastNotificationFetch, notifications]);
 
-  // Enhanced Dashboard Context with Infinite Scroll and Fresh Content
+  // Enhanced fetchCommunityPosts with proper fresh content support
   const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
     try {
       setLoadingStates(prev => ({ ...prev, posts: offset === 0 ? true : false }));
-      
       const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      const timestamp = Date.now();
       const params = new URLSearchParams({
-        limit: '20',
+        limit: loadFresh ? '30' : '20',
         offset: offset.toString(),
         scrollDirection: direction,
         refreshFeed: refresh.toString(),
-        loadFresh: loadFresh.toString()  // Add fresh content parameter
+        loadFresh: loadFresh.toString(),
+        timestamp: timestamp.toString(),
+        cacheBust: Math.random().toString(36)
       });
-      
+      if (loadFresh || direction === 'fresh') {
+        params.append('sortBy', 'newest');
+        params.append('includeRecent', 'true');
+      }
       const res = await fetch(`${API_BASE}/posts?${params}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
       });
-      
       if (res.ok) {
         const data = await res.json();
-        
-        // Store cycling info separately
         setCyclingInfo(data.cyclingInfo);
-        
-        if (refresh || loadFresh) {
-          setCommunityPosts(data.posts || []);
-        } else if (offset === 0) {
+        if (refresh || loadFresh || offset === 0 || direction === 'fresh') {
           setCommunityPosts(data.posts || []);
         }
-        
         return data;
+      } else {
+        console.error('Failed to fetch posts:', res.status, res.statusText);
+        return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
       }
-      
-      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
     } catch (error) {
       console.error("Error fetching community posts:", error);
       return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
@@ -192,7 +179,6 @@ export function DashboardProvider({ children }) {
   // Start polling for real-time updates
   const startPolling = useCallback(() => {
     if (pollingInterval) return;
-    
     const interval = setInterval(async () => {
       try {
         if (document.visibilityState === 'visible') {
@@ -204,8 +190,7 @@ export function DashboardProvider({ children }) {
       } catch (error) {
         console.error('Polling error:', error);
       }
-    }, 300000); // 5 minutes instead of 30 seconds
-    
+    }, 300000);
     setPollingInterval(interval);
   }, [pollingInterval, fetchConversations, fetchNotifications]);
 
@@ -226,8 +211,6 @@ export function DashboardProvider({ children }) {
           : conv
       )
     );
-    
-    // If this is a new message, refresh conversations after a delay
     if (updates.lastMessage || updates.unreadCount) {
       setTimeout(() => fetchConversations(true), 2000);
     }
@@ -245,7 +228,7 @@ export function DashboardProvider({ children }) {
         .map(post => 
           post._id === postId ? updatedPost : post
         )
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) // Maintain sort order
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     );
   }, []);
 
@@ -256,39 +239,36 @@ export function DashboardProvider({ children }) {
 
   // Add infinite scroll functions
   const loadMorePosts = useCallback(async (currentOffset) => {
-    if (loadingStates.posts) return { hasMore: true };
-    
+    if (loadingStates.posts) return { hasMore: true, posts: [] };
     setLoadingStates(prev => ({ ...prev, posts: true }));
-    
     try {
       const result = await fetchCommunityPosts(false, currentOffset, 'down');
-      
-      // Update cycling info from the result
       if (result?.cyclingInfo) {
         setCyclingInfo(result.cyclingInfo);
       }
-      
-      // Only append new posts, don't replace existing ones
-      if (result?.posts) {
+      if (result?.posts && result.posts.length > 0) {
         setCommunityPosts(prev => {
-          // Create a map of existing posts by their unique scroll position
-          const existingPostMap = new Map();
-          prev.forEach(post => {
-            if (post._scrollPosition !== undefined) {
-              existingPostMap.set(post._scrollPosition, post);
-            }
-          });
-          
-          // Add new posts that don't already exist
-          const newPosts = result.posts.filter(post => 
-            !existingPostMap.has(post._scrollPosition)
-          );
-          
-          return [...prev, ...newPosts];
+          const existingPostIds = new Set(prev.map(post => post._id));
+          const newPosts = result.cyclingInfo?.isRepeatingContent 
+            ? result.posts.map(post => ({
+                ...post,
+                _id: `${post._id}_cycle_${result.cyclingInfo.completedCycles}_${Date.now()}`,
+                _originalId: post._id,
+                _isCyled: true,
+                _cycleNumber: result.cyclingInfo.completedCycles
+              }))
+            : result.posts.filter(post => !existingPostIds.has(post._id));
+          if (newPosts.length > 0) {
+            return [...prev, ...newPosts];
+          }
+          return prev;
         });
       }
-      
-      return result;
+      return {
+        ...result,
+        posts: result.posts,
+        hasMore: result.hasMore === true || (result.cyclingInfo?.totalPostsInCycle > 0)
+      };
     } finally {
       setLoadingStates(prev => ({ ...prev, posts: false }));
     }
@@ -296,41 +276,32 @@ export function DashboardProvider({ children }) {
 
   const loadNewerPosts = useCallback(async (forceFresh = false) => {
     const result = await fetchCommunityPosts(true, 0, 'up');
-    
-    // Update cycling info when refreshing
     if (result?.cyclingInfo) {
       setCyclingInfo(result.cyclingInfo);
     }
-    
-    // If forcing fresh content, prioritize very recent posts
     if (forceFresh && result?.posts) {
-      // Sort by creation date to ensure newest first
       const freshPosts = result.posts.sort((a, b) => 
         new Date(b.createdAt) - new Date(a.createdAt)
       );
       setCommunityPosts(freshPosts);
     }
-    
     return result;
   }, [fetchCommunityPosts]);
 
-  // Load fresh content specifically
+  // Enhanced loadFreshContent function to get truly fresh posts from database
   const loadFreshContent = useCallback(async () => {
     try {
       setLoadingStates(prev => ({ ...prev, posts: true }));
-      
-      const result = await fetchCommunityPosts(false, 0, 'up', true); // loadFresh = true
-      
-      // Update cycling info
+      const result = await fetchCommunityPosts(false, 0, 'fresh', true);
       if (result?.cyclingInfo) {
         setCyclingInfo(result.cyclingInfo);
       }
-      
-      // Replace current posts with fresh content
       if (result?.posts) {
-        setCommunityPosts(result.posts);
+        const sortedFreshPosts = result.posts.sort((a, b) => 
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setCommunityPosts(sortedFreshPosts);
       }
-      
       return result;
     } catch (error) {
       console.error("Error loading fresh content:", error);
@@ -340,19 +311,32 @@ export function DashboardProvider({ children }) {
     }
   }, [fetchCommunityPosts]);
 
+  // Utility function to deduplicate posts by _id, keeping the first occurrence
+  const deduplicatePostsById = useCallback((posts) => {
+    const seenIds = new Set();
+    return posts.filter(post => {
+      if (seenIds.has(post._id)) {
+        return false;
+      }
+      seenIds.add(post._id);
+      return true;
+    });
+  }, []);
+
+  // Memoized deduplicated posts
+  const dedupedCommunityPosts = useMemo(() => {
+    return deduplicatePostsById(communityPosts);
+  }, [communityPosts, deduplicatePostsById]);
+
   // Context value
   const value = useMemo(() => ({
-    // Conversations
     conversations,
     fetchConversations,
     updateConversation,
-    
-    // Notifications  
     notifications,
     fetchNotifications,
-    
-    // Community posts
     communityPosts,
+    dedupedCommunityPosts,
     fetchCommunityPosts,
     loadMorePosts,
     loadNewerPosts,
@@ -360,28 +344,14 @@ export function DashboardProvider({ children }) {
     addPostOptimistically,
     updatePost,
     deletePost: deletePostFromList,
-    
-    // Loading states
     loadingStates,
-    
-    // Utilities
     formatRelativeTime,
-    
-    // Message cache
     messageCache,
     setMessageCache,
-
-    // Mobile chat
     isMobileChatOpen,
     setIsMobileChatOpen,
-
-    // Cycling info
     cyclingInfo,
-
-    // Fresh content
     loadFreshContent,
-
-    // Polling control
     startPolling,
     stopPolling,
   }), [
@@ -391,6 +361,7 @@ export function DashboardProvider({ children }) {
     notifications,
     fetchNotifications,
     communityPosts,
+    dedupedCommunityPosts,
     fetchCommunityPosts,
     loadMorePosts,
     loadNewerPosts,
@@ -417,10 +388,11 @@ export function DashboardProvider({ children }) {
   );
 }
 
+// Add the missing hook and export
 export function useDashboard() {
   const context = useContext(DashboardContext);
   if (!context) {
-    throw new Error('useDashboard must be used within a DashboardProvider');
+    throw new Error("useDashboard must be used within a DashboardProvider");
   }
   return context;
 }

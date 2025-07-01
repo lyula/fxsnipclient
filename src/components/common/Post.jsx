@@ -3,6 +3,7 @@ import { FaHeart, FaComment, FaEye, FaUser } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import VerifiedBadge from "../VerifiedBadge";
 import { incrementPostViews } from "../../utils/api";
+import MediaDisplay from "../media/MediaDisplay"; // Import MediaDisplay component
 
 export default function Post({ post, onLike, onComment, trackViews = true }) {
   const [showComments, setShowComments] = useState(false);
@@ -71,7 +72,7 @@ export default function Post({ post, onLike, onComment, trackViews = true }) {
   };
 
   return (
-    <div ref={postRef} className="border rounded-lg p-4 mb-4 bg-white dark:bg-gray-800">
+    <div className="w-full max-w-full overflow-x-hidden break-words border rounded-lg p-0 sm:p-4 mb-4 bg-white dark:bg-gray-800 mobile-post-card">
       <div className="flex items-center gap-2 mb-2">
         {/* Clickable user avatar */}
         <Link 
@@ -87,7 +88,17 @@ export default function Post({ post, onLike, onComment, trackViews = true }) {
         </Link>
         {post.author.verified && <VerifiedBadge />}
       </div>
-      <p className="text-gray-700 dark:text-gray-300 mb-2">{post.content}</p>
+      {/* Conditionally render content or media */}
+      {!(post.image || post.video) && (
+        <p className="text-gray-700 dark:text-gray-300 mb-2">{post.content}</p>
+      )}
+      {(post.image || post.video) && (
+        <MediaDisplay 
+          imageUrl={post.image} 
+          videoUrl={post.video}
+          caption={post.content} // Content appears below media
+        />
+      )}
       <div className="flex items-center gap-4">
         <button
           className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-red-500"

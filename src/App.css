@@ -1,7 +1,11 @@
 /* Prevent overscroll bounce and page-level scrolling issues */
-html, body {
-  overscroll-behavior-x: none;
-  overscroll-behavior-y: auto; /* Allow vertical overscroll for refresh */
+/* index.css */
+html, body, #root {
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden !important;
+  margin: 0 !important; /* Remove any default margins */
+  padding: 0 !important; /* Remove any default padding */
 }
 
 /* App.css or a global CSS file */
@@ -45,4 +49,176 @@ html, body {
     word-break: keep-all;
     white-space: nowrap;
   }
+}
+
+/* Mobile-first X/Twitter-like post styling */
+@media (max-width: 768px) {
+  /* Remove container padding for edge-to-edge mobile posts */
+  .mobile-post-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  /* Mobile post card styling - X/Twitter like */
+  .mobile-post-card {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid rgb(239 243 244) !important;
+    border-bottom: none !important;
+    margin: 0 !important;
+    padding: 12px 0!important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+
+  .mobile-post-card:last-child {
+    border-bottom: 1px solid rgb(239 243 244) !important;
+  }
+
+  .dark .mobile-post-card {
+    border-color: rgb(47 51 54) !important;
+    background: rgb(21 32 43) !important;
+  }
+
+  /* Mobile post spacing */
+  .mobile-post-list {
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Mobile post header adjustments */
+  .mobile-post-header {
+    margin-bottom: 8px !important;
+  }
+
+  /* Mobile post content spacing */
+  .mobile-post-content {
+    margin-bottom: 12px !important;
+  }
+
+  /* Mobile post actions bar */
+  .mobile-post-actions {
+    padding: 8px 12px !important;
+    margin: 0 -4px !important;
+    background: rgb(249 250 251) !important;
+    border-radius: 8px !important;
+    margin-top: 12px !important;
+  }
+
+  .dark .mobile-post-actions {
+    background: rgb(31 41 51) !important;
+  }
+
+  /* Mobile media display */
+  .mobile-media-container {
+    margin: 12px -16px !important;
+    border-radius: 0 !important;
+  }
+
+  /* Mobile avatar size */
+  .mobile-avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* Mobile username styling */
+  .mobile-username {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+  }
+
+  /* Mobile timestamp */
+  .mobile-timestamp {
+    font-size: 13px !important;
+    color: rgb(113 118 123) !important;
+  }
+
+  .dark .mobile-timestamp {
+    color: rgb(139 152 165) !important;
+  }
+
+  /* Mobile content text */
+  .mobile-content-text {
+    font-size: 15px !important;
+    line-height: 20px !important;
+    color: rgb(15 20 25) !important;
+  }
+
+  .dark .mobile-content-text {
+    color: rgb(231 233 234) !important;
+  }
+
+  /* Mobile action buttons */
+  .mobile-action-button {
+    padding: 6px 8px !important;
+    border-radius: 20px !important;
+    transition: background-color 0.2s !important;
+  }
+
+  .mobile-action-button:hover {
+    background-color: rgba(29, 155, 240, 0.1) !important;
+  }
+
+  /* Mobile comment section */
+  .mobile-comments-section {
+    border-top: 1px solid rgb(239 243 244) !important;
+    margin: 12px -16px 0 -16px !important;
+    padding: 12px 16px 0 16px !important;
+  }
+
+  .dark .mobile-comments-section {
+    border-color: rgb(47 51 54) !important;
+  }
+
+  /* Hide desktop-only elements on mobile */
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* Desktop adjustments to maintain current design */
+@media (min-width: 769px) {
+  .desktop-post-container {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Additional mobile improvements */
+@media (max-width: 640px) {
+  /* Improve mobile interaction areas */
+  .mobile-touch-target {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* Mobile-optimized comment input */
+  .mobile-comment-input {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+    border-radius: 20px !important;
+    padding: 8px 16px !important;
+  }
+
+  /* Mobile profile links */
+  .mobile-profile-link {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 4px 0 !important;
+  }
+}
+
+* {
+  outline: 1px solid red;
 }
