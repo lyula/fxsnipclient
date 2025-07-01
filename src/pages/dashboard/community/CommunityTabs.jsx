@@ -1,8 +1,13 @@
 import { FaPlus } from "react-icons/fa";
 
-export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost }) {
+export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, visible = true }) {
   return (
-    <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 flex items-center justify-between px-2 sm:px-6 py-2">
+    <div
+      className={`sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 flex items-center justify-between px-2 sm:px-6 transition-all duration-200 ${
+        visible ? "opacity-100 translate-y-0 h-auto py-2" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
+      }`}
+      style={{ willChange: "transform, opacity, height" }}
+    >
       <div className="flex gap-8">
         <button
           className={`font-bold text-base px-2 py-1 rounded transition ${

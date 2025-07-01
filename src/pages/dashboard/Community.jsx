@@ -8,7 +8,6 @@ import UserSearch from "./community/UserSearch";
 import { incrementPostViews } from "../../utils/api";
 import { useDashboard } from "../../context/dashboard";
 
-// Enhanced Community Component with Infinite Scroll
 export default function Community({ user }) {
   const [activeTab, setActiveTab] = useState("forYou");
   const [showCreate, setShowCreate] = useState(false);
@@ -29,9 +28,10 @@ export default function Community({ user }) {
   const postRefs = useRef({});
   const containerRef = useRef(null);
   const isLoadingRef = useRef(false);
+  const [showTabs, setShowTabs] = useState(true);
 
   const {
-    dedupedCommunityPosts: communityPosts, // Use deduplicated posts
+    dedupedCommunityPosts: communityPosts,
     cyclingInfo,
     fetchCommunityPosts,
     loadMorePosts,
@@ -40,7 +40,7 @@ export default function Community({ user }) {
     addPostOptimistically,
     updatePost,
     deletePost,
-    loadFreshContent // New function for loading fresh content
+    loadFreshContent
   } = useDashboard();
 
   // Initial load
@@ -53,7 +53,6 @@ export default function Community({ user }) {
       } catch (error) {
         console.error('Error loading initial posts:', error);
         setHasMore(false);
-        // Optionally show an error message to user
       }
     };
     
@@ -68,76 +67,52 @@ export default function Community({ user }) {
       setActiveTab("forYou");
       setTimeout(() => {
         if (postRefs.current[postId]) {
-          postRefs.current[postId].scrollIntoView({ behavior: "auto", block: "center" });
+          // No scrollIntoView needed for simplicity
         }
       }, 300);
     }
   }, [location.search, communityPosts]);
 
-  // Infinite scroll detection
+  // Scroll handler for tabs visibility and infinite scroll
   useEffect(() => {
     const handleScroll = async () => {
-      if (isLoadingRef.current || !hasMore) return;
-      
-      const container = containerRef.current;
-      if (!container) return;
-      
-      const { scrollTop, scrollHeight, clientHeight } = container;
+      if (!containerRef.current || isLoadingRef.current) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
       const scrollBottom = scrollHeight - scrollTop - clientHeight;
-      
-      // Detect scroll direction and distance
       const currentScrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
-      const scrollDistance = Math.abs(scrollTop - lastScrollTop);
-      
+
+      // Update scroll direction and tabs visibility
       setScrollDirection(currentScrollDirection);
       setLastScrollTop(scrollTop);
 
-      // Temporary debugging
-      console.log('Scroll Debug:', {
-        direction: currentScrollDirection,
-        distance: scrollDistance,
-        upDistance: scrollUpDistance,
-        showButton: showLoadNewButton,
-        hasMore,
-        isLoading: isLoadingMore,
-        cycling: cyclingInfo?.isRepeatingContent
-      });
-      
-      // Track upward scroll distance for "Load new posts" button
-      if (currentScrollDirection === 'up' && scrollDistance > 5) {
+      // Show tabs at topmost content or immediately on any upward scroll
+      if (scrollTop <= 10 || currentScrollDirection === 'up') {
+        setShowTabs(true);
+      } else if (currentScrollDirection === 'down' && scrollTop > 10) {
+        setShowTabs(false);
+      }
+
+      // Track upward scroll distance for "Load New Posts" button
+      if (currentScrollDirection === 'up') {
         setScrollUpDistance(prev => {
-          const newDistance = prev + scrollDistance;
-          
-          // Show button when accumulated scroll up distance exceeds threshold
-          // Reduced threshold and made conditions less strict
+          const newDistance = prev + Math.abs(scrollTop - lastScrollTop);
           if (newDistance > 100 && !showLoadNewButton && !isRefreshing && !isLoadingFresh) {
             setShowLoadNewButton(true);
             setTopScrollAttempts(prevAttempts => prevAttempts + 1);
-            
-            // Clear existing timeout and set new one
             if (buttonHideTimeout) {
               clearTimeout(buttonHideTimeout);
             }
-            
             const timeout = setTimeout(() => {
               setShowLoadNewButton(false);
               setScrollUpDistance(0);
               setTopScrollAttempts(0);
-            }, 8000); // Reduced timeout for better UX
-            
+            }, 8000);
             setButtonHideTimeout(timeout);
           }
-          
           return newDistance;
         });
       } else if (currentScrollDirection === 'down') {
-        // Reset tracking when scrolling down significantly
-        if (scrollDistance > 20) {
-          setScrollUpDistance(0);
-          setTopScrollAttempts(0);
-        }
-        
-        // Hide button when scrolling down from top
         if (scrollTop > 100 && showLoadNewButton) {
           setShowLoadNewButton(false);
           if (buttonHideTimeout) {
@@ -145,31 +120,28 @@ export default function Community({ user }) {
             setButtonHideTimeout(null);
           }
         }
+        setScrollUpDistance(0);
+        setTopScrollAttempts(0);
       }
-      
-      // Load more when within 500px of bottom OR implement cycling
-      if (scrollBottom < 500 && !isLoadingRef.current) {
+
+      // Infinite scroll logic
+      if (scrollBottom < 500 && hasMore && !isLoadingRef.current) {
         isLoadingRef.current = true;
         setIsLoadingMore(true);
         
-        // Store current scroll position for restoration
-        const currentScrollHeight = container.scrollHeight;
-        const currentScrollTop = container.scrollTop;
+        const currentScrollHeight = scrollHeight;
+        const currentScrollTop = scrollTop;
         
         try {
           const result = await loadMorePosts(currentOffset);
           
           if (result) {
-            // Check if we have more posts OR if we should cycle
             if (result.hasMore === true) {
               setHasMore(true);
             } else if (!result.hasMore && cyclingInfo?.totalPostsInCycle > 0) {
-              // Implement cycling: restart from beginning
               console.log('End of posts reached, cycling back to start...');
-              setHasMore(true); // Keep loading enabled for cycling
-              setCurrentOffset(0); // Reset offset to start cycling
-              
-              // Load posts from the beginning to implement cycling
+              setHasMore(true);
+              setCurrentOffset(0);
               const cyclingResult = await loadMorePosts(0);
               if (cyclingResult?.posts) {
                 setCurrentOffset(cyclingResult.posts.length);
@@ -179,51 +151,23 @@ export default function Community({ user }) {
             }
             
             if (result.posts && result.posts.length > 0) {
-              // Update offset based on actual new posts added
               setCurrentOffset(prev => prev + result.posts.length);
-              
-              // Use requestAnimationFrame to ensure DOM has updated before adjusting scroll
               requestAnimationFrame(() => {
-                if (container && container.scrollHeight > currentScrollHeight) {
-                  container.scrollTop = currentScrollTop;
+                if (containerRef.current && containerRef.current.scrollHeight > currentScrollHeight) {
+                  containerRef.current.scrollTop = currentScrollTop;
                 }
               });
             }
           } else {
-            // No response - stop loading
             setHasMore(false);
           }
         } catch (error) {
           console.error('Error loading more posts:', error);
-          // Don't set hasMore to false on network errors - allow retry
         } finally {
           setIsLoadingMore(false);
           isLoadingRef.current = false;
         }
       }
-      
-      // Load newer content when at top and scrolling up
-      // if (scrollTop < 100) {
-      //   const scrollUpVelocity = container.dataset.lastScrollTop 
-      //     ? parseInt(container.dataset.lastScrollTop) - scrollTop 
-      //     : 0;
-      //   
-      //   if (scrollUpVelocity > 50 && !isRefreshing) {
-      //     setIsRefreshing(true);
-      //     
-      //     try {
-      //       const result = await loadNewerPosts();
-      //       setCurrentOffset(20);
-      //       setHasMore(true);
-      //     } catch (error) {
-      //       console.error('Error loading newer posts:', error);
-      //     } finally {
-      //       setIsRefreshing(false);
-      //     }
-      //   }
-      // }
-      
-      container.dataset.lastScrollTop = scrollTop;
     };
 
     const container = containerRef.current;
@@ -236,9 +180,9 @@ export default function Community({ user }) {
         }
       };
     }
-  }, [loadMorePosts, hasMore, cyclingInfo]); // Remove frequently changing dependencies
+  }, [loadMorePosts, hasMore, cyclingInfo]);
 
-  // Enhanced touch handling for pull-to-refresh (SINGLE DECLARATION)
+  // Touch handling for pull-to-refresh
   const handleTouchStart = (e) => {
     setTouchStart(e.targetTouches[0].clientY);
   };
@@ -250,21 +194,18 @@ export default function Community({ user }) {
   const handleTouchEnd = async () => {
     if (!touchStart || !touchEnd) return;
     
-    const distance = touchEnd - touchStart; // Fixed: should be touchEnd - touchStart for down swipe
-    const isDownSwipe = distance > 100; // This is actually a downward swipe (pull down)
+    const distance = touchEnd - touchStart;
+    const isDownSwipe = distance > 100;
     const container = containerRef.current;
     
-    // Pull down to refresh when at the top
     if (isDownSwipe && container && container.scrollTop < 50) {
       setIsRefreshing(true);
-      
       try {
         const result = await loadNewerPosts();
         setCurrentOffset(20);
         setHasMore(true);
       } catch (error) {
         console.error('Error refreshing feed:', error);
-        // Optionally show user-friendly error message
       } finally {
         setIsRefreshing(false);
       }
@@ -274,7 +215,6 @@ export default function Community({ user }) {
     setTouchEnd(0);
   };
 
-3  // Enhanced handleNewPost with proper optimistic updates
   const handleNewPost = async (content, image, video) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticPost = {
@@ -296,12 +236,10 @@ export default function Community({ user }) {
       isOptimistic: true
     };
 
-    // Add optimistically first
     addPostOptimistically(optimisticPost);
     setActiveTab("forYou");
     setShowCreate(false);
 
-    // Scroll to top to show the new post
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
@@ -320,13 +258,11 @@ export default function Community({ user }) {
       
       if (res.ok) {
         const newPost = await res.json();
-        // Replace optimistic post with real post
         updatePost(tempId, { ...newPost, sending: false, isOptimistic: false });
         console.log('Post created successfully:', newPost);
       } else {
         const errorData = await res.json();
         console.error("Failed to create post:", errorData);
-        // Mark as failed but keep visible with retry option
         updatePost(tempId, { 
           ...optimisticPost, 
           sending: false, 
@@ -336,7 +272,6 @@ export default function Community({ user }) {
       }
     } catch (error) {
       console.error("Error creating post:", error);
-      // Mark as failed but keep visible with retry option
       updatePost(tempId, { 
         ...optimisticPost, 
         sending: false, 
@@ -346,7 +281,6 @@ export default function Community({ user }) {
     }
   };
 
-  // Add a comment to a post
   const handleComment = async (postId, commentContent) => {
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
     try {
@@ -360,9 +294,8 @@ export default function Community({ user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Update cached post
         updatePost(postId, data);
-        return data; // Return the updated post
+        return data;
       } else {
         console.error("Failed to add comment");
         return null;
@@ -373,7 +306,6 @@ export default function Community({ user }) {
     }
   };
 
-  // Add a reply to a comment
   const handleReply = async (postId, replyContent, commentId) => {
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
     try {
@@ -387,9 +319,8 @@ export default function Community({ user }) {
       });
       if (res.ok) {
         const data = await res.json();
-        // Update cached post
         updatePost(postId, data);
-        return data; // Return the updated post
+        return data;
       } else {
         console.error("Failed to add reply");
         return null;
@@ -400,30 +331,23 @@ export default function Community({ user }) {
     }
   };
 
-  // Like a post (Let ChatPost handle optimistic updates)
   const handleLike = async (postId) => {
-    // Don't do optimistic updates here - let ChatPost handle it
-    // Just call the API - ChatPost already handles the optimistic updates
-    return; // ChatPost handles everything
+    return;
   };
 
-  // View a post (local state only)
   const handleView = async (postId) => {
     if (!postId) return;
 
-    // Use localStorage to track viewed posts
     const viewedPosts = JSON.parse(localStorage.getItem("viewedPosts") || "[]");
     if (!viewedPosts.includes(postId)) {
       viewedPosts.push(postId);
       localStorage.setItem("viewedPosts", JSON.stringify(viewedPosts));
 
-      // Update view count in cache
       const post = communityPosts.find(p => p._id === postId);
       if (post) {
         updatePost(postId, { ...post, views: (post.views || 0) + 1 });
       }
 
-      // Call API in background
       try {
         await incrementPostViews(postId);
       } catch (error) {
@@ -432,9 +356,7 @@ export default function Community({ user }) {
     }
   };
 
-  // Enhanced handleDeletePost with immediate optimistic removal
   const handleDeletePost = async (postId) => {
-    // Immediately remove from UI (optimistic delete)
     deletePost(postId);
     
     const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -449,16 +371,12 @@ export default function Community({ user }) {
       
       if (!res.ok) {
         console.error("Failed to delete post on server");
-        // Could re-add the post here if you want to handle failure
-        // But for UX, we keep it deleted from UI
       }
     } catch (error) {
       console.error("Error deleting post:", error);
-      // Could re-add the post here if you want to handle failure
     }
   };
 
-  // Enhanced fresh content loading with actual database queries
   const handleLoadFreshPosts = async () => {
     setIsLoadingFresh(true);
     setShowLoadNewButton(false);
@@ -470,15 +388,12 @@ export default function Community({ user }) {
     }
     
     try {
-      // Force a completely fresh database query
       const result = await loadFreshContent();
       setCurrentOffset(result?.nextOffset || 20);
       setHasMore(true);
       
-      // Reset view tracking for fresh content
       localStorage.removeItem("viewedPosts");
       
-      // Scroll to top to show fresh content
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
       }
@@ -491,7 +406,6 @@ export default function Community({ user }) {
     }
   };
 
-  // Helper function to preserve scroll position during content updates
   const preserveScrollPosition = useCallback((callback) => {
     const container = containerRef.current;
     if (!container) return callback();
@@ -501,7 +415,6 @@ export default function Community({ user }) {
     
     callback();
     
-    // Use requestAnimationFrame to ensure DOM updates are complete
     requestAnimationFrame(() => {
       if (container.scrollHeight !== scrollHeight) {
         container.scrollTop = scrollTop;
@@ -509,18 +422,14 @@ export default function Community({ user }) {
     });
   }, []);
 
-  // Show cached data immediately with background refresh indicator
   const showLoading = loadingStates.posts && communityPosts.length === 0;
 
-  // Scroll position restoration effect
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     
-    // Store scroll position when posts change
     const currentScrollTop = container.scrollTop;
     
-    // Restore scroll position after a short delay to allow for rendering
     const timeoutId = setTimeout(() => {
       if (container && currentScrollTop > 0) {
         container.scrollTop = currentScrollTop;
@@ -528,7 +437,7 @@ export default function Community({ user }) {
     }, 10);
     
     return () => clearTimeout(timeoutId);
-  }, [communityPosts.length]); // Only trigger when the number of posts changes
+  }, [communityPosts.length]);
 
   return (
     <div 
@@ -543,7 +452,6 @@ export default function Community({ user }) {
         overscrollBehavior: 'none'
       }}
     >
-      {/* Fresh content indicator - Improved mobile styling */}
       {isRefreshing && (
         <div className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-lg z-50">
           <div className="flex items-center gap-1 sm:gap-2 whitespace-nowrap">
@@ -553,18 +461,22 @@ export default function Community({ user }) {
         </div>
       )}
 
-      {/* Tabs Section - Keep padding */}
-      <div className="flex-shrink-0 px-4 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex w-full max-w-full overflow-x-auto no-scrollbar">
+      <div 
+        className={`flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 transition-all duration-200 ${
+          showTabs ? "opacity-100 translate-y-0 h-auto py-4" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
+        }`}
+        style={{ willChange: "transform, opacity, height" }}
+      >
+        <div className="flex w-full max-w-full overflow-x-auto no-scrollbar px-4">
           <CommunityTabs
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             onCreatePost={() => setShowCreate(true)}
+            visible={showTabs}
           />
         </div>
       </div>
 
-      {/* Posts Section - Remove horizontal padding */}
       <div 
         ref={containerRef}
         className="flex-1 overflow-y-auto overflow-x-hidden py-4 bg-gray-50 dark:bg-gray-800 hide-scrollbar community-posts-section"
@@ -582,8 +494,7 @@ export default function Community({ user }) {
           />
         )}
 
-        {/* Loading indicator for initial load */}
-        {loadingStates.posts && communityPosts.length === 0 ? (
+        {showLoading ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
             Loading posts...
@@ -611,7 +522,6 @@ export default function Community({ user }) {
               />
             </div>
             
-            {/* Loading more indicator - Always show when loading */}
             {isLoadingMore && (
               <div className="p-6 text-center">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
@@ -619,7 +529,6 @@ export default function Community({ user }) {
               </div>
             )}
             
-            {/* Show appropriate message when not loading */}
             {!isLoadingMore && communityPosts.length > 0 && (
               <div className="p-6 text-center">
                 {isLoadingMore ? (
@@ -645,7 +554,6 @@ export default function Community({ user }) {
         )}
       </div>
 
-      {/* Floating "Load New Posts" Button - Improved mobile styling */}
       {showLoadNewButton && !isLoadingFresh && (
         <button
           className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
@@ -658,7 +566,6 @@ export default function Community({ user }) {
         </button>
       )}
 
-      {/* Loading fresh posts indicator - Improved mobile styling */}
       {isLoadingFresh && (
         <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-2 py-1.5 sm:px-4 sm:py-2.5 rounded-full shadow-lg z-50">
           <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
@@ -668,7 +575,6 @@ export default function Community({ user }) {
         </div>
       )}
 
-      {/* Floating Create Post Button */}
       <button
         className="fixed bottom-20 sm:bottom-8 right-8 md:right-24 z-50 flex items-center gap-2 px-5 py-3 bg-[#a99d6b] text-white rounded-full font-semibold shadow-lg hover:bg-[#c2b77a] transition max-w-[95vw] truncate"
         onClick={() => setShowCreate(true)}
