@@ -503,7 +503,7 @@ export default function MediaDisplay({
             <img
               src={imageUrl}
               alt={altText}
-              className="w-full h-auto object-cover border border-gray-200 dark:border-gray-600 shadow-sm"
+              className="w-full h-auto object-cover border border-gray-200 dark:border-gray-600 shadow-sm" // no rounded
               loading="lazy"
               onError={() => setMediaError(true)}
             />
@@ -629,8 +629,7 @@ export default function MediaDisplay({
             <video
               ref={mediaRef}
               src={videoUrl}
-              className="w-full max-w-full h-full object-contain"
-              style={{ display: 'block', maxWidth: '100vw' }}
+              className="w-full max-w-full h-full object-contain" // no rounded
               muted={isMuted}
               loop
               playsInline={true}

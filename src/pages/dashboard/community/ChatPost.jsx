@@ -583,8 +583,8 @@ export default function ChatPost({
       {(post.image || post.video) && (
         <div
           ref={postRef}
-          className="rounded-t-xl rounded-b-none border-x border-t border-b-0 border-gray-200 dark:border-gray-700 overflow-hidden flex justify-center items-center"
-          style={{ maxWidth: "100%", maxHeight: "60vh" }}
+          className="border-x border-t border-b-0 border-gray-200 dark:border-gray-700 overflow-hidden flex justify-center items-center"
+          style={{ maxWidth: "100%", maxHeight: "60vh", borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
         >
           <MediaDisplay 
             imageUrl={post.image} 
@@ -597,7 +597,7 @@ export default function ChatPost({
 
       {/* Card wrapper for the rest */}
       <div
-        className="rounded-xl p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all overflow-x-hidden max-w-full"
+        className={`p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all overflow-x-hidden max-w-full rounded-none rounded-b-xl`}
         style={{ maxWidth: "100%" }}
       >
         {/* Username and caption below media (no icon) */}
