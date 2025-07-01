@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, createContext, useContext } from 'react';
-import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaVolumeDown, FaChevronDown, FaChevronUp, FaEye, FaEyeSlash, FaExpand, FaCompress } from 'react-icons/fa';
+import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaVolumeDown, FaChevronDown, FaChevronUp, FaEye, FaEyeSlash, FaExpand, FaCompress, FaArrowLeft } from 'react-icons/fa';
 
 // Create a context for managing mute state globally
 const MuteContext = createContext({
@@ -56,11 +56,14 @@ export default function MediaDisplay({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [hideMedia, setHideMedia] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [isImageCropped, setIsImageCropped] = useState(false);
   
   const mediaRef = useRef(null);
   const containerRef = useRef(null);
   const timeoutRef = useRef(null);
   const volumeTimeoutRef = useRef(null);
+  const imgRef = useRef(null);
 
   // Enhanced device detection
   const isActualMobile = useMemo(() => {
@@ -497,19 +500,84 @@ export default function MediaDisplay({
   // Render image
   if (imageUrl && !hasMedia) {
     return (
-      <div className="w-full overflow-x-hidden">
+      <div className="w-full overflow-x-hidden relative">
         {!hideMedia && (
-          <div className="w-full overflow-x-hidden">
+          <div className="w-full overflow-x-hidden relative">
             <img
+              ref={imgRef}
               src={imageUrl}
               alt={altText}
-              className="w-full h-auto object-cover border border-gray-200 dark:border-gray-600 shadow-sm" // no rounded
+              className="w-full h-auto object-cover border border-gray-200 dark:border-gray-600 shadow-sm"
               loading="lazy"
               onError={() => setMediaError(true)}
+              style={{ cursor: isImageCropped ? "zoom-in" : "default" }}
+              onClick={() => isImageCropped && setShowImageModal(true)}
+              onLoad={() => {
+                if (imgRef.current) {
+                  const cropped =
+                    imgRef.current.naturalHeight > imgRef.current.clientHeight + 2 ||
+                    imgRef.current.naturalWidth > imgRef.current.clientWidth + 2;
+                  console.log('Image loaded:', {
+                    naturalHeight: imgRef.current.naturalHeight,
+                    clientHeight: imgRef.current.clientHeight,
+                    naturalWidth: imgRef.current.naturalWidth,
+                    clientWidth: imgRef.current.clientWidth,
+                    cropped
+                  });
+                  setIsImageCropped(cropped);
+                }
+              }}
             />
+            {/* Fullscreen switch button */}
+            {isImageCropped && (
+              <FaExpand
+                onClick={e => {
+                  e.stopPropagation();
+                  setShowImageModal(true);
+                }}
+                className="absolute bottom-2 right-2 cursor-pointer shadow-md"
+                size={28}
+                style={{
+                  color: "#a99d6b",
+                  background: "white",
+                  borderRadius: "50%",
+                  padding: "6px",
+                  zIndex: 10,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)"
+                }}
+                title="View full image"
+              />
+            )}
           </div>
         )}
         {renderImageCaption()}
+
+        {/* Modal for full image */}
+        {showImageModal && (
+          <div
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90"
+            onClick={() => setShowImageModal(false)}
+            style={{ cursor: "zoom-out" }}
+          >
+            <FaArrowLeft
+              onClick={e => {
+                e.stopPropagation();
+                setShowImageModal(false);
+              }}
+              className="absolute top-6 right-6 cursor-pointer"
+              size={32}
+              style={{ color: "#a99d6b", zIndex: 60, background: "white", borderRadius: "50%", padding: "6px" }}
+              title="Back to Feed"
+            />
+            <img
+              src={imageUrl}
+              alt={altText}
+              className="max-w-full max-h-full"
+              style={{ objectFit: "contain" }}
+              onClick={e => e.stopPropagation()} // Prevent modal close on image click
+            />
+          </div>
+        )}
       </div>
     );
   }
