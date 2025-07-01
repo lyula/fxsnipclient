@@ -616,7 +616,7 @@ export default function MediaDisplay({
         {!hideMedia && (
           <div 
             ref={containerRef}
-            className="relative bg-black overflow-hidden cursor-pointer w-screen max-w-none"
+            className="relative bg-black overflow-hidden cursor-pointer w-full flex justify-center items-center"
             style={{
               minHeight: isFullscreen ? '100vh' : shouldUseMobileLayout ? '60vh' : '50vh',
               height: isFullscreen ? '100vh' : shouldUseMobileLayout ? '60vh' : '50vh',
