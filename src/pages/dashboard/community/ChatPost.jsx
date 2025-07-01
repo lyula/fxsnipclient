@@ -597,7 +597,9 @@ export default function ChatPost({
 
       {/* Card wrapper for the rest */}
       <div
-        className={`p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all overflow-x-hidden max-w-full rounded-none rounded-b-xl`}
+        className={`p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all overflow-x-hidden max-w-full ${
+          post.image || post.video ? "rounded-none rounded-b-xl" : "rounded-xl"
+        }`}
         style={{ maxWidth: "100%" }}
       >
         {/* Username and caption below media (no icon) */}
