@@ -583,12 +583,14 @@ export default function ChatPost({
       {(post.image || post.video) && (
         <div
           ref={postRef}
-          className="rounded-t-xl rounded-b-none border-x border-t border-b-0 border-gray-200 dark:border-gray-700 overflow-hidden"
+          className="rounded-t-xl rounded-b-none border-x border-t border-b-0 border-gray-200 dark:border-gray-700 overflow-hidden flex justify-center items-center"
+          style={{ maxWidth: "100%", maxHeight: "60vh" }}
         >
           <MediaDisplay 
             imageUrl={post.image} 
             videoUrl={post.video}
             altText={`${post.author?.username || 'User'}'s post media`}
+            className="max-w-full max-h-[60vh] object-contain w-auto h-auto"
           />
         </div>
       )}

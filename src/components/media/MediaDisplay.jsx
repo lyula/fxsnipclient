@@ -1,5 +1,3 @@
-MediaDisplay.jsx
-
 import React, { useState, useRef, useEffect, useMemo, createContext, useContext } from 'react';
 import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaVolumeDown, FaChevronDown, FaChevronUp, FaEye, FaEyeSlash, FaExpand, FaCompress } from 'react-icons/fa';
 
@@ -28,7 +26,8 @@ export default function MediaDisplay({
   audioUrl, 
   altText = "Media content", 
   caption = "", 
-  showCaptionOverlay = false
+  showCaptionOverlay = false,
+  className = ""
 }) {
   const { isMuted, setIsMuted } = useContext(MuteContext); // Use global mute state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -504,7 +503,7 @@ export default function MediaDisplay({
             <img
               src={imageUrl}
               alt={altText}
-              className="w-full h-auto object-cover rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm"
+              className="w-full h-auto object-cover border border-gray-200 dark:border-gray-600 shadow-sm"
               loading="lazy"
               onError={() => setMediaError(true)}
             />
@@ -820,5 +819,25 @@ export default function MediaDisplay({
     );
   }
 
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={altText}
+        className={`block ${className}`}
+        style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain" }}
+      />
+    );
+  }
+  if (videoUrl) {
+    return (
+      <video
+        src={videoUrl}
+        controls
+        className={`block ${className}`}
+        style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain" }}
+      />
+    );
+  }
   return null;
 }
