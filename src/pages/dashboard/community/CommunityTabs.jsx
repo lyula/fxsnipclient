@@ -25,9 +25,6 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost })
           Following
         </button>
       </div>
-      <div className="flex-1 px-2 py-4 bg-gray-50 dark:bg-gray-800 scrollbar-hide overflow-y-visible sm:overflow-y-auto">
-        {/* Content based on the active tab */}
-      </div>
     </div>
   );
 }
