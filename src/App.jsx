@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import PublicLayout from "./components/layout/PublicLayout";
 import PrivateLayout from "./components/layout/PrivateLayout";
 import Landing from "./pages/Landing";
@@ -29,6 +29,7 @@ function Placeholder({ title }) {
 function App() {
   const [darkMode] = useTheme();
   const [isMobile, setIsMobile] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -51,36 +52,65 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      document.addEventListener("swUpdated", () => {
+        setShowUpdate(true);
+      });
+    }
+  }, []);
+
+  const handleUpdate = () => {
+    setShowUpdate(false);
+    window.location.reload();
+  };
+
   return (
     <Router>
-      <Routes>
-        <Route path="/terms" element={<Terms />} />
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/markets" element={<Markets />} />
-        </Route>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        
-        {/* Wrap Dashboard routes with DashboardProvider */}
-        <Route path="/dashboard/*" element={
-          <DashboardProvider>
-            <Dashboard />
-          </DashboardProvider>
-        } />
-        
-        <Route element={<PrivateLayout />}>
-          <Route path="/tsr" element={<Placeholder title="TSR" />} />
-          <Route path="/stats" element={<Placeholder title="Stats" />} />
+      <>
+        <Routes>
+          <Route path="/terms" element={<Terms />} />
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/markets" element={<Markets />} />
+          </Route>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* Wrap Dashboard routes with DashboardProvider */}
           <Route
-            path="/user-profile"
-            element={isMobile ? <MobileUserProfile /> : <UserProfile />}
+            path="/dashboard/*"
+            element={
+              <DashboardProvider>
+                <Dashboard />
+              </DashboardProvider>
+            }
           />
-        </Route>
-      </Routes>
+
+          <Route element={<PrivateLayout />}>
+            <Route path="/tsr" element={<Placeholder title="TSR" />} />
+            <Route path="/stats" element={<Placeholder title="Stats" />} />
+            <Route
+              path="/user-profile"
+              element={isMobile ? <MobileUserProfile /> : <UserProfile />}
+            />
+          </Route>
+        </Routes>
+        {showUpdate && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50">
+            A new version is available.
+            <button
+              onClick={handleUpdate}
+              className="ml-4 underline"
+            >
+              Update
+            </button>
+          </div>
+        )}
+      </>
     </Router>
   );
 }
