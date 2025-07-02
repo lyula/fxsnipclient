@@ -178,11 +178,13 @@ export default function ChatPost({
   
   const commentsRef = useRef(null);
   const postRef = useRef();
+  const previousContentRef = useRef(post.content); // Store previous content for reversion
 
   const { search } = useLocation();
 
   useEffect(() => {
     setLocalPost(post);
+    previousContentRef.current = post.content; // Update previous content on post change
   }, [post]);
 
   useEffect(() => {
@@ -433,19 +435,58 @@ export default function ChatPost({
   };
 
   const handleSavePostEdit = async () => {
+    if (!editPostContent.trim()) {
+      setError("Post content cannot be empty");
+      return;
+    }
+
+    // Store the current content for reversion in case of failure
+    const previousContent = localPost.content;
+
+    // Optimistically update the UI
+    setLocalPost(prev => ({
+      ...prev,
+      content: editPostContent,
+      editedAt: new Date().toISOString(), // Update editedAt for EditedIndicator
+    }));
+
     try {
       const updatedPost = await editPost(localPost._id, editPostContent, localPost.image);
-      // Use the backend response directly - don't override edit flags
-      setLocalPost(updatedPost);
-      setEditingPost(false);
+      // Validate server response
+      if (updatedPost && updatedPost.content) {
+        setLocalPost(prev => ({
+          ...prev,
+          ...updatedPost, // Merge server response, preserving client-side state
+        }));
+        previousContentRef.current = updatedPost.content;
+      } else {
+        // Revert on invalid response
+        setLocalPost(prev => ({
+          ...prev,
+          content: previousContent,
+          editedAt: updatedPost.editedAt || prev.editedAt,
+        }));
+        setError("Invalid response from server. Changes not saved.");
+      }
     } catch (error) {
+      // Revert on error
+      setLocalPost(prev => ({
+        ...prev,
+        content: previousContent,
+        editedAt: prev.editedAt,
+      }));
+      setError("Failed to save post edits. Please try again.");
       console.error("Error editing post:", error);
+    } finally {
+      setEditingPost(false);
+      setEditPostContent("");
     }
   };
 
   const handleCancelPostEdit = () => {
     setEditingPost(false);
     setEditPostContent("");
+    setError(null); // Clear any existing errors
   };
 
   const handleDeletePost = async () => {
@@ -455,6 +496,7 @@ export default function ChatPost({
         if (onDelete) onDelete(localPost._id);
       } catch (error) {
         console.error("Error deleting post:", error);
+        setError("Failed to delete post. Please try again.");
       }
     }
     setShowPostMenu(false);
@@ -469,18 +511,19 @@ export default function ChatPost({
   const handleSaveCommentEdit = async (commentId) => {
     try {
       const updatedPost = await editComment(localPost._id, commentId, editCommentContent);
-      // Use the backend response directly - don't override edit flags
       setLocalPost(updatedPost);
       setEditingComment(null);
       setEditCommentContent("");
     } catch (error) {
       console.error("Error editing comment:", error);
+      setError("Failed to edit comment. Please try again.");
     }
   };
 
   const handleCancelCommentEdit = () => {
     setEditingComment(null);
     setEditCommentContent("");
+    setError(null);
   };
 
   const handleDeleteComment = async (commentId) => {
@@ -490,6 +533,7 @@ export default function ChatPost({
         setLocalPost(updatedPost);
       } catch (error) {
         console.error("Error deleting comment:", error);
+        setError("Failed to delete comment. Please try again.");
       }
     }
     setShowCommentMenus(prev => ({ ...prev, [commentId]: false }));
@@ -504,18 +548,19 @@ export default function ChatPost({
   const handleSaveReplyEdit = async (commentId, replyId) => {
     try {
       const updatedPost = await editReply(localPost._id, commentId, replyId, editReplyContent);
-      // Use the backend response directly - don't override edit flags
       setLocalPost(updatedPost);
       setEditingReply(null);
       setEditReplyContent("");
     } catch (error) {
       console.error("Error editing reply:", error);
+      setError("Failed to edit reply. Please try again.");
     }
   };
 
   const handleCancelReplyEdit = () => {
     setEditingReply(null);
     setEditReplyContent("");
+    setError(null);
   };
 
   const handleDeleteReply = async (commentId, replyId) => {
@@ -525,6 +570,7 @@ export default function ChatPost({
         setLocalPost(updatedPost);
       } catch (error) {
         console.error("Error deleting reply:", error);
+        setError("Failed to delete reply. Please try again.");
       }
     }
     setShowReplyMenus(prev => ({ ...prev, [`${commentId}-${replyId}`]: false }));
@@ -558,23 +604,29 @@ export default function ChatPost({
 
   return (
     <>
-      {/* HR and Username above media (no icon, no caption) */}
+      {/* HR and Username above media (with bold dot and timestamp) */}
       {(post.image || post.video) && (
         <>
           <hr className="my-2 border-gray-200 dark:border-gray-700" />
           <div className="px-2 pt-4 pb-2">
-            <Link
-              to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-              className="flex items-center gap-2 font-bold text-gray-800 dark:text-white hover:underline"
-            >
+            <div className="flex items-center gap-2">
               <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
                 <FaUser className="text-gray-400 text-lg" />
               </span>
-              {post.author?.username || post.user}
-              {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
-                <VerifiedBadge />
-              )}
-            </Link>
+              <Link
+                to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
+                className="font-bold text-gray-800 dark:text-white hover:underline"
+              >
+                {post.author?.username || post.user}
+                {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
+                  <VerifiedBadge />
+                )}
+              </Link>
+              <span className="font-bold text-gray-800 dark:text-white">•</span>
+              <span className="text-xs text-gray-400 flex items-center">
+                {formatPostDate(post.createdAt)}
+              </span>
+            </div>
           </div>
         </>
       )}
@@ -602,10 +654,10 @@ export default function ChatPost({
         }`}
         style={{ maxWidth: "100%" }}
       >
-        {/* Username and caption below media (no icon) */}
+        {/* Username, EditedIndicator, and three-dot menu below media (before caption) */}
         {(post.image || post.video) && (
-          <div className="mb-2">
-            <div className="flex items-center mb-1">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
               <Link
                 to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
                 className="font-bold text-gray-800 dark:text-white flex items-center hover:underline"
@@ -615,20 +667,77 @@ export default function ChatPost({
                   <VerifiedBadge />
                 )}
               </Link>
-              <span className="ml-3 text-xs text-gray-400 flex items-center">
-                {formatPostDate(post.createdAt)}
-                <EditedIndicator item={localPost} />
-              </span>
+              <EditedIndicator item={localPost} />
             </div>
-            <span className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words">
-              {renderHighlightedContent(localPost.content)}
-            </span>
+            {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowPostMenu(!showPostMenu)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <FaEllipsisV />
+                </button>
+                {showPostMenu && (
+                  <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
+                    {canEditDelete(post.author?._id || post.author) && (
+                      <button
+                        onClick={handleEditPost}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                      >
+                        <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
+                      </button>
+                    )}
+                    <button
+                      onClick={handleDeletePost}
+                      className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+                    >
+                      <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Card header for posts without media (with icon) */}
+        {/* Caption/content for media posts (with edit mode) */}
+        {(post.image || post.video) && (
+          <div className="mb-2">
+            {editingPost ? (
+              <div className="space-y-3">
+                <textarea
+                  value={editPostContent}
+                  onChange={e => setEditPostContent(e.target.value)}
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Edit your post..."
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={handleSavePostEdit}
+                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50 transition-colors"
+                    disabled={loadingComment || !editPostContent.trim()}
+                  >
+                    <FaSave size={10} /> Save
+                  </button>
+                  <button
+                    onClick={handleCancelPostEdit}
+                    className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-xs transition-colors"
+                  >
+                    <FaTimes size={10} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <span className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words">
+                {renderHighlightedContent(localPost.content || '')}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Card header for posts without media (with icon and edit mode) */}
         {!(post.image || post.video) && (
-          
           <div className="flex items-center mb-3">
             <Link 
               to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
@@ -713,12 +822,39 @@ export default function ChatPost({
           </div>
         )}
 
-        {/* Caption/content for posts without media */}
+        {/* Caption/content for posts without media (with edit mode) */}
         {!(post.image || post.video) && (
           <div className="mb-3">
-            <span className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words">
-              {renderHighlightedContent(localPost.content)}
-            </span>
+            {editingPost ? (
+              <div className="space-y-3">
+                <textarea
+                  value={editPostContent}
+                  onChange={e => setEditPostContent(e.target.value)}
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Edit your post..."
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={handleSavePostEdit}
+                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50 transition-colors"
+                    disabled={loadingComment || !editPostContent.trim()}
+                  >
+                    <FaSave size={10} /> Save
+                  </button>
+                  <button
+                    onClick={handleCancelPostEdit}
+                    className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-xs transition-colors"
+                  >
+                    <FaTimes size={10} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <span className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words">
+                {renderHighlightedContent(localPost.content || '')}
+              </span>
+            )}
           </div>
         )}
 
