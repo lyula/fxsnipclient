@@ -5,8 +5,7 @@ import { useTheme } from "../hooks/useTheme";
 import { loginUser } from "../utils/api";
 import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/auth";
-import usePWAInstallPrompt from "../../hooks/usePWAInstallPrompt"; // adjust path as needed
-
+import usePWAInstallPrompt from "../hooks/usePWAInstallPrompt";
 export default function Login() {
   const { refreshUser } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
