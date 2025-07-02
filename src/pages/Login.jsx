@@ -5,6 +5,7 @@ import { useTheme } from "../hooks/useTheme";
 import { loginUser } from "../utils/api";
 import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/auth";
+import usePWAInstallPrompt from "../../hooks/usePWAInstallPrompt"; // adjust path as needed
 
 export default function Login() {
   const { refreshUser } = useAuth();
@@ -15,6 +16,7 @@ export default function Login() {
   const [dotCount, setDotCount] = useState(1);
   const navigate = useNavigate();
   const [darkMode, setDarkMode] = useTheme();
+  const { deferredPrompt, isStandalone } = usePWAInstallPrompt();
 
   // Animate dots for "Logging in..."
   React.useEffect(() => {
@@ -54,6 +56,13 @@ export default function Login() {
     } catch (err) {
       setLoggingIn(false);
       setError(err.message || "Login failed.");
+    }
+  };
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
     }
   };
 
@@ -126,6 +135,15 @@ export default function Login() {
             Register
           </Link>
         </div>
+        {/* Show the "Use Mobile App" button only if not standalone and install is available */}
+        {!isStandalone && deferredPrompt && (
+          <button
+            className="mt-4 w-full bg-blue-600 text-white py-2 rounded"
+            onClick={handleInstallClick}
+          >
+            Use Mobile App
+          </button>
+        )}
       </div>
     </section>
   );

@@ -9,9 +9,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Forex Journal',
-        short_name: 'ForexJournal',
-        description: 'A platform for tracking and analyzing forex trades.',
+        name: 'FXsnip',
+        short_name: 'FXsnip',
+        description: 'A platform for tracking and journaling trades.Socially connect with other traders by posting,commenting to posts replying to comments or direct messages',
         theme_color: '#0f172a',
         background_color: '#ffffff',
         display: 'standalone',
