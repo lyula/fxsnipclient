@@ -219,6 +219,245 @@ html, body, #root {
   }
 }
 
+/* Add these enhanced mobile styles to your App.css */
+
+@media (max-width: 768px) {
+  /* Modern post card styling - Instagram/TikTok inspired */
+  .modern-mobile-post {
+    border-radius: 0 !important;
+    border: none !important;
+    border-bottom: 1px solid rgb(239 243 244) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+    overflow: hidden !important;
+  }
+
+  .dark .modern-mobile-post {
+    border-color: rgb(47 51 54) !important;
+    background: rgb(21 32 43) !important;
+  }
+
+  /* Modern post header */
+  .modern-post-header {
+    padding: 12px 16px 8px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  /* Modern avatar styling */
+  .modern-avatar {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: white !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+  }
+
+  /* Modern username and timestamp */
+  .modern-username {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: rgb(15 20 25) !important;
+    margin: 0 !important;
+  }
+
+  .dark .modern-username {
+    color: rgb(231 233 234) !important;
+  }
+
+  .modern-timestamp {
+    font-size: 13px !important;
+    color: rgb(113 118 123) !important;
+    margin-top: 2px !important;
+  }
+
+  .dark .modern-timestamp {
+    color: rgb(139 152 165) !important;
+  }
+
+  /* Modern content styling */
+  .modern-content {
+    padding: 0 16px 12px 16px !important;
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+    color: rgb(15 20 25) !important;
+  }
+
+  .dark .modern-content {
+    color: rgb(231 233 234) !important;
+  }
+
+  /* Modern media container */
+  .modern-media-container {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    max-height: 70vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: rgb(249 250 251) !important;
+  }
+
+  .dark .modern-media-container {
+    background: rgb(31 41 51) !important;
+  }
+
+  /* Modern engagement bar */
+  .modern-engagement-bar {
+    padding: 8px 16px 16px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 24px !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  /* Modern action buttons */
+  .modern-action-btn {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 12px !important;
+    border-radius: 20px !important;
+    transition: all 0.2s ease !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    min-height: 44px !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .modern-action-btn:hover {
+    background: rgba(29, 155, 240, 0.1) !important;
+  }
+
+  .modern-action-btn.liked {
+    color: rgb(249 24 128) !important;
+  }
+
+  .modern-action-btn.liked:hover {
+    background: rgba(249, 24, 128, 0.1) !important;
+  }
+
+  .modern-action-btn.comment:hover {
+    background: rgba(29, 155, 240, 0.1) !important;
+    color: rgb(29, 155, 240) !important;
+  }
+
+  /* Modern comment section */
+  .modern-comments-section {
+    border-top: 1px solid rgb(239 243 244) !important;
+    margin: 0 !important;
+    padding: 16px !important;
+    background: rgb(249 250 251) !important;
+  }
+
+  .dark .modern-comments-section {
+    border-color: rgb(47 51 54) !important;
+    background: rgb(31 41 51) !important;
+  }
+
+  /* Modern comment input */
+  .modern-comment-input {
+    width: 100% !important;
+    padding: 12px 16px !important;
+    border: 1px solid rgb(207 217 222) !important;
+    border-radius: 20px !important;
+    font-size: 16px !important;
+    background: white !important;
+    outline: none !important;
+    transition: border-color 0.2s !important;
+  }
+
+  .modern-comment-input:focus {
+    border-color: rgb(29, 155, 240) !important;
+  }
+
+  .dark .modern-comment-input {
+    background: rgb(47 51 54) !important;
+    border-color: rgb(83 100 113) !important;
+    color: rgb(231 233 234) !important;
+  }
+
+  /* Modern comment display */
+  .modern-comment {
+    padding: 12px 0 !important;
+    border-bottom: 1px solid rgb(239 243 244) !important;
+    display: flex !important;
+    gap: 12px !important;
+  }
+
+  .dark .modern-comment {
+    border-color: rgb(47 51 54) !important;
+  }
+
+  .modern-comment:last-child {
+    border-bottom: none !important;
+  }
+
+  
+
+  /* Enhanced post status indicators */
+  .modern-post-status {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 4px 8px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  .modern-post-status.viral {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
+    color: white !important;
+  }
+
+  .modern-post-status.trending {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%) !important;
+    color: white !important;
+  }
+
+  .modern-post-status.hot {
+    background: linear-gradient(135deg, #ffa726 0%, #ff7043 100%) !important;
+    color: white !important;
+  }
+
+  /* Force MP4 video optimization on mobile */
+  video {
+    -webkit-playsinline: true !important;
+    playsinline: true !important;
+    object-fit: contain !important;
+  }
+  
+  /* Prevent video format switching on mobile */
+  video source:not([type*="mp4"]) {
+    display: none !important;
+  }
+  
+  /* Optimize video loading on mobile */
+  video[preload="metadata"] {
+    preload: metadata !important;
+  }
+  
+  /* Force H5 player for Android browsers */
+  video[x5-video-player-type="h5"] {
+    object-position: center center !important;
+  }
+}
+
+/* Remove the debug outline */
 * {
-  outline: 1px solid red;
+  outline: none;
 }

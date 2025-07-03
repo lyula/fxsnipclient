@@ -199,12 +199,27 @@ export default function MediaDisplay({
     const media = mediaRef.current;
     if (!media) return;
 
+    // Optimize video for mobile on load
+    if (isVideoMedia && isActualMobile) {
+      optimizeVideoForMobile(media);
+      
+      // Check mobile video support
+      if (!checkMobileVideoSupport()) {
+        console.error('Mobile device may not support MP4 video playback');
+        setMediaError(true);
+        return;
+      }
+    }
+
     const handleLoadedMetadata = () => {
       console.log('Media metadata loaded', {
         width: media.videoWidth || media.clientWidth,
         height: media.videoHeight || media.clientHeight,
-        duration: media.duration
+        duration: media.duration,
+        readyState: media.readyState,
+        networkState: media.networkState
       });
+      
       setVideoData({
         width: media.videoWidth || media.clientWidth,
         height: media.videoHeight || media.clientHeight,
@@ -223,7 +238,7 @@ export default function MediaDisplay({
           setVideoFormat('landscape');
         }
         
-        console.log(`Video detected: ${media.videoWidth}x${media.videoHeight}, aspect ratio: ${aspectRatio.toFixed(2)}, format: ${aspectRatio < 0.75 ? 'portrait' : aspectRatio <= 1.33 ? 'square' : 'landscape'}`);
+        console.log(`Video format detected: ${aspectRatio < 0.75 ? 'portrait' : aspectRatio <= 1.33 ? 'square' : 'landscape'}`);
       }
       
       setDuration(media.duration);
@@ -232,14 +247,42 @@ export default function MediaDisplay({
     };
 
     const handleCanPlay = () => {
-      console.log('Media can play');
+      console.log('Media can play - readyState:', media.readyState);
       setIsLoading(false);
       setCanPlay(true);
-      if (!isActualMobile && isInViewport && !manuallyPaused && !isManualControlActive()) {
-        media.play().catch((error) => {
-          console.error('Initial play failed:', error);
-          setMediaError(true);
-        });
+      setMediaError(false);
+      
+      // For mobile devices, try to play immediately if in viewport
+      if (isActualMobile && isInViewport && !manuallyPaused && !isManualControlActive()) {
+        const playPromise = media.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            console.log('Mobile autoplay failed (expected):', error.message);
+            // Don't set error for autoplay failures on mobile
+          });
+        }
+      }
+    };
+
+    const handleError = (e) => {
+      const error = e.target.error;
+      console.error('Media error details:', {
+        code: error?.code,
+        message: error?.message,
+        src: media.src,
+        readyState: media.readyState,
+        networkState: media.networkState
+      });
+      
+      // Try to recover from network errors
+      if (error?.code === MediaError.MEDIA_ERR_NETWORK) {
+        console.log('Network error detected, attempting to reload...');
+        setTimeout(() => {
+          media.load();
+        }, 1000);
+      } else {
+        setMediaError(true);
+        setIsLoading(false);
       }
     };
 
@@ -258,26 +301,6 @@ export default function MediaDisplay({
       console.log('Media paused');
     };
     
-    const handleError = (e) => {
-      console.error('Media error:', e.target.error);
-      setMediaError(true);
-      setIsLoading(false);
-    };
-
-    const handleLoadStart = () => {
-      setIsLoading(true);
-    };
-
-    const handleWaiting = () => {
-      if (userInteracted) {
-        setIsLoading(true);
-      }
-    };
-
-    const handlePlaying = () => {
-      setIsLoading(false);
-    };
-
     const handleVolumeChange = () => {
       setIsMuted(media.muted);
       setVolume(media.volume);
@@ -289,9 +312,6 @@ export default function MediaDisplay({
     media.addEventListener('play', handlePlay);
     media.addEventListener('pause', handlePause);
     media.addEventListener('error', handleError);
-    media.addEventListener('loadstart', handleLoadStart);
-    media.addEventListener('waiting', handleWaiting);
-    media.addEventListener('playing', handlePlaying);
     media.addEventListener('volumechange', handleVolumeChange);
 
     if (mediaError) {
@@ -305,9 +325,6 @@ export default function MediaDisplay({
       media.removeEventListener('play', handlePlay);
       media.removeEventListener('pause', handlePause);
       media.removeEventListener('error', handleError);
-      media.removeEventListener('loadstart', handleLoadStart);
-      media.removeEventListener('waiting', handleWaiting);
-      media.removeEventListener('playing', handlePlaying);
       media.removeEventListener('volumechange', handleVolumeChange);
     };
   }, [volume, userInteracted, isMuted, isInViewport, manuallyPaused, mediaError, isActualMobile]);
@@ -575,6 +592,52 @@ export default function MediaDisplay({
     );
   };
 
+  // Check if video URL is MP4 format
+  const ensureMP4Format = (videoUrl) => {
+    if (!videoUrl) return videoUrl;
+    
+    // If URL doesn't end with .mp4, try to force MP4 format
+    if (!videoUrl.toLowerCase().includes('.mp4')) {
+      console.warn('Video URL may not be MP4 format:', videoUrl);
+    }
+    
+    return videoUrl;
+  };
+
+  // Mobile video compatibility check
+  const checkMobileVideoSupport = () => {
+    const video = document.createElement('video');
+    const canPlayMP4 = video.canPlayType('video/mp4; codecs="avc1.42E01E,mp4a.40.2"');
+    const canPlayBasicMP4 = video.canPlayType('video/mp4');
+    
+    console.log('Mobile video support:', {
+      mp4WithCodecs: canPlayMP4,
+      basicMP4: canPlayBasicMP4,
+      userAgent: navigator.userAgent
+    });
+    
+    return canPlayMP4 !== '' || canPlayBasicMP4 !== '';
+  };
+
+  // Force video to use MP4 format
+  const optimizeVideoForMobile = (videoElement) => {
+    if (!videoElement) return;
+    
+    // Set mobile-specific attributes
+    videoElement.setAttribute('playsinline', 'true');
+    videoElement.setAttribute('webkit-playsinline', 'true');
+    videoElement.setAttribute('x5-playsinline', 'true');
+    videoElement.setAttribute('x5-video-player-type', 'h5');
+    videoElement.setAttribute('x5-video-player-fullscreen', 'false');
+    
+    // Force muted for autoplay compatibility
+    if (isActualMobile) {
+      videoElement.muted = true;
+    }
+    
+    return videoElement;
+  };
+
   // Render image
   if (imageUrl && !hasMedia) {
     return (
@@ -783,15 +846,56 @@ export default function MediaDisplay({
                 className="w-full max-w-full h-full object-contain"
                 playsInline
                 webkit-playsinline="true"
+                x5-playsinline="true"  // Android WeChat support
+                x5-video-player-type="h5"  // Force H5 player
+                x5-video-player-fullscreen="false"  // Prevent forced fullscreen
                 muted={isMuted}
                 loop
-                preload="auto"
+                preload="metadata"  // Changed from "auto" to reduce loading time
                 controls={false}
                 onClick={handleMediaInteraction}
+                onLoadStart={() => {
+                  console.log('Video loading started');
+                  setIsLoading(true);
+                }}
+                onCanPlayThrough={() => {
+                  console.log('Video can play through');
+                  setIsLoading(false);
+                  setCanPlay(true);
+                  setMediaError(false);
+                }}
+                onError={(e) => {
+                  console.error('Video loading error:', e);
+                  setMediaError(true);
+                  setIsLoading(false);
+                }}
+                onLoadedMetadata={(e) => {
+                  const video = e.target;
+                  console.log('Video metadata loaded:', {
+                    width: video.videoWidth,
+                    height: video.videoHeight,
+                    duration: video.duration
+                  });
+                  setDuration(video.duration);
+                  
+                  // Detect video format for mobile optimization
+                  if (video.videoWidth && video.videoHeight) {
+                    const aspectRatio = video.videoWidth / video.videoHeight;
+                    setVideoAspectRatio(aspectRatio);
+                    
+                    if (aspectRatio < 0.8) {
+                      setVideoFormat('portrait');
+                    } else if (aspectRatio > 1.2) {
+                      setVideoFormat('landscape');
+                    } else {
+                      setVideoFormat('square');
+                    }
+                  }
+                }}
               >
+                {/* Force MP4 format first - most compatible */}
+                <source src={videoUrl} type="video/mp4; codecs=avc1.42E01E,mp4a.40.2" />
                 <source src={videoUrl} type="video/mp4" />
-                <source src={videoUrl} type="video/webm" />
-                <source src={videoUrl} type="video/ogg" />
                 Your browser does not support the video tag.
               </video>
               {/* Autoplay indicator */}
@@ -808,7 +912,7 @@ export default function MediaDisplay({
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
                     <div className="text-sm">Loading video...</div>
                     <div className="text-xs text-gray-300 mt-2">
-                      {shouldUseMobileLayout ? 'Optimizing for mobile format...' : 'Click to play'}
+                      {isActualMobile ? 'Optimized for mobile playback' : 'Click to play'}
                     </div>
                   </div>
                 </div>
@@ -995,14 +1099,18 @@ export default function MediaDisplay({
           controls
           className={`block ${className}`}
           style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain" }}
-        >
-          <source src={videoUrl} type="video/mp4" />
-          <source src={videoUrl} type="video/webm" />
-          <source src={videoUrl} type="video/ogg" />
-          Your browser does not support the video tag.
-        </video>
+          playsInline
+          webkit-playsinline="true"
+          x5-playsinline="true"
+          x5-video-player-type="h5"
+          x5-video-player-fullscreen="false"
+          preload="metadata"
+          onLoadStart={() => console.log('Fallback video loading...')}
+          onCanPlayThrough={() => console.log('Fallback video ready')}
+        />
       </ErrorBoundary>
     );
   }
+
   return null;
 }
