@@ -676,7 +676,7 @@ export default function ChatPost({
       {/* Modern post wrapper - REMOVED hover effects */}
       <div 
         ref={postContainerRef}
-        className="w-full max-w-lg mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
+        className="w-full max-w-2xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
       >

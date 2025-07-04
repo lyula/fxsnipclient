@@ -91,6 +91,12 @@ export default function Profile() {
     e.preventDefault();
     setMessage("");
 
+    // Check if username is the same as current username
+    if (form.username === user.username && form.email === user.email) {
+      setMessage("No changes to save.");
+      return;
+    }
+
     // Client-side username validation (same as registration)
     if (form.username !== user.username) {
       const usernameRegex = /^(?!.*[_.]{2})[a-zA-Z0-9](?!.*[_.]{2})[a-zA-Z0-9._]{1,28}[a-zA-Z0-9]$/;
@@ -100,9 +106,10 @@ export default function Profile() {
         form.username.length < 3 ||
         form.username.length > 30 ||
         /^\d+$/.test(form.username) ||
-        form.username.includes("@")
+        form.username.includes("@") ||
+        form.username.includes(" ") // Add space check
       ) {
-        setMessage("Invalid username. Use 3-30 letters, numbers, underscores, or periods. Cannot be only numbers, start/end with period/underscore, or contain '@'.");
+        setMessage("Invalid username. Use 3-30 letters, numbers, underscores, or periods. Cannot be only numbers, start/end with period/underscore, contain '@', or have spaces.");
         return;
       }
     }
