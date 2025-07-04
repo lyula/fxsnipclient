@@ -541,30 +541,34 @@ export default function UserProfile() {
                   {posts.length === 0 ? (
                     <div className="text-gray-500 dark:text-gray-400 text-center py-8">No posts yet.</div>
                   ) : (
-                    posts
-                      .filter((post) => post.createdAt)
-                      .sort((a, b) => {
-                        const dateA = new Date(a.createdAt);
-                        const dateB = new Date(b.createdAt);
-                        if (isNaN(dateA) || isNaN(dateB)) return 0;
-                        return dateB - dateA;
-                      })
-                      .slice(0, 70)
-                      .map((post) => (
-                        <div key={post._id}>
-                          <ChatPost
-                            post={post}
-                            onReply={handleReply}
-                            onComment={handleComment}
-                            onLike={handleLike}
-                            onView={handleView}
-                            onDelete={handleDeletePost}
-                            currentUserId={currentUser?._id}
-                            currentUsername={currentUser?.username}
-                            currentUserVerified={currentUser?.verified}
-                          />
-                        </div>
-                      ))
+                    <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
+                      <div className="w-full max-w-full overflow-x-hidden space-y-6">
+                        {posts
+                          .filter((post) => post.createdAt)
+                          .sort((a, b) => {
+                            const dateA = new Date(a.createdAt);
+                            const dateB = new Date(b.createdAt);
+                            if (isNaN(dateA) || isNaN(dateB)) return 0;
+                            return dateB - dateA;
+                          })
+                          .slice(0, 70)
+                          .map((post) => (
+                            <div key={post._id}>
+                              <ChatPost
+                                post={post}
+                                onReply={handleReply}
+                                onComment={handleComment}
+                                onLike={handleLike}
+                                onView={handleView}
+                                onDelete={handleDeletePost}
+                                currentUserId={currentUser?._id}
+                                currentUsername={currentUser?.username}
+                                currentUserVerified={currentUser?.verified}
+                              />
+                            </div>
+                          ))}
+                      </div>
+                    </div>
                   )}
                 </>
               )}
