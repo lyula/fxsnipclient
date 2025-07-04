@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { FaSmile, FaPoll, FaImage, FaVideo, FaTimes } from "react-icons/fa";
 import { searchUsers } from "../../../utils/api";
 import { uploadToCloudinary } from "../../../utils/cloudinaryUpload";
@@ -14,11 +14,41 @@ export default function CreatePostBox({ onPost, onClose }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState("");
   const [uploadPercentage, setUploadPercentage] = useState(0);
-  const [previewFile, setPreviewFile] = useState(null); // For immediate preview
-  const [previewType, setPreviewType] = useState(""); // 'image' or 'video'
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewType, setPreviewType] = useState("");
   const textareaRef = useRef(null);
+  const modalRef = useRef(null);
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
+
+  // Auto-scroll to cursor position when typing
+  useEffect(() => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      const scrollToPosition = () => {
+        const modalElement = modalRef.current;
+        if (modalElement) {
+          // Calculate if cursor is visible
+          const textareaRect = textarea.getBoundingClientRect();
+          const modalRect = modalElement.getBoundingClientRect();
+          const cursorPosition = textarea.scrollTop + (textarea.scrollHeight * (textarea.selectionStart / textarea.value.length));
+          
+          // If cursor is near bottom of visible area, scroll modal
+          if (textareaRect.bottom > modalRect.bottom - 100) {
+            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+      };
+      
+      textarea.addEventListener('input', scrollToPosition);
+      textarea.addEventListener('click', scrollToPosition);
+      
+      return () => {
+        textarea.removeEventListener('input', scrollToPosition);
+        textarea.removeEventListener('click', scrollToPosition);
+      };
+    }
+  }, []);
 
   // Handle textarea input for mentions
   const handleContentChange = async (e) => {
@@ -73,7 +103,6 @@ export default function CreatePostBox({ onPost, onClose }) {
   };
 
   const handleSubmit = () => {
-    // Don't allow submission if upload is in progress or no content
     if (isUploading || !content.trim()) {
       return;
     }
@@ -82,7 +111,7 @@ export default function CreatePostBox({ onPost, onClose }) {
     setContent("");
     setImage("");
     setVideo("");
-    cleanupPreview(); // Clean up preview when submitting
+    cleanupPreview();
     onClose();
   };
 
@@ -256,239 +285,220 @@ export default function CreatePostBox({ onPost, onClose }) {
   const canSubmit = content.trim() && !isUploading;
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40">
-      <div className="relative w-full max-w-md flex justify-center">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-full relative z-50">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-start justify-center z-40 p-4 overflow-y-auto">
+      <div 
+        ref={modalRef}
+        className="relative w-full max-w-lg mx-auto mt-8 mb-8 min-h-0"
+      >
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full relative max-h-[85vh] overflow-y-auto">
           
-          {/* 🎯 MEDIA PREVIEW SECTION - MOVED TO TOP AS FIRST ITEM */}
-          {(previewFile || image || video) && (
-            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {(previewType === "video" || video) ? "Video Preview:" : "Image Preview:"}
-                </span>
-                <button
-                  type="button"
-                  onClick={removeMedia}
-                  className="text-red-500 hover:text-red-700 text-sm"
-                  disabled={isUploading}
-                >
-                  Remove
-                </button>
-              </div>
-              
-              {/* Image Preview - Show preview file first, then uploaded image */}
-              {(previewType === "image" || (image && !video)) && (
-                <div className="max-w-full max-h-48 overflow-hidden rounded-lg">
-                  <img
-                    src={previewFile || image}
-                    alt="Preview"
-                    className="w-full h-auto object-cover rounded-lg"
-                    style={{ maxHeight: "200px" }}
-                  />
-                </div>
-              )}
-              
-              {/* Video Preview - Show preview file first, then uploaded video */}
-              {(previewType === "video" || video) && (
-                <div className="max-w-full max-h-48 overflow-hidden rounded-lg">
-                  <video
-                    src={previewFile || video}
-                    controls
-                    className="w-full h-auto object-cover rounded-lg"
-                    style={{ maxHeight: "200px" }}
-                  />
-                </div>
-              )}
-              
-              {/* Status Indicators */}
-              {previewFile && !image && !video && (
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  {isUploading ? "Uploading to cloud..." : "Ready to upload"}
-                </div>
-              )}
-              
-              {((image && !isUploading) || (video && !isUploading)) && (
-                <div className="mt-2 text-xs text-green-600 dark:text-green-400">
-                  ✓ Upload completed successfully! Ready to post.
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 📊 UPLOAD PROGRESS INDICATOR */}
-          {isUploading && (
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-sm text-blue-600 dark:text-blue-300">
-                  {uploadProgress}
-                </div>
-                <div className="text-sm text-blue-600 dark:text-blue-300 font-medium">
-                  {Math.round(uploadPercentage)}%
-                </div>
-              </div>
-              {/* Progress Bar */}
-              <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
-                <div
-                  className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${uploadPercentage}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
-
-          {/* 📝 TEXT INPUT AREA */}
-          <div className="relative">
-            <div className="relative w-full">
-              {/* Highlight layer */}
-              <div
-                className="pointer-events-none absolute inset-0 w-full h-full p-3 rounded-lg whitespace-pre-wrap break-words"
-                style={{
-                  background: "white",
-                  zIndex: 1,
-                  fontFamily: "inherit",
-                  fontSize: "inherit",
-                  lineHeight: "inherit",
-                  letterSpacing: "inherit",
-                  fontWeight: "inherit"
-                }}
-                aria-hidden="true"
-              >
-                {renderHighlightedContent(content)}
-              </div>
-              {/* Transparent text textarea on top */}
-              <textarea
-                ref={textareaRef}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-700 p-3 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] resize-none bg-transparent relative"
-                placeholder="What's on your mind?"
-                rows={3}
-                value={content}
-                onChange={handleContentChange}
-                style={{
-                  position: "relative",
-                  zIndex: 2,
-                  color: "transparent",
-                  caretColor: "#222",
-                  background: "transparent",
-                  fontFamily: "inherit",
-                  fontSize: "inherit",
-                  lineHeight: "inherit",
-                  letterSpacing: "inherit",
-                  fontWeight: "inherit"
-                }}
-              />
-            </div>
-            {showSuggestions && suggestions.length > 0 && (
-              <ul className="z-70 bg-white border border-gray-200 rounded shadow mt-1 w-full">
-                {suggestions.slice(0, 5).map((user) => (
-                  <li
-                    key={user._id || user.username}
-                    className="px-4 py-2 cursor-pointer hover:bg-gray-100"
-                    onClick={() => handleSuggestionClick(user.username)}
-                  >
-                    <span className="text-blue-600">@{user.username}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          
-          {/* 🔘 BUTTONS AREA */}
-          <div className="flex items-center justify-between mt-3">
-            <div className="flex gap-4 text-xl text-gray-500 dark:text-gray-400">
-              {/* Emoji */}
-              <div className="relative group">
-                <button
-                  type="button"
-                  className="focus:outline-none"
-                  onClick={handleEmojiClick}
-                >
-                  <FaSmile />
-                </button>
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
-                  Add emoji
-                </span>
-              </div>
-              
-              {/* Poll */}
-              <div className="relative group">
-                <button type="button" className="focus:outline-none">
-                  <FaPoll />
-                </button>
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
-                  Create poll
-                </span>
-              </div>
-              
-              {/* Image */}
-              <div className="relative group">
-                <button
-                  type="button"
-                  className={`focus:outline-none ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  onClick={() => !isUploading && imageInputRef.current && imageInputRef.current.click()}
-                  disabled={isUploading}
-                >
-                  <FaImage />
-                </button>
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={imageInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleImageChange}
-                  disabled={isUploading}
-                />
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
-                  Attach image
-                </span>
-              </div>
-              
-              {/* Video */}
-              <div className="relative group">
-                <button
-                  type="button"
-                  className={`focus:outline-none ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  onClick={() => !isUploading && videoInputRef.current && videoInputRef.current.click()}
-                  disabled={isUploading}
-                >
-                  <FaVideo />
-                </button>
-                <input
-                  type="file"
-                  accept="video/*"
-                  ref={videoInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleVideoChange}
-                  disabled={isUploading}
-                />
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
-                  Attach video
-                </span>
-              </div>
-            </div>
-            
-            {/* Post Button - Disabled during upload */}
+          {/* Close button - repositioned for mobile */}
+          <div className="sticky top-0 right-0 z-10 flex justify-end p-2">
             <button
-              className={`px-6 py-2 rounded-full font-semibold shadow transition ${
-                canSubmit
-                  ? 'bg-[#a99d6b] text-white hover:bg-[#c2b77a]'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-              onClick={handleSubmit}
-              disabled={!canSubmit}
+              type="button"
+              className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full p-2 shadow-md text-gray-500 hover:text-gray-700 dark:hover:text-white transition-colors"
+              onClick={onClose}
+              aria-label="Close"
             >
-              {isUploading ? 'Uploading...' : 'Post'}
+              <FaTimes size={16} />
             </button>
           </div>
+
+          <div className="px-4 pb-4 -mt-2">
+            {/* MEDIA PREVIEW SECTION */}
+            {(previewFile || image || video) && (
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {(previewType === "video" || video) ? "Video Preview:" : "Image Preview:"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={removeMedia}
+                    className="text-red-500 hover:text-red-700 text-sm"
+                    disabled={isUploading}
+                  >
+                    Remove
+                  </button>
+                </div>
+                
+                {/* Image Preview */}
+                {(previewType === "image" || (image && !video)) && (
+                  <div className="max-w-full max-h-48 overflow-hidden rounded-lg">
+                    <img
+                      src={previewFile ? URL.createObjectURL(previewFile) : image}
+                      alt="Preview"
+                      className="w-full h-auto object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+                
+                {/* Video Preview */}
+                {(previewType === "video" || (video && !image)) && (
+                  <div className="max-w-full max-h-48 overflow-hidden rounded-lg">
+                    <video
+                      src={previewFile ? URL.createObjectURL(previewFile) : video}
+                      controls
+                      className="w-full h-auto object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                  {uploadProgress}
+                </div>
+                <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadPercentage}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TEXT INPUT AREA */}
+            <div className="relative">
+              <div className="relative w-full">
+                {/* Highlight layer */}
+                <div
+                  className="pointer-events-none absolute inset-0 w-full h-full p-3 rounded-lg whitespace-pre-wrap break-words"
+                  style={{
+                    background: "white",
+                    zIndex: 1,
+                    fontFamily: "inherit",
+                    fontSize: "inherit",
+                    lineHeight: "inherit",
+                    letterSpacing: "inherit",
+                    fontWeight: "inherit"
+                  }}
+                  aria-hidden="true"
+                >
+                  {renderHighlightedContent(content)}
+                </div>
+                {/* Enhanced textarea with better mobile handling */}
+                <textarea
+                  ref={textareaRef}
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 p-3 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] resize-none bg-transparent relative min-h-[120px] text-base"
+                  placeholder="What's on your mind?"
+                  rows={5}
+                  value={content}
+                  onChange={handleContentChange}
+                  style={{
+                    position: "relative",
+                    zIndex: 2,
+                    color: "transparent",
+                    caretColor: "#222",
+                    background: "transparent",
+                    fontFamily: "inherit",
+                    fontSize: "16px", // Prevent zoom on iOS
+                    lineHeight: "inherit",
+                    letterSpacing: "inherit",
+                    fontWeight: "inherit"
+                  }}
+                />
+              </div>
+
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute z-70 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded shadow-lg mt-1 w-full max-h-40 overflow-y-auto">
+                  {suggestions.map((user) => (
+                    <li
+                      key={user._id}
+                      className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm"
+                      onClick={() => handleSuggestionClick(user.username)}
+                    >
+                      @{user.username}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex items-center gap-3">
+                {/* Image Upload */}
+                <div className="relative group">
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="text-gray-500 hover:text-[#a99d6b] transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                    disabled={isUploading}
+                  >
+                    <FaImage size={18} />
+                  </button>
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+                    Add Image
+                  </span>
+                </div>
+
+                {/* Video Upload */}
+                <div className="relative group">
+                  <button
+                    type="button"
+                    onClick={() => videoInputRef.current?.click()}
+                    className="text-gray-500 hover:text-[#a99d6b] transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                    disabled={isUploading}
+                  >
+                    <FaVideo size={18} />
+                  </button>
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+                    Add Video
+                  </span>
+                </div>
+
+                {/* Emoji Button */}
+                <div className="relative group">
+                  <button
+                    type="button"
+                    onClick={handleEmojiClick}
+                    className="text-gray-500 hover:text-[#a99d6b] transition-colors p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <FaSmile size={18} />
+                  </button>
+                  <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 text-white text-xs opacity-0 group-hover:opacity-100 transition pointer-events-none whitespace-nowrap z-10">
+                    Add Emoji
+                  </span>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                className={`px-6 py-2 rounded-full font-medium transition-all ${
+                  canSubmit
+                    ? 'bg-[#a99d6b] hover:bg-[#968B5C] text-white shadow-md hover:shadow-lg'
+                    : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isUploading ? 'Uploading...' : 'Post'}
+              </button>
+            </div>
+          </div>
+
+          {/* Hidden file inputs */}
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageChange}  // ✅ Changed from handleImageUpload
+          />
           
-          <button
-            type="button"
-            className="absolute -top-4 -right-4 z-60 bg-white dark:bg-gray-800 rounded-full p-2 shadow text-gray-400 hover:text-gray-700 dark:hover:text-white text-xl focus:outline-none"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <FaTimes />
-          </button>
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={handleVideoChange}  // ✅ Changed from handleVideoUpload
+          />
         </div>
       </div>
     </div>

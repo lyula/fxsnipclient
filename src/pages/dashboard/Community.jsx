@@ -476,11 +476,12 @@ export default function Community({ user }) {
       {/* Enhanced tabs container with Tailwind glassmorphism */}
       <div 
         className={`flex-shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-20 transition-all duration-300 ${
-          showTabs ? "opacity-100 translate-y-0 h-auto py-4" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
+          showTabs ? "opacity-100 translate-y-0 h-auto py-2" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
         }`}
         style={{ willChange: "transform, opacity, height" }}
       >
-        <div className="flex w-full max-w-full overflow-x-auto no-scrollbar px-4">
+        {/* Use same container structure as posts */}
+        <div className="w-full max-w-full overflow-x-hidden px-4 sm:max-w-2xl sm:mx-auto">
           <CommunityTabs
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -570,14 +571,14 @@ export default function Community({ user }) {
         )}
       </div>
       
-      {/* Enhanced create post button with Tailwind */}
-     <button
-  className="fixed bottom-20 sm:bottom-8 right-8 md:right-24 z-50 flex items-center gap-2 px-5 py-3 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full font-semibold shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:scale-105 transition-all duration-300 max-w-[95vw] group"
+      {/* Mobile-only floating create post button */}
+<button
+  className="fixed bottom-14 right-6 z-50 sm:hidden flex items-center justify-center w-14 h-14 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
   onClick={() => setShowCreate(true)}
+  aria-label="Create new post"
 >
-        <FaPlus className="text-lg group-hover:rotate-90 transition-transform duration-300" />
-        <span className="hidden sm:inline">Create Post</span>
-      </button>
+  <FaPlus className="text-xl" />
+</button>
       
       {showLoadNewButton && !isLoadingFresh && (
         <button
