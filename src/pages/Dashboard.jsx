@@ -312,6 +312,9 @@ export default function Dashboard() {
             {!sidebarCollapsed && (
               <Link
                 to="/dashboard/profile"
+                onClick={() => {
+                  if (window.innerWidth < 768) setSidebarOpen(false);
+                }}
                 className="mt-2 text-xs text-[#a99d6b] hover:underline font-medium text-center"
               >
                 Update Profile

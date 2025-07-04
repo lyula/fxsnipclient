@@ -90,18 +90,40 @@ export default function Profile() {
   const handleSave = async (e) => {
     e.preventDefault();
     setMessage("");
-    const res = await updateProfile(form);
-    if (res.username && res.email) {
-      setUser({ ...user, username: res.username, email: res.email });
-      setEditMode(false);
-      setMessage("Profile updated!");
-      refreshUser(); // <-- Refresh global user data
-      // If username changed, refetch follower counts
-      if (res.username !== user.username) {
-        fetchFollowerCounts(res.username);
+
+    // Client-side username validation (same as registration)
+    if (form.username !== user.username) {
+      const usernameRegex = /^(?!.*[_.]{2})[a-zA-Z0-9](?!.*[_.]{2})[a-zA-Z0-9._]{1,28}[a-zA-Z0-9]$/;
+      if (
+        !form.username ||
+        !usernameRegex.test(form.username) ||
+        form.username.length < 3 ||
+        form.username.length > 30 ||
+        /^\d+$/.test(form.username) ||
+        form.username.includes("@")
+      ) {
+        setMessage("Invalid username. Use 3-30 letters, numbers, underscores, or periods. Cannot be only numbers, start/end with period/underscore, or contain '@'.");
+        return;
       }
-    } else {
-      setMessage(res.message || "Update failed.");
+    }
+
+    try {
+      const res = await updateProfile(form);
+      if (res.username && res.email) {
+        setUser({ ...user, username: res.username, email: res.email });
+        setEditMode(false);
+        setMessage("Profile updated!");
+        refreshUser(); // Refresh global user data
+        // If username changed, refetch follower counts
+        if (res.username !== user.username) {
+          fetchFollowerCounts(res.username);
+        }
+      } else {
+        setMessage(res.message || "Update failed.");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      setMessage("Failed to update profile. Please try again.");
     }
   };
 
