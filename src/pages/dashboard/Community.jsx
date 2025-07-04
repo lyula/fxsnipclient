@@ -15,6 +15,8 @@ export default function Community({ user }) {
   const [currentOffset, setCurrentOffset] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
+  const [horizontalTouchStart, setHorizontalTouchStart] = useState(0);
+  const [horizontalTouchEnd, setHorizontalTouchEnd] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [showLoadNewButton, setShowLoadNewButton] = useState(false);
   const [scrollDirection, setScrollDirection] = useState('down');
@@ -216,38 +218,60 @@ export default function Community({ user }) {
     }
   }, [loadMorePosts, hasMore, cyclingInfo, lastScrollTop, showLoadNewButton, isRefreshing, isLoadingFresh, buttonHideTimeout]);
 
-  // Touch handling for pull-to-refresh
+  // Touch handling for pull-to-refresh and tab switching
   const handleTouchStart = (e) => {
-    setTouchStart(e.targetTouches[0].clientY);
+    setTouchStart(e.targetTouches[0].clientY); // Vertical for pull-to-refresh
+    setHorizontalTouchStart(e.targetTouches[0].clientX); // Horizontal for tab switching
   };
 
   const handleTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientY);
+    setTouchEnd(e.targetTouches[0].clientY); // Vertical
+    setHorizontalTouchEnd(e.targetTouches[0].clientX); // Horizontal
   };
 
   const handleTouchEnd = async () => {
     if (!touchStart || !touchEnd) return;
     
-    const distance = touchEnd - touchStart; // Positive = downward swipe, negative = upward swipe  
-    const isPullToRefresh = distance > 100; // Downward swipe of more than 100px
-    const container = containerRef.current;
+    const verticalDistance = touchEnd - touchStart; // Positive = downward swipe, negative = upward swipe
+    const horizontalDistance = horizontalTouchStart - horizontalTouchEnd; // Positive = left swipe, negative = right swipe
     
-    // Pull-to-refresh should trigger on downward swipe when at the top
-    if (isPullToRefresh && container && container.scrollTop < 50) {
-      setIsRefreshing(true);
-      try {
-        const result = await loadNewerPosts();
-        setCurrentOffset(20);
-        setHasMore(true);
-      } catch (error) {
-        console.error('Error refreshing feed:', error);
-      } finally {
-        setIsRefreshing(false);
+    // Determine if this is primarily a horizontal or vertical swipe
+    const isHorizontalSwipe = Math.abs(horizontalDistance) > Math.abs(verticalDistance);
+    const isVerticalSwipe = Math.abs(verticalDistance) > Math.abs(horizontalDistance);
+    
+    // Handle horizontal swipes for tab switching
+    if (isHorizontalSwipe && Math.abs(horizontalDistance) > 50) {
+      if (horizontalDistance > 0 && activeTab === "forYou") {
+        setActiveTab("following");
+      } else if (horizontalDistance < 0 && activeTab === "following") {
+        setActiveTab("forYou");
+      }
+    }
+    // Handle vertical swipes for pull-to-refresh
+    else if (isVerticalSwipe) {
+      const isPullToRefresh = verticalDistance > 100; // Downward swipe of more than 100px
+      const container = containerRef.current;
+      
+      // Pull-to-refresh should trigger on downward swipe when at the top
+      if (isPullToRefresh && container && container.scrollTop < 50) {
+        setIsRefreshing(true);
+        try {
+          const result = await loadNewerPosts();
+          setCurrentOffset(20);
+          setHasMore(true);
+        } catch (error) {
+          console.error('Error refreshing feed:', error);
+        } finally {
+          setIsRefreshing(false);
+        }
       }
     }
     
+    // Reset all touch states
     setTouchStart(0);
     setTouchEnd(0);
+    setHorizontalTouchStart(0);
+    setHorizontalTouchEnd(0);
   };
 
   const handleNewPost = async (content, image, video) => {
