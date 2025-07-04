@@ -434,30 +434,1165 @@ html, body, #root {
     color: white !important;
   }
 
-  /* Force MP4 video optimization on mobile */
-  video {
-    -webkit-playsinline: true !important;
-    playsinline: true !important;
-    object-fit: contain !important;
+  /* Direct video styling - no black bars */
+  @media (max-width: 768px) {
+    /* Mobile video - full width, no black bars */
+    video {
+      width: 100% !important;
+      height: auto !important;
+      object-fit: cover !important;
+      max-height: 70vh !important;
+      background: transparent !important;
+      border-radius: 8px !important;
+    }
+    
+    /* Video containers - no black background */
+    div[class*="video"], 
+    div[class*="media"] {
+      background: transparent !important;
+    }
   }
-  
-  /* Prevent video format switching on mobile */
-  video source:not([type*="mp4"]) {
-    display: none !important;
+
+  /* Desktop video styling */
+  @media (min-width: 769px) {
+    video {
+      width: 100% !important;
+      height: auto !important;
+      object-fit: contain !important;
+      max-height: 60vh !important;
+      background: transparent !important;
+      border-radius: 8px !important;
+    }
   }
-  
-  /* Optimize video loading on mobile */
-  video[preload="metadata"] {
-    preload: metadata !important;
+
+  /* Force all video containers to be transparent */
+  .relative.bg-black {
+    background: transparent !important;
   }
-  
-  /* Force H5 player for Android browsers */
-  video[x5-video-player-type="h5"] {
-    object-position: center center !important;
+
+  /* Ensure video takes full width on mobile */
+  @media (max-width: 768px) {
+    .modern-media-container video,
+    .mobile-media-container video {
+      width: 100vw !important;
+      margin-left: calc(-50vw + 50%) !important;
+      border-radius: 0 !important;
+      object-fit: cover !important;
+    }
   }
 }
 
 /* Remove the debug outline */
 * {
   outline: none;
+}
+
+/* Add these styles to App.css for enhanced tab experience */
+
+/* Smooth tab transitions */
+.community-tabs {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Enhanced touch feedback on mobile */
+@media (max-width: 768px) {
+  .community-tabs button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* Slightly larger touch targets on mobile */
+  .community-tabs button {
+    min-height: 44px; /* Apple's recommended minimum touch target */
+  }
+  
+  /* Prevent text selection during tab switching */
+  .community-tabs * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Optimize tab animation performance */
+.tab-indicator {
+  transform: translateZ(0); /* Force hardware acceleration */
+  backface-visibility: hidden;
+}
+
+/* Enhanced focus styles for accessibility */
+.community-tabs button:focus-visible {
+  outline: 2px solid #1E3A8A;
+  outline-offset: 2px;
+}
+
+.dark .community-tabs button:focus-visible {
+  outline-color: #a99d6b;
+}
+
+/* Enhanced Community Tabs Styling */
+.community-tabs {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Mobile-optimized tab styling */
+@media (max-width: 768px) {
+  /* Remove tap highlight on mobile */
+  .community-tabs button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-height: 44px; /* Apple's recommended minimum touch target */
+  }
+  
+  /* Prevent text selection during tab switching */
+  .community-tabs * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Enhanced mobile tab styling */
+  .community-tabs button {
+    padding: 12px 16px !important;
+    font-size: 15px !important;
+  }
+  
+  /* Mobile notification badge */
+  .community-tabs .notification-badge {
+    font-size: 10px !important;
+    min-width: 18px !important;
+    height: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* Enhanced focus styles for accessibility */
+.community-tabs button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.dark .community-tabs button:focus-visible {
+  outline-color: #60a5fa;
+}
+
+/* Smooth tab indicator animation */
+.tab-indicator {
+  transition: all 0.2s ease-in-out;
+  transform: translateZ(0); /* Force hardware acceleration */
+}
+
+/* Create post button enhancements */
+.create-post-btn {
+  transition: all 0.2s ease-in-out;
+  transform: translateZ(0);
+}
+
+.create-post-btn:active {
+  transform: scale(0.95) translateZ(0);
+}
+
+/* Enhanced video display for mobile and desktop */
+@media (max-width: 768px) {
+  /* Mobile video optimization */
+  .mobile-video-container {
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+  
+  /* Portrait videos on mobile - full width, auto height */
+  .mobile-video-container video[data-format="portrait"] {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    max-height: 70vh !important;
+  }
+  
+  /* Landscape videos on mobile - full width, cropped to fit */
+  .mobile-video-container video[data-format="landscape"] {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: cover !important;
+    max-height: 50vh !important;
+  }
+  
+  /* Square videos on mobile */
+  .mobile-video-container video[data-format="square"] {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    max-height: 60vh !important;
+  }
+  
+  /* Remove black bars on mobile */
+  .mobile-video-container {
+    background: transparent !important;
+  }
+}
+
+/* Desktop video optimization */
+@media (min-width: 769px) {
+  /* Portrait videos on desktop - maintain aspect ratio */
+  .desktop-video-container video[data-format="portrait"] {
+    max-width: 400px !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+  
+  /* Landscape videos on desktop - full width up to container */
+  .desktop-video-container video[data-format="landscape"] {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    max-height: 60vh !important;
+  }
+  
+  /* Square videos on desktop */
+  .desktop-video-container video[data-format="square"] {
+    max-width: 500px !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+}
+
+/* General video improvements */
+video {
+  display: block !important;
+  border-radius: 8px !important;
+}
+
+/* Remove black backgrounds that cause visible bars */
+.video-container {
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Ensure videos take proper space without forcing aspect ratios */
+.responsive-video {
+  width: 100% !important;
+  height: auto !important;
+  max-width: 100% !important;
+}
+
+/* MediaDisplay.jsx specific styles */
+.relative {
+  position: relative !important;
+}
+
+.overflow-hidden {
+  overflow: hidden !important;
+}
+
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+.w-full {
+  width: 100% !important;
+}
+
+.max-w-full {
+  max-width: 100% !important;
+}
+
+.block {
+  display: block !important;
+}
+
+.bg-transparent {
+  background: transparent !important;
+}
+
+.object-cover {
+  object-fit: cover !important;
+}
+
+.object-contain {
+  object-fit: contain !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.flex {
+  display: flex !important;
+}
+
+.items-center {
+  align-items: center !important;
+}
+
+.justify-center {
+  justify-content: center !important;
+}
+
+.gap-4 {
+  gap: 1rem !important;
+}
+
+.p-0 {
+  padding: 0 !important;
+}
+
+.pt-0 {
+  padding-top: 0 !important;
+}
+
+.pb-0 {
+  padding-bottom: 0 !important;
+}
+
+.pl-0 {
+  padding-left: 0 !important;
+}
+
+.pr-0 {
+  padding-right: 0 !important;
+}
+
+.pt-4 {
+  padding-top: 1rem !important;
+}
+
+.pb-4 {
+  padding-bottom: 1rem !important;
+}
+
+.pl-4 {
+  padding-left: 1rem !important;
+}
+
+.pr-4 {
+  padding-right: 1rem !important;
+}
+
+.rounded-none {
+  border-radius: 0 !important;
+}
+
+.rounded-full {
+  border-radius: 9999px !important;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem !important;
+}
+
+.border {
+  border-width: 1px !important;
+}
+
+.border-t {
+  border-top-width: 1px !important;
+}
+
+.border-b {
+  border-bottom-width: 1px !important;
+}
+
+.border-l {
+  border-left-width: 1px !important;
+}
+
+.border-r {
+  border-right-width: 1px !important;
+}
+
+.border-transparent {
+  border-color: transparent !important;
+}
+
+.border-gray-200 {
+  border-color: rgb(229 231 235) !important;
+}
+
+.border-gray-300 {
+  border-color: rgb(209 213 219) !important;
+}
+
+.border-gray-400 {
+  border-color: rgb(156 163 175) !important;
+}
+
+.border-gray-500 {
+  border-color: rgb(107 114 128) !important;
+}
+
+.border-gray-600 {
+  border-color: rgb(75 85 99) !important;
+}
+
+.border-gray-700 {
+  border-color: rgb(51 65 85) !important;
+}
+
+.border-gray-800 {
+  border-color: rgb(30 41 59) !important;
+}
+
+.border-gray-900 {
+  border-color: rgb(15 23 42) !important;
+}
+
+.text-gray-500 {
+  color: rgb(107 114 128) !important;
+}
+
+.text-gray-600 {
+  color: rgb(75 85 99) !important;
+}
+
+.text-gray-700 {
+  color: rgb(51 65 85) !important;
+}
+
+.text-gray-800 {
+  color: rgb(30 41 59) !important;
+}
+
+.text-gray-900 {
+  color: rgb(15 23 42) !important;
+}
+
+.bg-white {
+  background-color: white !important;
+}
+
+.bg-gray-50 {
+  background-color: rgb(249 250 251) !important;
+}
+
+.bg-gray-100 {
+  background-color: rgb(243 244 246) !important;
+}
+
+.bg-gray-200 {
+  background-color: rgb(229 231 235) !important;
+}
+
+.bg-gray-300 {
+  background-color: rgb(209 213 219) !important;
+}
+
+.bg-gray-400 {
+  background-color: rgb(156 163 175) !important;
+}
+
+.bg-gray-500 {
+  background-color: rgb(107 114 128) !important;
+}
+
+.bg-gray-600 {
+  background-color: rgb(75 85 99) !important;
+}
+
+.bg-gray-700 {
+  background-color: rgb(51 65 85) !important;
+}
+
+.bg-gray-800 {
+  background-color: rgb(30 41 59) !important;
+}
+
+.bg-gray-900 {
+  background-color: rgb(15 23 42) !important;
+}
+
+.text-white {
+  color: white !important;
+}
+
+.text-black {
+  color: black !important;
+}
+
+.text-blue-500 {
+  color: rgb(29 155 240) !important;
+}
+
+.text-red-500 {
+  color: rgb(239 68 68) !important;
+}
+
+.text-green-500 {
+  color: rgb(52 211 153) !important;
+}
+
+.text-yellow-500 {
+  color: rgb(254 240 138) !important;
+}
+
+.text-indigo-500 {
+  color: rgb(99 102 241) !important;
+}
+
+.text-purple-500 {
+  color: rgb(139 92 246) !important;
+}
+
+.text-pink-500 {
+  color: rgb(236 72 153) !important;
+}
+
+.font-sans {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.font-serif {
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif !important;
+}
+
+.font-mono {
+  font-family: Menlo, Monaco, "Courier New", Courier, monospace !important;
+}
+
+.text-xs {
+  font-size: 0.75rem !important;
+}
+
+.text-sm {
+  font-size: 0.875rem !important;
+}
+
+.text-base {
+  font-size: 1rem !important;
+}
+
+.text-lg {
+  font-size: 1.125rem !important;
+}
+
+.text-xl {
+  font-size: 1.25rem !important;
+}
+
+.text-2xl {
+  font-size: 1.5rem !important;
+}
+
+.text-3xl {
+  font-size: 1.875rem !important;
+}
+
+.text-4xl {
+  font-size: 2.25rem !important;
+}
+
+.text-5xl {
+  font-size: 3rem !important;
+}
+
+.leading-tight {
+  line-height: 1.25 !important;
+}
+
+.leading-snug {
+  line-height: 1.375 !important;
+}
+
+.leading-normal {
+  line-height: 1.5 !important;
+}
+
+.leading-relaxed {
+  line-height: 1.625 !important;
+}
+
+.leading-loose {
+  line-height: 1.75 !important;
+}
+
+.tracking-tight {
+  letter-spacing: -0.01562em !important;
+}
+
+.tracking-normal {
+  letter-spacing: 0 !important;
+}
+
+.tracking-wide {
+  letter-spacing: 0.01562em !important;
+}
+
+.uppercase {
+  text-transform: uppercase !important;
+}
+
+.lowercase {
+  text-transform: lowercase !important;
+}
+
+.capitalize {
+  text-transform: capitalize !important;
+}
+
+.line-through {
+  text-decoration: line-through !important;
+}
+
+.no-underline {
+  text-decoration: none !important;
+}
+
+.underline {
+  text-decoration: underline !important;
+}
+
+.shadow {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.shadow-xl {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+.opacity-0 {
+  opacity: 0 !important;
+}
+
+.opacity-25 {
+  opacity: 0.25 !important;
+}
+
+.opacity-50 {
+  opacity: 0.5 !important;
+}
+
+.opacity-75 {
+  opacity: 0.75 !important;
+}
+
+.opacity-100 {
+  opacity: 1 !important;
+}
+
+.scale-100 {
+  transform: scale(1) !important;
+}
+
+.scale-95 {
+  transform: scale(0.95) !important;
+}
+
+.scale-90 {
+  transform: scale(0.9) !important;
+}
+
+.scale-75 {
+  transform: scale(0.75) !important;
+}
+
+.rotate-0 {
+  transform: rotate(0deg) !important;
+}
+
+.rotate-45 {
+  transform: rotate(45deg) !important;
+}
+
+.rotate-90 {
+  transform: rotate(90deg) !important;
+}
+
+.rotate-180 {
+  transform: rotate(180deg) !important;
+}
+
+.translate-x-0 {
+  transform: translateX(0) !important;
+}
+
+.translate-x-1 {
+  transform: translateX(0.25rem) !important;
+}
+
+.translate-x-2 {
+  transform: translateX(0.5rem) !important;
+}
+
+.translate-x-3 {
+  transform: translateX(0.75rem) !important;
+}
+
+.translate-x-4 {
+  transform: translateX(1rem) !important;
+}
+
+.translate-y-0 {
+  transform: translateY(0) !important;
+}
+
+.translate-y-1 {
+  transform: translateY(0.25rem) !important;
+}
+
+.translate-y-2 {
+  transform: translateY(0.5rem) !important;
+}
+
+.translate-y-3 {
+  transform: translateY(0.75rem) !important;
+}
+
+.translate-y-4 {
+  transform: translateY(1rem) !important;
+}
+
+.transition {
+  transition: all 0.2s ease-in-out !important;
+}
+
+.duration-200 {
+  transition-duration: 200ms !important;
+}
+
+.ease-in {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.ease-out {
+  transition-timing-function: cubic-bezier(0, 0, 0.2, 1) !important;
+}
+
+.ease-in-out {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.appear-from-top {
+  animation: appear-from-top 0.5s ease-out forwards !important;
+}
+
+@keyframes appear-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.appear-from-bottom {
+  animation: appear-from-bottom 0.5s ease-out forwards !important;
+}
+
+@keyframes appear-from-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fade-in 0.5s ease-out forwards !important;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slide-in {
+  animation: slide-in 0.5s ease-out forwards !important;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.bounce-in {
+  animation: bounce-in 0.5s ease-out forwards !important;
+}
+
+@keyframes bounce-in {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite !important;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Add these improved video control styles to App.css: */
+
+/* Enhanced Video Controls */
+@media (max-width: 768px) {
+  /* Mobile video controls - always accessible */
+  .video-controls-overlay {
+    background: linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.4) 30%,
+      transparent 70%,
+      rgba(0, 0, 0, 0.4) 100%
+    ) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Mobile control buttons - larger touch targets */
+  .video-control-btn {
+    min-width: 48px !important;
+    min-height: 48px !important;
+    padding: 12px !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    border-radius: 50% !important;
+    border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  }
+  
+  /* Center play button - larger on mobile */
+  .center-play-btn {
+    padding: 20px !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    border: 3px solid rgba(255, 255, 255, 0.9) !important;
+    min-width: 80px !important;
+    min-height: 80px !important;
+  }
+  
+  /* Progress bar - larger on mobile */
+  .video-progress-bar {
+    height: 8px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  /* Bottom controls container */
+  .video-bottom-controls {
+    background: linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.9) 0%,
+      rgba(0, 0, 0, 0.7) 50%,
+      transparent 100%
+    ) !important;
+    padding: 16px !important;
+    min-height: 80px !important;
+  }
+  
+  /* Mobile volume controls */
+  .mobile-volume-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+  
+  /* Always show essential controls on mobile */
+  .mobile-essential-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transition: none !important;
+  }
+}
+
+/* Desktop video controls */
+@media (min-width: 769px) {
+  .video-controls-overlay {
+    transition: opacity 0.3s ease-in-out !important;
+  }
+  
+  .video-controls-overlay:hover {
+    opacity: 1 !important;
+  }
+}
+
+/* Force controls to be visible and accessible */
+.video-controls-always-visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Enhanced progress bar */
+.enhanced-progress-bar {
+  position: relative !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.enhanced-progress-bar:hover {
+  transform: scaleY(1.5) !important;
+}
+
+/* Volume slider improvements */
+.volume-slider-container {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.volume-slider {
+  width: 80px !important;
+  height: 4px !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-radius: 2px !important;
+  cursor: pointer !important;
+}
+
+.volume-slider-fill {
+  height: 100% !important;
+  background: white !important;
+  border-radius: 2px !important;
+  transition: width 0.1s ease !important;
+}
+
+/* Updated CSS to fix video controls visibility - Add to App.css */
+
+/* Video container and controls positioning fixes */
+.video-container-fixed {
+  position: relative !important;
+  z-index: 1 !important;
+  background: transparent !important;
+}
+
+/* Ensure video element doesn't create stacking issues */
+.video-element-fixed {
+  position: relative !important;
+  z-index: 1 !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  object-fit: cover !important;
+  background: transparent !important;
+}
+
+/* Controls overlay - must be positioned above video */
+.video-controls-overlay-fixed {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+}
+
+/* Make interactive elements clickable */
+.video-control-interactive {
+  pointer-events: auto !important;
+  z-index: 20 !important;
+  position: relative !important;
+}
+
+/* Center play button positioning */
+.video-center-play-fixed {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 25 !important;
+  pointer-events: auto !important;
+}
+
+/* Bottom controls positioning */
+.video-bottom-controls-fixed {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 25 !important;
+  pointer-events: auto !important;
+  background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 50%, transparent 100%) !important;
+}
+
+/* Mobile video optimizations */
+@media (max-width: 768px) {
+  .mobile-video-container {
+    position: relative !important;
+    width: 100vw !important;
+    margin-left: calc(-50vw + 50%) !important;
+    background: transparent !important;
+  }
+  
+  .mobile-video-element {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 70vh !important;
+    object-fit: cover !important;
+    display: block !important;
+    background: transparent !important;
+  }
+  
+  .mobile-video-controls {
+    z-index: 30 !important;
+  }
+  
+  .mobile-control-button {
+    min-width: 48px !important;
+    min-height: 48px !important;
+    padding: 12px !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    border-radius: 50% !important;
+    border: 2px solid rgba(255, 255, 255, 0.9) !important;
+    z-index: 35 !important;
+  }
+  
+  .mobile-center-play {
+    min-width: 80px !important;
+    min-height: 80px !important;
+    padding: 20px !important;
+    background: rgba(0, 0, 0, 0.9) !important;
+    border: 3px solid rgba(255, 255, 255, 0.95) !important;
+  }
+}
+
+/* Desktop video optimizations */
+@media (min-width: 769px) {
+  .desktop-video-container {
+    max-width: 600px !important;
+    margin: 0 auto !important;
+    background: transparent !important;
+  }
+  
+  .desktop-video-controls {
+    opacity: 1 !important;
+    transition: opacity 0.3s ease !important;
+  }
+  
+  .desktop-video-controls:hover {
+    opacity: 1 !important;
+  }
+}
+
+/* Progress bar improvements */
+.video-progress-bar-fixed {
+  width: 100% !important;
+  height: 6px !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  margin-bottom: 12px !important;
+  position: relative !important;
+  z-index: 30 !important;
+}
+
+.video-progress-fill {
+  height: 100% !important;
+  background: white !important;
+  border-radius: 3px !important;
+  transition: width 0.1s ease !important;
+}
+
+/* Button hover effects */
+.video-button-hover {
+  transition: all 0.2s ease !important;
+}
+
+.video-button-hover:hover {
+  transform: scale(1.1) !important;
+  background: rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Force visibility for critical controls */
+.video-controls-always-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  z-index: 50 !important;
+}
+
+/* Volume slider fixes */
+.video-volume-slider {
+  width: 80px !important;
+  height: 4px !important;
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-radius: 2px !important;
+  cursor: pointer !important;
+  z-index: 30 !important;
+}
+
+/* Time display improvements */
+.video-time-display {
+  font-size: 14px !important;
+  color: white !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+  z-index: 30 !important;
+}
+
+/* Fullscreen mode adjustments */
+.video-fullscreen {
+  width: 100vw !important;
+  height: 100vh !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 9999 !important;
+  background: black !important;
+}
+
+.video-fullscreen .video-element-fixed {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* PWA Update Notification Animation */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Ensure update notification is always on top */
+.pwa-update-notification {
+  z-index: 9999 !important;
 }

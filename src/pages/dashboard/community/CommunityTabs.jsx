@@ -1,34 +1,91 @@
 import { FaPlus } from "react-icons/fa";
+import { useEffect, useState } from "react";
 
-export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, visible = true }) {
+export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, visible = true, newPostsCount = 0 }) {
+  const [touchStart, setTouchStart] = useState(0);
+
+  // Add touch handlers for swipe gestures
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!touchStart) return;
+    
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    
+    if (Math.abs(diff) > 50) { // Minimum swipe distance
+      if (diff > 0 && activeTab === "forYou") {
+        setActiveTab("following");
+      } else if (diff < 0 && activeTab === "following") {
+        setActiveTab("forYou");
+      }
+    }
+  };
+
   return (
     <div
-      className={`sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 flex items-center justify-between px-2 sm:px-6 transition-all duration-200 ${
-        visible ? "opacity-100 translate-y-0 h-auto py-2" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
+      className={`sticky top-0 z-10 bg-transparent transition-all duration-300 ease-in-out ${
+        visible ? "opacity-100 translate-y-0 h-auto py-4" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
       }`}
       style={{ willChange: "transform, opacity, height" }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      <div className="flex gap-8">
-        <button
-          className={`font-bold text-base px-2 py-1 rounded transition ${
-            activeTab === "forYou"
-              ? "text-[#1E3A8A] dark:text-[#a99d6b] border-b-2 border-[#a99d6b]"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
-          onClick={() => setActiveTab("forYou")}
-        >
-          For you
-        </button>
-        <button
-          className={`font-bold text-base px-2 py-1 rounded transition ${
-            activeTab === "following"
-              ? "text-[#1E3A8A] dark:text-[#a99d6b] border-b-2 border-[#a99d6b]"
-              : "text-gray-500 dark:text-gray-400"
-          }`}
-          onClick={() => setActiveTab("following")}
-        >
-          Following
-        </button>
+      {/* Container matching posts layout */}
+      <div className="w-full px-4 sm:px-6">
+        {/* Posts container alignment - same width and positioning as posts */}
+        <div className="ml-0 sm:ml-72 w-full max-w-lg mx-auto sm:mx-0">
+          <div className="flex items-center justify-between">
+            {/* Tab Buttons */}
+            <div className="flex gap-8">
+              <button
+                className={`pb-2 text-base font-semibold border-b-2 transition-all duration-200 ${
+                  activeTab === "forYou"
+                    ? "text-[#d4af37] border-[#d4af37]"
+                    : "text-gray-400 border-transparent hover:text-gray-300"
+                }`}
+                onClick={() => setActiveTab("forYou")}
+                role="tab"
+                aria-selected={activeTab === "forYou"}
+              >
+                For you
+                {newPostsCount > 0 && (
+                  <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                    {newPostsCount > 99 ? "99+" : newPostsCount}
+                  </span>
+                )}
+              </button>
+              
+              <button
+                className={`pb-2 text-base font-semibold border-b-2 transition-all duration-200 ${
+                  activeTab === "following"
+                    ? "text-[#d4af37] border-[#d4af37]"
+                    : "text-gray-400 border-transparent hover:text-gray-300"
+                }`}
+                onClick={() => setActiveTab("following")}
+                role="tab"
+                aria-selected={activeTab === "following"}
+              >
+                Following
+              </button>
+            </div>
+            
+            {/* Create Post Button with mobile spacing */}
+            {onCreatePost && (
+              <button
+                onClick={onCreatePost}
+                className="ml-4 sm:ml-0 px-3 sm:px-4 py-2 bg-[#a99d6b] hover:bg-[#968B5C] text-white font-medium rounded-full transition-all duration-200 flex items-center gap-2 text-xs sm:text-sm"
+                aria-label="Create new post"
+              >
+                <FaPlus className="w-3 h-3" />
+                <span className="hidden xs:inline sm:inline">Create Post</span>
+                <span className="inline xs:hidden sm:hidden">Create Post</span>
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

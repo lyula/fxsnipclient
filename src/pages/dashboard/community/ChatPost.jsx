@@ -738,7 +738,7 @@ export default function ChatPost({
 
         {/* Card header for posts without media (with icon and edit mode) */}
         {!(post.image || post.video) && (
-          <div className="flex items-center mb-3">
+          <div className="flex items-center mb-3 gap-3">
             <Link 
               to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
               className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:opacity-80 transition-opacity flex-shrink-0"

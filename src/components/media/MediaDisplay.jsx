@@ -40,7 +40,7 @@ const MuteContext = createContext({
 
 // MuteContext Provider component to wrap around the app or components
 export const MuteProvider = ({ children }) => {
-  const [isMuted, setIsMuted] = useState(true); // Default to muted to comply with autoplay policies
+  const [isMuted, setIsMuted] = useState(false); // Default to unmuted for better UX
   return (
     <MuteContext.Provider value={{ isMuted, setIsMuted }}>
       {children}
@@ -128,7 +128,7 @@ export default function MediaDisplay({
     return lastManualAction && (Date.now() - lastManualAction) < MANUAL_CONTROL_TIMEOUT;
   };
 
-  // Enhanced intersection observer for viewport detection
+  // Enhanced intersection observer for viewport detection (remove auto-mute)
   useEffect(() => {
     if (!mediaRef.current) return;
 
@@ -138,11 +138,15 @@ export default function MediaDisplay({
         setIsInViewport(inView);
 
         if (isVideoMedia && !isFullscreen) {
-          if (!inView && isPlaying) {
-            mediaRef.current?.pause();
-            setIsPlaying(false);
-            console.log('Video paused: out of viewport');
+          if (!inView) {
+            // Only pause when out of viewport (remove auto-mute)
+            if (isPlaying) {
+              mediaRef.current?.pause();
+              setIsPlaying(false);
+              console.log('Video paused: out of viewport');
+            }
           } else if (inView && canPlay && !isPlaying && !manuallyPaused && !isManualControlActive()) {
+            // When coming back into view, play with current audio setting
             const playPromise = mediaRef.current?.play();
             if (playPromise !== undefined) {
               playPromise
@@ -165,7 +169,7 @@ export default function MediaDisplay({
       }
     );
 
-    observer.observe(mediaRef.current); // Fixed typo: Changed Observer to observer
+    observer.observe(mediaRef.current);
     return () => observer.disconnect();
   }, [canPlay, isPlaying, manuallyPaused, isVideoMedia, isFullscreen]);
 
@@ -243,7 +247,7 @@ export default function MediaDisplay({
       
       setDuration(media.duration);
       media.volume = volume;
-      media.muted = isMuted;
+      media.muted = isMuted; // This will now be false by default
     };
 
     const handleCanPlay = () => {
@@ -318,6 +322,9 @@ export default function MediaDisplay({
       media.load();
     }
 
+    // Sync initial state with actual video state
+    setIsPlaying(!media.paused);
+
     return () => {
       media.removeEventListener('loadedmetadata', handleLoadedMetadata);
       media.removeEventListener('canplay', handleCanPlay);
@@ -329,10 +336,11 @@ export default function MediaDisplay({
     };
   }, [volume, userInteracted, isMuted, isInViewport, manuallyPaused, mediaError, isActualMobile]);
 
-  // Auto-hide controls after 2 seconds
+  // Auto-hide controls after 3 seconds - but keep visible when paused
   useEffect(() => {
+    // Always show controls when paused, in fullscreen, or volume slider is active
     if (!isPlaying || isFullscreen || showVolumeSlider) {
-      setShowControls(true); // Show controls when paused, in fullscreen, or volume slider is active
+      setShowControls(true);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       return;
     }
@@ -342,8 +350,8 @@ export default function MediaDisplay({
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setShowControls(false);
-      console.log('Controls hidden after 2 seconds');
-    }, 2000);
+      console.log('Controls hidden after 3 seconds');
+    }, 3000);
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -464,7 +472,8 @@ export default function MediaDisplay({
     setUserInteracted(true);
     setLastManualAction(Date.now());
     
-    showControlsWithTimeout(); // Show controls on interaction
+    // Always toggle play/pause and show controls
+    showControlsWithTimeout();
     togglePlay();
   };
 
@@ -486,12 +495,12 @@ export default function MediaDisplay({
   const showControlsWithTimeout = () => {
     setShowControls(true);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (isPlaying && !isFullscreen) {
-      timeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-        console.log('Controls hidden after 2 seconds');
-      }, 2000);
-    }
+    
+    // Auto-hide after 3 seconds (increased from 2 seconds for better UX)
+    timeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+      console.log('Controls hidden after 3 seconds');
+    }, 3000);
   };
 
   // Render video caption overlay (only when explicitly enabled via prop)
@@ -830,30 +839,36 @@ export default function MediaDisplay({
           {!hideMedia && (
             <div 
               ref={containerRef}
-              className="relative bg-black overflow-hidden cursor-pointer w-full flex justify-center items-center"
+              className="relative overflow-hidden cursor-pointer w-full"
               style={{
-                minHeight: isFullscreen ? '100vh' : shouldUseMobileLayout ? '60vh' : '50vh',
-                height: isFullscreen ? '100vh' : shouldUseMobileLayout ? '60vh' : '50vh',
-                aspectRatio: videoFormat === 'portrait' ? '9/16' :
-                            videoFormat === 'square' ? '1/1' :
-                            videoAspectRatio || 'auto',
+                minHeight: shouldUseMobileLayout ? 'auto' : 'auto',
+                height: isFullscreen ? '100vh' : 'auto',
+                background: 'transparent',
                 maxWidth: '100vw'
               }}
+              onClick={handleMediaInteraction}
+              onMouseMove={handleMouseMove}
             >
               <video
                 ref={mediaRef}
                 src={videoUrl}
-                className="w-full max-w-full h-full object-contain"
+                className="w-full block"
+                style={{
+                  height: 'auto',
+                  maxHeight: shouldUseMobileLayout ? '70vh' : '60vh',
+                  objectFit: 'cover',
+                  display: 'block',
+                  backgroundColor: 'transparent'
+                }}
                 playsInline
                 webkit-playsinline="true"
-                x5-playsinline="true"  // Android WeChat support
-                x5-video-player-type="h5"  // Force H5 player
-                x5-video-player-fullscreen="false"  // Prevent forced fullscreen
+                x5-playsinline="true"
+                x5-video-player-type="h5"
+                x5-video-player-fullscreen="false"
                 muted={isMuted}
                 loop
-                preload="metadata"  // Changed from "auto" to reduce loading time
+                preload="metadata"
                 controls={false}
-                onClick={handleMediaInteraction}
                 onLoadStart={() => {
                   console.log('Video loading started');
                   setIsLoading(true);
@@ -878,7 +893,6 @@ export default function MediaDisplay({
                   });
                   setDuration(video.duration);
                   
-                  // Detect video format for mobile optimization
                   if (video.videoWidth && video.videoHeight) {
                     const aspectRatio = video.videoWidth / video.videoHeight;
                     setVideoAspectRatio(aspectRatio);
@@ -893,140 +907,113 @@ export default function MediaDisplay({
                   }
                 }}
               >
-                {/* Force MP4 format first - most compatible */}
                 <source src={videoUrl} type="video/mp4; codecs=avc1.42E01E,mp4a.40.2" />
                 <source src={videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
-              {/* Autoplay indicator */}
-              {isInViewport && !userInteracted && canPlay && !isFullscreen && (
-                <div className="absolute top-3 right-3 bg-green-600 bg-opacity-90 text-white px-2 py-1 rounded text-xs z-20">
-                  Auto-playing
-                </div>
-              )}
 
-              {/* Loading indicator */}
-              {isLoading && !mediaError && !isPlaying && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-10">
-                  <div className="text-center text-white">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                    <div className="text-sm">Loading video...</div>
-                    <div className="text-xs text-gray-300 mt-2">
-                      {isActualMobile ? 'Optimized for mobile playback' : 'Click to play'}
-                    </div>
-                  </div>
+              {/* Center controls with play/pause and mute/unmute buttons */}
+              <div 
+                className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${
+                  showControls ? 'opacity-100' : 'opacity-0'
+                }`}
+                style={{ zIndex: 10 }}
+              >
+                {/* Center play/pause button only */}
+                <div 
+                  className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${
+                    showControls ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={{ zIndex: 10 }}
+                >
+                  {/* Play/Pause Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlay();
+                      showControlsWithTimeout();
+                    }}
+                    className={`text-white rounded-full transition-all duration-200 hover:scale-110 pointer-events-auto ${
+                      shouldUseMobileLayout 
+                        ? 'p-6 bg-black/70 border-2 border-white/90'
+                        : 'p-5 bg-black/60 hover:bg-black/80'
+                    }`}
+                    style={{
+                      minWidth: shouldUseMobileLayout ? '80px' : '70px',
+                      minHeight: shouldUseMobileLayout ? '80px' : '70px',
+                      zIndex: 20
+                    }}
+                  >
+                    {isPlaying ? (
+                      <FaPause size={shouldUseMobileLayout ? 32 : 28} />
+                    ) : (
+                      <FaPlay size={shouldUseMobileLayout ? 32 : 28} />
+                    )}
+                  </button>
+                </div>
+
+                {/* Bottom-left mute/unmute button */}
+                <div 
+                  className={`absolute bottom-12 left-4 pointer-events-none transition-opacity duration-300 ${
+                    showControls ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={{ zIndex: 15 }}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMute();
+                      showControlsWithTimeout();
+                    }}
+                    className={`text-white rounded-full transition-all duration-200 hover:scale-110 pointer-events-auto ${
+                      shouldUseMobileLayout 
+                        ? 'p-2 bg-black/60 border border-white/70'
+                        : 'p-2 bg-black/50 hover:bg-black/70'
+                    }`}
+                    style={{
+                      minWidth: shouldUseMobileLayout ? '36px' : '32px',
+                      minHeight: shouldUseMobileLayout ? '36px' : '32px',
+                      zIndex: 20
+                    }}
+                  >
+                    {isMuted ? (
+                      <FaVolumeMute size={shouldUseMobileLayout ? 16 : 14} />
+                    ) : (
+                      <FaVolumeUp size={shouldUseMobileLayout ? 16 : 14} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Loading state */}
+              {isLoading && !mediaError && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center bg-black/20"
+                  style={{ zIndex: 15 }}
+                >
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                 </div>
               )}
 
               {/* Error state */}
               {mediaError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-10">
-                  <div className="text-center text-white p-4">
-                    <div className="text-sm mb-2">Video failed to load</div>
-                    <button
-                      onClick={() => {
-                        setMediaError(false);
-                        setIsLoading(true);
-                        setUserInteracted(true);
-                        mediaRef.current?.load();
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs transition-colors"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Video controls overlay */}
-              <div 
-                className={`absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent transition-opacity duration-300 ${
-                  showControls || !isPlaying || isFullscreen ? 'opacity-100' : 'opacity-0'
-                }`}
-                onClick={shouldUseMobileLayout ? handleMediaInteraction : undefined}
-                onMouseMove={shouldUseMobileLayout ? undefined : handleMouseMove}
-              >
-                {/* Center play button */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div 
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white"
+                  style={{ zIndex: 15 }}
+                >
+                  <div className="text-lg font-semibold mb-2">Video failed to load</div>
                   <button
-                    onClick={handleMediaInteraction}
-                    className={`bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all duration-200 hover:scale-110 ${
-                      shouldUseMobileLayout ? 'p-6' : 'p-5'
-                    }`}
+                    onClick={() => {
+                      setMediaError(false);
+                      setIsLoading(true);
+                      mediaRef.current?.load();
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
                   >
-                    {isPlaying ? <FaPause size={shouldUseMobileLayout ? 32 : 28} /> : <FaPlay size={shouldUseMobileLayout ? 32 : 28} />}
+                    Retry
                   </button>
                 </div>
-
-                {/* Bottom controls */}
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  {/* Progress bar */}
-                  <div 
-                    className={`w-full bg-gray-600 rounded-full mb-4 cursor-pointer ${
-                      shouldUseMobileLayout ? 'h-3' : 'h-2'
-                    }`}
-                    onClick={handleSeek}
-                  >
-                    <div 
-                      className="h-full bg-white rounded-full transition-all duration-100"
-                      style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-                    />
-                  </div>
-
-                  {/* Control buttons */}
-                  <div className="flex items-center justify-between text-white">
-                    <div className="flex items-center gap-4">
-                      <button 
-                        onClick={handleMediaInteraction}
-                        className="hover:text-blue-300 transition-colors"
-                      >
-                        {isPlaying ? <FaPause size={18} /> : <FaPlay size={18} />}
-                      </button>
-                      
-                      {/* Volume controls */}
-                      <button 
-                        onClick={toggleMute}
-                        className="hover:text-blue-300 transition-colors"
-                      >
-                        {isMuted ? (
-                          <FaVolumeMute size={18} />
-                        ) : volume < 0.5 ? (
-                          <FaVolumeDown size={18} />
-                        ) : (
-                          <FaVolumeUp size={18} />
-                        )}
-                      </button>
-                      
-                      <span className="text-sm">
-                        {formatTime(currentTime)} / {formatTime(duration)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {/* Fullscreen toggle */}
-                      <button
-                        onClick={toggleFullscreen}
-                        className="hover:text-blue-300 transition-colors"
-                        title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                      >
-                        {isFullscreen ? (
-                          <FaCompress size={18} />
-                        ) : (
-                          <FaExpand size={18} />
-                        )}
-                      </button>
-
-                      {/* Status indicators */}
-                      <div className="text-xs bg-black bg-opacity-50 px-2 py-1 rounded flex items-center gap-1">
-                        {shouldUseMobileLayout && <span>📱</span>}
-                        {isInViewport && <span>👁️</span>}
-                        {isFullscreen && <span>🔳</span>}
-                        {manuallyPaused && <span>⏸️</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
           )}
           
@@ -1091,26 +1078,4 @@ export default function MediaDisplay({
       </ErrorBoundary>
     );
   }
-  if (videoUrl) {
-    return (
-      <ErrorBoundary>
-        <video
-          src={videoUrl}
-          controls
-          className={`block ${className}`}
-          style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain" }}
-          playsInline
-          webkit-playsinline="true"
-          x5-playsinline="true"
-          x5-video-player-type="h5"
-          x5-video-player-fullscreen="false"
-          preload="metadata"
-          onLoadStart={() => console.log('Fallback video loading...')}
-          onCanPlayThrough={() => console.log('Fallback video ready')}
-        />
-      </ErrorBoundary>
-    );
-  }
-
-  return null;
 }
