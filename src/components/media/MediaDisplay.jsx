@@ -38,9 +38,9 @@ const MuteContext = createContext({
   setIsMuted: () => {},
 });
 
-// MuteContext Provider component to wrap around the app or components
+// MuteContext Provider component
 export const MuteProvider = ({ children }) => {
-  const [isMuted, setIsMuted] = useState(false); // Default to unmuted for better UX
+  const [isMuted, setIsMuted] = useState(false);
   return (
     <MuteContext.Provider value={{ isMuted, setIsMuted }}>
       {children}
@@ -60,7 +60,7 @@ export default function MediaDisplay({
   showCaptionOverlay = false,
   className = ""
 }) {
-  const { isMuted, setIsMuted } = useContext(MuteContext); // Use global mute state
+  const { isMuted, setIsMuted } = useContext(MuteContext);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.5);
   const [duration, setDuration] = useState(0);
@@ -74,16 +74,10 @@ export default function MediaDisplay({
   const [isInViewport, setIsInViewport] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  // Track manual control state
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const [lastManualAction, setLastManualAction] = useState(null);
-  
-  // Track video dimensions for automatic format detection
   const [videoAspectRatio, setVideoAspectRatio] = useState(null);
-  const [videoFormat, setVideoFormat] = useState('landscape'); // 'portrait', 'square', 'landscape'
-  
-  // Caption management states
+  const [videoFormat, setVideoFormat] = useState('landscape');
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFullCaption, setShowFullCaption] = useState(false);
   const [hideMedia, setHideMedia] = useState(false);
@@ -95,7 +89,6 @@ export default function MediaDisplay({
   const timeoutRef = useRef(null);
   const imgRef = useRef(null);
 
-  // Enhanced device detection
   const isActualMobile = useMemo(() => {
     const userAgentMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const screenSizeMobile = window.screen.width <= 768 || window.screen.height <= 768;
@@ -106,29 +99,22 @@ export default function MediaDisplay({
     return userAgentMobile || (screenSizeMobile && isTouchDevice) || (mediaQueryMobile && isTouchDevice) || hasOrientationAPI;
   }, []);
 
-  // Determine if we should use mobile-style rendering based on video format
   const shouldUseMobileLayout = videoFormat === 'portrait' || isActualMobile;
-
-  // Determine media types
   const hasAudio = Boolean(audioUrl);
   const hasVideo = Boolean(videoUrl);
   const hasMedia = hasAudio || hasVideo;
   const isVideoMedia = hasVideo;
   const isAudioMedia = hasAudio && !hasVideo;
-
-  // Caption processing
   const shouldTruncate = caption && caption.length > 200;
   const displayCaption = shouldTruncate && !isExpanded ? 
     caption.substring(0, 200) + '...' : caption;
 
-  // Manual control timeout - user actions take precedence for 10 seconds
   const MANUAL_CONTROL_TIMEOUT = 10000;
 
   const isManualControlActive = () => {
     return lastManualAction && (Date.now() - lastManualAction) < MANUAL_CONTROL_TIMEOUT;
   };
 
-  // Enhanced intersection observer for viewport detection (remove auto-mute)
   useEffect(() => {
     if (!mediaRef.current) return;
 
@@ -139,20 +125,16 @@ export default function MediaDisplay({
 
         if (isVideoMedia && !isFullscreen) {
           if (!inView) {
-            // Only pause when out of viewport (remove auto-mute)
             if (isPlaying) {
               mediaRef.current?.pause();
               setIsPlaying(false);
-              console.log('Video paused: out of viewport');
             }
           } else if (inView && canPlay && !isPlaying && !manuallyPaused && !isManualControlActive()) {
-            // When coming back into view, play with current audio setting
             const playPromise = mediaRef.current?.play();
             if (playPromise !== undefined) {
               playPromise
                 .then(() => {
                   setIsPlaying(true);
-                  console.log('Video resumed: in viewport');
                 })
                 .catch((error) => {
                   console.error('Autoplay failed:', error);
@@ -173,7 +155,6 @@ export default function MediaDisplay({
     return () => observer.disconnect();
   }, [canPlay, isPlaying, manuallyPaused, isVideoMedia, isFullscreen]);
 
-  // Enhanced fullscreen handling
   useEffect(() => {
     const handleFullscreenChange = () => {
       const isCurrentlyFullscreen = Boolean(
@@ -198,16 +179,13 @@ export default function MediaDisplay({
     };
   }, []);
 
-  // Enhanced media event handlers with automatic dimension detection
   useEffect(() => {
     const media = mediaRef.current;
     if (!media) return;
 
-    // Optimize video for mobile on load
     if (isVideoMedia && isActualMobile) {
       optimizeVideoForMobile(media);
       
-      // Check mobile video support
       if (!checkMobileVideoSupport()) {
         console.error('Mobile device may not support MP4 video playback');
         setMediaError(true);
@@ -216,14 +194,6 @@ export default function MediaDisplay({
     }
 
     const handleLoadedMetadata = () => {
-      console.log('Media metadata loaded', {
-        width: media.videoWidth || media.clientWidth,
-        height: media.videoHeight || media.clientHeight,
-        duration: media.duration,
-        readyState: media.readyState,
-        networkState: media.networkState
-      });
-      
       setVideoData({
         width: media.videoWidth || media.clientWidth,
         height: media.videoHeight || media.clientHeight,
@@ -236,33 +206,28 @@ export default function MediaDisplay({
         
         if (aspectRatio < 0.75) {
           setVideoFormat('portrait');
-        } else if (aspectRatio >= 0.75 && aspectRatio <= 1.33) {
+        } else if (aspectRatio <= 1.33) {
           setVideoFormat('square');
         } else {
           setVideoFormat('landscape');
         }
-        
-        console.log(`Video format detected: ${aspectRatio < 0.75 ? 'portrait' : aspectRatio <= 1.33 ? 'square' : 'landscape'}`);
       }
       
       setDuration(media.duration);
       media.volume = volume;
-      media.muted = isMuted; // This will now be false by default
+      media.muted = isMuted;
     };
 
     const handleCanPlay = () => {
-      console.log('Media can play - readyState:', media.readyState);
       setIsLoading(false);
       setCanPlay(true);
       setMediaError(false);
       
-      // For mobile devices, try to play immediately if in viewport
       if (isActualMobile && isInViewport && !manuallyPaused && !isManualControlActive()) {
         const playPromise = media.play();
         if (playPromise !== undefined) {
           playPromise.catch((error) => {
             console.log('Mobile autoplay failed (expected):', error.message);
-            // Don't set error for autoplay failures on mobile
           });
         }
       }
@@ -270,17 +235,7 @@ export default function MediaDisplay({
 
     const handleError = (e) => {
       const error = e.target.error;
-      console.error('Media error details:', {
-        code: error?.code,
-        message: error?.message,
-        src: media.src,
-        readyState: media.readyState,
-        networkState: media.networkState
-      });
-      
-      // Try to recover from network errors
       if (error?.code === MediaError.MEDIA_ERR_NETWORK) {
-        console.log('Network error detected, attempting to reload...');
         setTimeout(() => {
           media.load();
         }, 1000);
@@ -297,12 +252,10 @@ export default function MediaDisplay({
     const handlePlay = () => {
       setIsPlaying(true);
       setIsLoading(false);
-      console.log('Media started playing');
     };
     
     const handlePause = () => {
       setIsPlaying(false);
-      console.log('Media paused');
     };
     
     const handleVolumeChange = () => {
@@ -322,7 +275,6 @@ export default function MediaDisplay({
       media.load();
     }
 
-    // Sync initial state with actual video state
     setIsPlaying(!media.paused);
 
     return () => {
@@ -336,21 +288,17 @@ export default function MediaDisplay({
     };
   }, [volume, userInteracted, isMuted, isInViewport, manuallyPaused, mediaError, isActualMobile]);
 
-  // Auto-hide controls after 3 seconds - but keep visible when paused
   useEffect(() => {
-    // Always show controls when paused, in fullscreen, or volume slider is active
     if (!isPlaying || isFullscreen || showVolumeSlider) {
       setShowControls(true);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       return;
     }
 
-    // When playing, show controls and set timeout to hide
     setShowControls(true);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       setShowControls(false);
-      console.log('Controls hidden after 3 seconds');
     }, 3000);
 
     return () => {
@@ -358,43 +306,125 @@ export default function MediaDisplay({
     };
   }, [isPlaying, isFullscreen, showVolumeSlider]);
 
-  // Enhanced toggle play with manual control tracking
+  const optimizeVideoForMobile = (videoElement) => {
+    if (!videoElement) return;
+    
+    videoElement.setAttribute('playsinline', 'true');
+    videoElement.setAttribute('webkit-playsinline', 'true');
+    videoElement.setAttribute('x5-playsinline', 'true');
+    videoElement.setAttribute('x5-video-player-type', 'h5');
+    videoElement.setAttribute('x5-video-player-fullscreen', 'false');
+    
+    if (isActualMobile) {
+      videoElement.muted = !userInteracted;
+    }
+    
+    return videoElement;
+  };
+
+  const checkMobileVideoSupport = () => {
+    const video = document.createElement('video');
+    const canPlayMP4 = video.canPlayType('video/mp4; codecs="avc1.42E01E,mp4a.40.2"');
+    const canPlayBasicMP4 = video.canPlayType('video/mp4');
+    
+    return canPlayMP4 !== '' || canPlayBasicMP4 !== '';
+  };
+
+  const initMobileAudioContext = () => {
+    if (!isActualMobile) return;
+    
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      try {
+        const audioContext = new AudioContext();
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().catch(err => {
+            console.warn('Failed to resume audio context:', err);
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to create audio context:', err);
+      }
+    }
+  };
+
   const togglePlay = () => {
     if (!mediaRef.current) return;
     
     setUserInteracted(true);
     setLastManualAction(Date.now());
     
+  if (isActualMobile) {
+  initMobileAudioContext();
+}
+    
     if (isPlaying) {
       mediaRef.current.pause();
       setManuallyPaused(true);
     } else {
+      if (isActualMobile && mediaRef.current.muted && !isMuted) {
+        mediaRef.current.muted = false;
+      }
+      
       const playPromise = mediaRef.current.play();
       if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.error('Play failed:', error);
-          setMediaError(true);
+        playPromise.then(() => {
+          setManuallyPaused(false);
+        }).catch((error) => {
+          if (isActualMobile && !mediaRef.current.muted) {
+            mediaRef.current.muted = true;
+            setIsMuted(true);
+            const mutedPlayPromise = mediaRef.current.play();
+            if (mutedPlayPromise !== undefined) {
+              mutedPlayPromise.then(() => {
+                setManuallyPaused(false);
+              }).catch(() => {
+                setMediaError(true);
+              });
+            }
+          } else {
+            setMediaError(true);
+          }
         });
       }
-      setManuallyPaused(false);
     }
   };
 
-  // Modified toggleMute to ensure unmute works correctly
   const toggleMute = () => {
     if (!mediaRef.current) return;
     
     setUserInteracted(true);
     setLastManualAction(Date.now());
+    
+   if (isActualMobile) {
+  initMobileAudioContext();
+}
+    
     const newMuted = !mediaRef.current.muted;
-    setIsMuted(newMuted);
-    mediaRef.current.muted = newMuted;
-    if (!newMuted && mediaRef.current.volume === 0) {
-      const newVolume = 0.5;
-      setVolume(newVolume);
-      mediaRef.current.volume = newVolume;
+    
+    if (isActualMobile && !newMuted) {
+      initMobileAudioContext();
+      // Small delay to ensure audio context is ready
+      setTimeout(() => {
+        mediaRef.current.muted = newMuted;
+        setIsMuted(newMuted);
+        if (!newMuted && mediaRef.current.volume === 0) {
+          const newVolume = 0.5;
+          setVolume(newVolume);
+          mediaRef.current.volume = newVolume;
+        }
+      }, 100);
+    } else {
+      mediaRef.current.muted = newMuted;
+      setIsMuted(newMuted);
+      if (!newMuted && mediaRef.current.volume === 0) {
+        const newVolume = 0.5;
+        setVolume(newVolume);
+        mediaRef.current.volume = newVolume;
+      }
     }
-    showControlsWithTimeout(); // Show controls on mute/unmute
+    
+    showControlsWithTimeout();
   };
 
   const toggleFullscreen = async () => {
@@ -428,7 +458,7 @@ export default function MediaDisplay({
     } catch (error) {
       console.error('Fullscreen error:', error);
     }
-    showControlsWithTimeout(); // Show controls on fullscreen toggle
+    showControlsWithTimeout();
   };
 
   const toggleMediaVisibility = () => {
@@ -443,7 +473,7 @@ export default function MediaDisplay({
       mediaRef.current.volume = newVolume;
       mediaRef.current.muted = newVolume === 0;
       setIsMuted(newVolume === 0);
-      showControlsWithTimeout(); // Show controls on volume change
+      showControlsWithTimeout();
     }
   };
 
@@ -471,8 +501,6 @@ export default function MediaDisplay({
     e.preventDefault();
     setUserInteracted(true);
     setLastManualAction(Date.now());
-    
-    // Always toggle play/pause and show controls
     showControlsWithTimeout();
     togglePlay();
   };
@@ -496,14 +524,11 @@ export default function MediaDisplay({
     setShowControls(true);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     
-    // Auto-hide after 3 seconds (increased from 2 seconds for better UX)
     timeoutRef.current = setTimeout(() => {
       setShowControls(false);
-      console.log('Controls hidden after 3 seconds');
     }, 3000);
   };
 
-  // Render video caption overlay (only when explicitly enabled via prop)
   const renderVideoCaption = () => {
     if (!caption || !showCaptionOverlay) return null;
 
@@ -563,7 +588,6 @@ export default function MediaDisplay({
     );
   };
 
-  // Render standard caption for images
   const renderImageCaption = () => {
     if (!caption) return null;
 
@@ -601,11 +625,9 @@ export default function MediaDisplay({
     );
   };
 
-  // Check if video URL is MP4 format
   const ensureMP4Format = (videoUrl) => {
     if (!videoUrl) return videoUrl;
     
-    // If URL doesn't end with .mp4, try to force MP4 format
     if (!videoUrl.toLowerCase().includes('.mp4')) {
       console.warn('Video URL may not be MP4 format:', videoUrl);
     }
@@ -613,41 +635,6 @@ export default function MediaDisplay({
     return videoUrl;
   };
 
-  // Mobile video compatibility check
-  const checkMobileVideoSupport = () => {
-    const video = document.createElement('video');
-    const canPlayMP4 = video.canPlayType('video/mp4; codecs="avc1.42E01E,mp4a.40.2"');
-    const canPlayBasicMP4 = video.canPlayType('video/mp4');
-    
-    console.log('Mobile video support:', {
-      mp4WithCodecs: canPlayMP4,
-      basicMP4: canPlayBasicMP4,
-      userAgent: navigator.userAgent
-    });
-    
-    return canPlayMP4 !== '' || canPlayBasicMP4 !== '';
-  };
-
-  // Force video to use MP4 format
-  const optimizeVideoForMobile = (videoElement) => {
-    if (!videoElement) return;
-    
-    // Set mobile-specific attributes
-    videoElement.setAttribute('playsinline', 'true');
-    videoElement.setAttribute('webkit-playsinline', 'true');
-    videoElement.setAttribute('x5-playsinline', 'true');
-    videoElement.setAttribute('x5-video-player-type', 'h5');
-    videoElement.setAttribute('x5-video-player-fullscreen', 'false');
-    
-    // Force muted for autoplay compatibility
-    if (isActualMobile) {
-      videoElement.muted = true;
-    }
-    
-    return videoElement;
-  };
-
-  // Render image
   if (imageUrl && !hasMedia) {
     return (
       <ErrorBoundary>
@@ -668,18 +655,10 @@ export default function MediaDisplay({
                     const cropped =
                       imgRef.current.naturalHeight > imgRef.current.clientHeight + 2 ||
                       imgRef.current.naturalWidth > imgRef.current.clientWidth + 2;
-                    console.log('Image loaded:', {
-                      naturalHeight: imgRef.current.naturalHeight,
-                      clientHeight: imgRef.current.clientHeight,
-                      naturalWidth: imgRef.current.naturalWidth,
-                      clientWidth: imgRef.current.clientWidth,
-                      cropped
-                    });
                     setIsImageCropped(cropped);
                   }
                 }}
               />
-              {/* Fullscreen switch button */}
               {isImageCropped && (
                 <FaExpand
                   onClick={e => {
@@ -703,7 +682,6 @@ export default function MediaDisplay({
           )}
           {renderImageCaption()}
 
-          {/* Modal for full image */}
           {showImageModal && (
             <div
               className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90"
@@ -734,14 +712,12 @@ export default function MediaDisplay({
     );
   }
 
-  // Render audio with enhanced controls
   if (isAudioMedia) {
     return (
       <ErrorBoundary>
         <div className="w-full bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
           {!hideMedia && (
             <div className="p-4">
-              {/* Audio element */}
               <audio
                 ref={mediaRef}
                 src={audioUrl}
@@ -752,7 +728,6 @@ export default function MediaDisplay({
                 Your browser does not support the audio tag.
               </audio>
 
-              {/* Custom audio controls */}
               <div className="flex items-center justify-between bg-white dark:bg-gray-700 rounded-lg p-3 mt-3 shadow-sm">
                 <div className="flex items-center gap-3">
                   <button
@@ -780,7 +755,6 @@ export default function MediaDisplay({
                   </span>
                 </div>
 
-                {/* Show/hide media toggle */}
                 <button
                   onClick={toggleMediaVisibility}
                   className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
@@ -790,7 +764,6 @@ export default function MediaDisplay({
                 </button>
               </div>
 
-              {/* Progress bar */}
               <div
                 className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2 mt-3 cursor-pointer"
                 onClick={handleSeek}
@@ -801,7 +774,6 @@ export default function MediaDisplay({
                 />
               </div>
 
-              {/* Loading/Error states */}
               {isLoading && !mediaError && (
                 <div className="text-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
@@ -831,7 +803,6 @@ export default function MediaDisplay({
     );
   }
 
-  // Render video with automatic dimension-based layout
   if (isVideoMedia) {
     return (
       <ErrorBoundary>
@@ -851,7 +822,7 @@ export default function MediaDisplay({
             >
               <video
                 ref={mediaRef}
-                src={videoUrl}
+                src={ensureMP4Format(videoUrl)}
                 className="w-full block"
                 style={{
                   height: 'auto',
@@ -870,11 +841,9 @@ export default function MediaDisplay({
                 preload="metadata"
                 controls={false}
                 onLoadStart={() => {
-                  console.log('Video loading started');
                   setIsLoading(true);
                 }}
                 onCanPlayThrough={() => {
-                  console.log('Video can play through');
                   setIsLoading(false);
                   setCanPlay(true);
                   setMediaError(false);
@@ -886,11 +855,6 @@ export default function MediaDisplay({
                 }}
                 onLoadedMetadata={(e) => {
                   const video = e.target;
-                  console.log('Video metadata loaded:', {
-                    width: video.videoWidth,
-                    height: video.videoHeight,
-                    duration: video.duration
-                  });
                   setDuration(video.duration);
                   
                   if (video.videoWidth && video.videoHeight) {
@@ -907,52 +871,41 @@ export default function MediaDisplay({
                   }
                 }}
               >
-                <source src={videoUrl} type="video/mp4; codecs=avc1.42E01E,mp4a.40.2" />
-                <source src={videoUrl} type="video/mp4" />
+                <source src={ensureMP4Format(videoUrl)} type="video/mp4; codecs=avc1.42E01E,mp4a.40.2" />
+                <source src={ensureMP4Format(videoUrl)} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
 
-              {/* Center controls with play/pause and mute/unmute buttons */}
               <div 
                 className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${
                   showControls ? 'opacity-100' : 'opacity-0'
                 }`}
                 style={{ zIndex: 10 }}
               >
-                {/* Center play/pause button only */}
-                <div 
-                  className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${
-                    showControls ? 'opacity-100' : 'opacity-0'
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePlay();
+                    showControlsWithTimeout();
+                  }}
+                  className={`text-white rounded-full transition-all duration-200 hover:scale-110 pointer-events-auto ${
+                    shouldUseMobileLayout 
+                      ? 'p-6 bg-black/70 border-2 border-white/90'
+                      : 'p-5 bg-black/60 hover:bg-black/80'
                   }`}
-                  style={{ zIndex: 10 }}
+                  style={{
+                    minWidth: shouldUseMobileLayout ? '80px' : '70px',
+                    minHeight: shouldUseMobileLayout ? '80px' : '70px',
+                    zIndex: 20
+                  }}
                 >
-                  {/* Play/Pause Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePlay();
-                      showControlsWithTimeout();
-                    }}
-                    className={`text-white rounded-full transition-all duration-200 hover:scale-110 pointer-events-auto ${
-                      shouldUseMobileLayout 
-                        ? 'p-6 bg-black/70 border-2 border-white/90'
-                        : 'p-5 bg-black/60 hover:bg-black/80'
-                    }`}
-                    style={{
-                      minWidth: shouldUseMobileLayout ? '80px' : '70px',
-                      minHeight: shouldUseMobileLayout ? '80px' : '70px',
-                      zIndex: 20
-                    }}
-                  >
-                    {isPlaying ? (
-                      <FaPause size={shouldUseMobileLayout ? 32 : 28} />
-                    ) : (
-                      <FaPlay size={shouldUseMobileLayout ? 32 : 28} />
-                    )}
-                  </button>
-                </div>
+                  {isPlaying ? (
+                    <FaPause size={shouldUseMobileLayout ? 32 : 28} />
+                  ) : (
+                    <FaPlay size={shouldUseMobileLayout ? 32 : 28} />
+                  )}
+                </button>
 
-                {/* Bottom-left mute/unmute button */}
                 <div 
                   className={`absolute bottom-12 left-4 pointer-events-none transition-opacity duration-300 ${
                     showControls ? 'opacity-100' : 'opacity-0'
@@ -985,7 +938,6 @@ export default function MediaDisplay({
                 </div>
               </div>
 
-              {/* Loading state */}
               {isLoading && !mediaError && (
                 <div 
                   className="absolute inset-0 flex items-center justify-center bg-black/20"
@@ -995,7 +947,6 @@ export default function MediaDisplay({
                 </div>
               )}
 
-              {/* Error state */}
               {mediaError && (
                 <div 
                   className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white"
@@ -1014,10 +965,11 @@ export default function MediaDisplay({
                   </button>
                 </div>
               )}
+
+              {renderVideoCaption()}
             </div>
           )}
           
-          {/* Full caption view when video is hidden */}
           {hideMedia && caption && (
             <div className="w-full flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <div className="max-w-2xl text-center">
@@ -1035,7 +987,6 @@ export default function MediaDisplay({
             </div>
           )}
           
-          {/* Caption below video */}
           {!hideMedia && caption && (
             <>
               <div className="w-full text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-3">
@@ -1066,16 +1017,5 @@ export default function MediaDisplay({
     );
   }
 
-  if (imageUrl) {
-    return (
-      <ErrorBoundary>
-        <img
-          src={imageUrl}
-          alt={altText}
-          className={`block ${className}`}
-          style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain" }}
-        />
-      </ErrorBoundary>
-    );
-  }
+  return null;
 }
