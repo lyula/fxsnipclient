@@ -592,7 +592,7 @@ export default function Community({ user }) {
         style={{ willChange: "transform, opacity, height" }}
       >
         {/* Use same container structure as posts */}
-        <div className="w-full max-w-full overflow-x-hidden px-4 sm:max-w-2xl sm:mx-auto">
+        <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
           <CommunityTabs
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -635,7 +635,7 @@ export default function Community({ user }) {
           </div>
         ) : (
           <>
-            <div className="w-full max-w-full overflow-x-hidden px-4 sm:max-w-2xl sm:mx-auto">
+            <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
               <ChatList
                 posts={communityPosts}
                 postRefs={postRefs}
