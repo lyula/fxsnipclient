@@ -266,16 +266,58 @@ export default function Community({ user }) {
   // Scroll to post if postId is in URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const postId = params.get("postId");
+    const postId = params.get('postId');
+    const commentId = params.get('commentId'); 
+    const replyId = params.get('replyId');
+    
     if (postId) {
-      setActiveTab("forYou");
-      setTimeout(() => {
-        if (postRefs.current[postId]) {
-          // No scrollIntoView needed for simplicity
-        }
-      }, 300);
+      // Scroll to specific post and highlight it
+      // If commentId exists, scroll to that comment
+      // If replyId exists, scroll to that reply
+      handleDeepLink(postId, commentId, replyId);
     }
-  }, [location.search, communityPosts]);
+  }, [location.search]);
+
+  const handleDeepLink = async (postId, commentId, replyId) => {
+    try {
+      // Find or load the specific post
+      let targetPost = posts.find(p => p._id === postId);
+      
+      if (!targetPost) {
+        // If post not in current feed, fetch it
+        const response = await fetch(`/api/posts/${postId}`);
+        const postData = await response.json();
+        targetPost = postData;
+      }
+      
+      // Ensure comments are expanded for this post
+      setShowComments(true);
+      
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => {
+        let targetElement;
+        
+        if (replyId) {
+          targetElement = document.querySelector(`[data-reply-id="${replyId}"]`);
+        } else if (commentId) {
+          targetElement = document.querySelector(`[data-comment-id="${commentId}"]`);
+        } else {
+          targetElement = document.querySelector(`[data-post-id="${postId}"]`);
+        }
+        
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add highlight effect
+          targetElement.classList.add('highlight-mention');
+          setTimeout(() => {
+            targetElement.classList.remove('highlight-mention');
+          }, 3000);
+        }
+      }, 500);
+    } catch (error) {
+      console.error('Error handling deep link:', error);
+    }
+  };
 
   // Enhanced scroll handler for for-you tab (existing logic)
   useEffect(() => {

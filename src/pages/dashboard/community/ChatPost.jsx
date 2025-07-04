@@ -157,7 +157,6 @@ function MentionInput({
   );
 }
 
-
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
 
@@ -228,7 +227,7 @@ const EditedIndicator = ({ item, size = "xs" }) => {
   );
 };
 
-// Comment sorting functions - MOVED BEFORE THE COMPONENT
+// Comment sorting functions
 function sortComments(comments, sortType) {
   const sortedComments = [...comments];
   
@@ -254,7 +253,7 @@ function sortComments(comments, sortType) {
   }
 }
 
-// Get sort label - MOVED BEFORE THE COMPONENT
+// Get sort label
 function getSortLabel(sortType) {
   switch (sortType) {
     case 'newest': return 'Newest first';
@@ -336,7 +335,7 @@ export default function ChatPost({
   const [loadingLikes, setLoadingLikes] = useState(false);
   
   const commentsRef = useRef(null);
-  const postRef = useRef();
+  const postRef = useRef(null);
   const previousContentRef = useRef(post.content);
 
   const { search } = useLocation();
@@ -363,7 +362,7 @@ export default function ChatPost({
   };
 
   useEffect(() => {
-    setLocalPost(post);
+    setLocalPost(prev => ({ ...prev, ...post }));
     previousContentRef.current = post.content;
   }, [post]);
 
@@ -399,7 +398,7 @@ export default function ChatPost({
     
     observer.observe(node);
     return () => observer.disconnect();
-  }, [post, onView]);
+  }, [post._id, onView]);
 
   useEffect(() => {
     const params = new URLSearchParams(search);
@@ -560,7 +559,6 @@ export default function ChatPost({
     }));
 
     try {
-      // FIXED: Pass the post ID to the onLike callback
       await onLike(post._id);
     } catch (error) {
       console.error("Error in handleLike:", error);
@@ -790,6 +788,17 @@ export default function ChatPost({
     }
   };
 
+  // Add this state near the other state declarations
+  const [hiddenReplies, setHiddenReplies] = useState({}); // commentId -> boolean (true = hidden by default)
+
+  // Add toggle function
+  const toggleRepliesVisibility = (commentId) => {
+    setHiddenReplies(prev => ({
+      ...prev,
+      [commentId]: !prev[commentId]
+    }));
+  };
+
   return (
     <>
       {/* Floating hearts */}
@@ -804,9 +813,10 @@ export default function ChatPost({
         />
       ))}
       
-      {/* Modern post wrapper - REMOVED hover effects */}
+      {/* Modern post wrapper */}
       <div 
         ref={postContainerRef}
+        data-post-id={post._id}
         className="w-full max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
@@ -817,7 +827,6 @@ export default function ChatPost({
             <hr className="border-gray-200/50 dark:border-gray-700/50" />
             <div className="px-6 pt-4 pb-2">
               <div className="flex items-center gap-3">
-                {/* FIXED: Removed gradient background and hover scale */}
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
                   <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
                 </div>
@@ -952,7 +961,7 @@ export default function ChatPost({
             )}
           </div>
 
-          {/* Modern engagement bar - REMOVED hover translate effect */}
+          {/* Modern engagement bar */}
           <div className="flex items-center gap-6 text-base mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300">
             <div className="flex items-center gap-2">
               {/* Like icon button */}
@@ -1004,10 +1013,10 @@ export default function ChatPost({
             </div>
 
             <button
-             onClick={() => {
-  setShowLikes(false); // Close likes list first
-  setShowComments((prev) => !prev);
-}}
+              onClick={() => {
+                setShowLikes(false); // Close likes list first
+                setShowComments((prev) => !prev);
+              }}
               className="flex items-center gap-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 active:scale-95"
               aria-label="Show comments"
             >
@@ -1135,6 +1144,18 @@ export default function ChatPost({
                 </button>
               </div>
               
+              {/* Switch to comment input link - show when reply input is active */}
+              {activeReply !== null && (
+                <div className="w-full mt-2 mb-3 max-w-full">
+                  <span
+                    onClick={() => setActiveReply(null)}
+                    className="text-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer transition-colors"
+                  >
+                    ← Add a comment to the post
+                  </span>
+                </div>
+              )}
+              
               {/* Comment input */}
               {activeReply === null && showCommentInput && (
                 <div className="w-full mt-2 max-w-full">
@@ -1152,7 +1173,7 @@ export default function ChatPost({
               {/* Comments list */}
               <div className="w-full max-w-full">
                 {displayedComments.map((comment) => (
-                  <div key={comment._id} className="mt-3 border-l-2 border-gray-100 dark:border-gray-700 pl-4">
+                  <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
                     <div className="flex items-start gap-3">
                       <Link 
                         to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
@@ -1236,7 +1257,7 @@ export default function ChatPost({
                           />
                         )}
                         
-                        {/* Reply button - ALWAYS SHOW REPLIES */}
+                        {/* Reply button */}
                         <div className="flex items-center gap-4 text-xs">
                           <button
                             onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
@@ -1277,133 +1298,143 @@ export default function ChatPost({
                           </div>
                         )}
                         
-                        {/* Replies section - ALWAYS SHOW REPLIES */}
+                        {/* Replies section with hide/show functionality */}
                         {comment.replies && comment.replies.length > 0 && (
-                          <div className="mt-2 ml-4">
-                            {comment.replies.map((reply) => (
-                              <div key={reply._id} className="flex items-start gap-3 mb-3">
-                                <Link 
-                                  to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
-                                >
-                                  <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-                                </Link>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Link
+                          <div className="mt-2">
+                            {/* Show/Hide replies link */}
+                            <span
+                              onClick={() => toggleRepliesVisibility(comment._id)}
+                              className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer transition-colors"
+                            >
+                              {hiddenReplies[comment._id] === false ? 'hide replies' : 'show replies'}
+                            </span>
+                            
+                            {/* Replies list - only show if not hidden */}
+                            {hiddenReplies[comment._id] === false && (
+                              <div className="ml-4 mt-2 space-y-3 border-l border-gray-200 dark:border-gray-700 pl-3">
+                                {comment.replies.map((reply) => (
+                                  <div key={reply._id} data-reply-id={reply._id} className="flex items-start gap-3">
+                                    <Link 
                                       to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                      className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
+                                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
                                     >
-                                      {reply.author.username}
+                                      <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
                                     </Link>
-                                    {reply.author.verified && <VerifiedBadge />}
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                                      {formatPostDate(reply.createdAt)}
-                                    </span>
-                                    <EditedIndicator item={reply} />
-                                    
-                                    {/* Reply menu */}
-                                    {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
-                                      <div className="relative ml-auto">
-                                        <button
-                                          onClick={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] }))}
-                                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <Link
+                                          to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
+                                          className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
                                         >
-                                          <FaEllipsisV size={10} />
-                                        </button>
-                                        {showReplyMenus[`${comment._id}-${reply._id}`] && (
-                                          <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
-                                            {canEditDelete(reply.author?._id || reply.user) && (
-                                              <button
-                                                onClick={() => handleEditReply(comment._id, reply._id, reply.content)}
-                                                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
-                                              >
-                                                <FaEdit size={10} /> Edit
-                                              </button>
-                                            )}
+                                          {reply.author.username}
+                                        </Link>
+                                        {reply.author.verified && <VerifiedBadge />}
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                          {formatPostDate(reply.createdAt)}
+                                        </span>
+                                        <EditedIndicator item={reply} />
+                                        
+                                        {/* Reply menu */}
+                                        {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
+                                          <div className="relative ml-auto">
                                             <button
-                                              onClick={() => handleDeleteReply(comment._id, reply._id)}
-                                              className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
+                                              onClick={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] }))}
+                                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
                                             >
-                                              <FaTrash size={10} /> Delete
+                                              <FaEllipsisV size={10} />
                                             </button>
+                                            {showReplyMenus[`${comment._id}-${reply._id}`] && (
+                                              <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
+                                                {canEditDelete(reply.author?._id || reply.user) && (
+                                                  <button
+                                                    onClick={() => handleEditReply(comment._id, reply._id, reply.content)}
+                                                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
+                                                  >
+                                                    <FaEdit size={10} /> Edit
+                                                  </button>
+                                                )}
+                                                <button
+                                                  onClick={() => handleDeleteReply(comment._id, reply._id)}
+                                                  className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
+                                                >
+                                                  <FaTrash size={10} /> Delete
+                                                </button>
+                                              </div>
+                                            )}
                                           </div>
                                         )}
                                       </div>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Reply content */}
-                                  {editingReply === `${comment._id}-${reply._id}` ? (
-                                    <div className="space-y-2">
-                                      <textarea
-                                        value={editReplyContent}
-                                        onChange={e => setEditReplyContent(e.target.value)}
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                        rows="2"
-                                      />
-                                      <div className="flex gap-2">
+                                      
+                                      {/* Reply content */}
+                                      {editingReply === `${comment._id}-${reply._id}` ? (
+                                        <div className="space-y-2">
+                                          <textarea
+                                            value={editReplyContent}
+                                            onChange={e => setEditReplyContent(e.target.value)}
+                                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            rows="2"
+                                          />
+                                          <div className="flex gap-2">
+                                            <button
+                                              onClick={() => handleSaveReplyEdit(comment._id, reply._id)}
+                                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                            >
+                                              <FaSave size={10} />
+                                            </button>
+                                            <button
+                                              onClick={handleCancelReplyEdit}
+                                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                            >
+                                              <FaTimes size={10} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <p 
+                                          className="text-sm text-gray-900 dark:text-gray-100 break-words"
+                                          dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
+                                        />
+                                      )}
+                                      
+                                      {/* Reply actions */}
+                                      <div className="flex items-center gap-4 mt-1">
                                         <button
-                                          onClick={() => handleSaveReplyEdit(comment._id, reply._id)}
-                                          className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                          onClick={() => handleLikeReply(comment._id, reply._id)}
+                                          disabled={loadingReplyLike[reply._id]}
+                                          className={`flex items-center gap-1 transition-colors ${
+                                            Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                                              ? 'text-red-500'
+                                              : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
+                                          }`}
+                                          aria-label="Like reply"
                                         >
-                                          Save
-                                        </button>
-                                        <button
-                                          onClick={handleCancelReplyEdit}
-                                          className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                                        >
-                                          Cancel
+                                          {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                                            ? <FaHeart /> 
+                                            : <FaRegHeart />
+                                          }
+                                          <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
                                         </button>
                                       </div>
                                     </div>
-                                  ) : (
-                                    <p 
-                                      className="text-sm text-gray-900 dark:text-gray-100 break-words mb-2"
-                                      dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
-                                    />
-                                  )}
-                                  
-                                  {/* Reply actions */}
-                                  <div className="flex items-center gap-4 text-xs">
-                                    <button
-                                      onClick={() => handleLikeReply(comment._id, reply._id)}
-                                      disabled={loadingReplyLike[reply._id]}
-                                      className={`flex items-center gap-1 transition-colors ${
-                                        Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                          ? 'text-red-500'
-                                          : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                                      }`}
-                                    >
-                                      {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                        ? <FaHeart /> 
-                                        : <FaRegHeart />
-                                      }
-                                      <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
-                                    </button>
                                   </div>
-                                </div>
+                                ))}
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
-                
-                {/* Load more comments button - ALWAYS SHOW */}
+                {/* Load more comments button */}
                 {hasMore && (
-                  <div className="flex justify-center mt-4">
+                  <div className="mt-4 text-center">
                     <button
                       onClick={loadMoreComments}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg shadow-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      disabled={loadingMoreComments}
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors"
                     >
-                      {loadingMoreComments ? (
-                        <FaSpinner className="animate-spin text-gray-400" />
-                      ) : (
-                        "Load more comments"
-                      )}
+                      {loadingMoreComments ? 'Loading...' : 'Show more comments'}
                     </button>
                   </div>
                 )}

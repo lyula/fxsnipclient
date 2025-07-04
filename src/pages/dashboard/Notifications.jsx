@@ -55,6 +55,24 @@ export default function NotificationsPage() {
       : n.text,
   }));
 
+  const handleNotificationClick = (notification) => {
+    // Mark notification as read
+    markNotificationAsRead(notification._id);
+    
+    if (notification.type === 'mention') {
+      let url = `/dashboard/community?postId=${notification.post}`;
+      
+      if (notification.reply) {
+        url += `&commentId=${notification.comment}&replyId=${notification.reply}`;
+      } else if (notification.comment) {
+        url += `&commentId=${notification.comment}`;
+      }
+      
+      navigate(url);
+    }
+    // Handle other notification types...
+  };
+
   return (
     <div className="max-w-2xl mx-auto p-4">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
@@ -85,6 +103,7 @@ export default function NotificationsPage() {
                 className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition ${
                   !n.read ? "bg-blue-50 dark:bg-blue-900/20" : ""
                 }`}
+                onClick={() => handleNotificationClick(n)}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">

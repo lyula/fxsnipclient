@@ -1616,3 +1616,16 @@ video {
 .floating-heart-animation {
   animation: floatingHeart 1s ease-out forwards;
 }
+
+/* Highlight mention styles */
+.highlight-mention {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid rgba(59, 130, 246, 0.5);
+  border-radius: 8px;
+  animation: mentionPulse 2s ease-in-out;
+}
+
+@keyframes mentionPulse {
+  0%, 100% { background: rgba(59, 130, 246, 0.1); }
+  50% { background: rgba(59, 130, 246, 0.2); }
+}
