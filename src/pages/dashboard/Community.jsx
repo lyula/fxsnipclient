@@ -227,23 +227,45 @@ export default function Community({ user }) {
   const handleTouchMove = (e) => {
     setTouchEnd(e.targetTouches[0].clientY); // Vertical
     setHorizontalTouchEnd(e.targetTouches[0].clientX); // Horizontal
+    
+    // Calculate current distances
+    const currentHorizontalDistance = Math.abs(e.targetTouches[0].clientX - horizontalTouchStart);
+    const currentVerticalDistance = Math.abs(e.targetTouches[0].clientY - touchStart);
+    
+    // Prevent default behavior for even small horizontal movements
+    if (currentHorizontalDistance > 5 && currentHorizontalDistance >= currentVerticalDistance) {
+      e.preventDefault();
+    }
   };
 
-  const handleTouchEnd = async () => {
-    if (!touchStart || !touchEnd) return;
+  const handleTouchEnd = async (e) => {
+    if (!touchStart || !touchEnd || !horizontalTouchStart || !horizontalTouchEnd) return;
     
     const verticalDistance = touchEnd - touchStart; // Positive = downward swipe, negative = upward swipe
     const horizontalDistance = horizontalTouchStart - horizontalTouchEnd; // Positive = left swipe, negative = right swipe
     
-    // Determine if this is primarily a horizontal or vertical swipe
-    const isHorizontalSwipe = Math.abs(horizontalDistance) > Math.abs(verticalDistance);
-    const isVerticalSwipe = Math.abs(verticalDistance) > Math.abs(horizontalDistance);
+    // Much more sensitive thresholds for horizontal swipes
+    const minHorizontalDistance = 10; // Very small threshold for horizontal swipes
+    const minVerticalDistance = 50; // Keep vertical threshold higher
     
-    // Handle horizontal swipes for tab switching
-    if (isHorizontalSwipe && Math.abs(horizontalDistance) > 50) {
+    const absHorizontal = Math.abs(horizontalDistance);
+    const absVertical = Math.abs(verticalDistance);
+    
+    // Determine if this is primarily a horizontal or vertical swipe
+    const isHorizontalSwipe = absHorizontal >= minHorizontalDistance && (absHorizontal > absVertical || absVertical < 20);
+    const isVerticalSwipe = absVertical >= minVerticalDistance && absVertical > absHorizontal;
+    
+    // Handle horizontal swipes for tab switching with very low threshold
+    if (isHorizontalSwipe) {
+      e.preventDefault(); // Prevent any default touch behavior
+      
+      console.log('Horizontal swipe detected:', horizontalDistance); // Debug log
+      
       if (horizontalDistance > 0 && activeTab === "forYou") {
+        console.log('Switching to following tab'); // Debug log
         setActiveTab("following");
       } else if (horizontalDistance < 0 && activeTab === "following") {
+        console.log('Switching to forYou tab'); // Debug log
         setActiveTab("forYou");
       }
     }

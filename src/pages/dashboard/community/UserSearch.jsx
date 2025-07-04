@@ -13,13 +13,47 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [localFollowingHashed, setLocalFollowingHashed] = useState(currentUser?.followingHashed || []);
+  const [localFollowingHashed, setLocalFollowingHashed] = useState([]);
+  const [followingUsers, setFollowingUsers] = useState([]); // Store actual following users
   const debounceRef = useRef();
   const navigate = useNavigate();
 
+  // API base URL
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+
+  // Fetch current user's following list
   useEffect(() => {
-    setLocalFollowingHashed(currentUser?.followingHashed || []);
-  }, [currentUser]);
+    const fetchFollowingUsers = async () => {
+      if (!currentUser?.username) return;
+
+      try {
+        const authHeaders = {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        };
+
+        const response = await fetch(
+          `${API_BASE}/user/following/${encodeURIComponent(currentUser.username)}`,
+          {
+            headers: authHeaders,
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const following = data.following || [];
+          setFollowingUsers(following);
+
+          // Create hashed IDs for quick lookup
+          const hashedIds = following.map((user) => hashId(user._id));
+          setLocalFollowingHashed(hashedIds);
+        }
+      } catch (error) {
+        console.error("Error fetching following users:", error);
+      }
+    };
+
+    fetchFollowingUsers();
+  }, [currentUser?.username, API_BASE]);
 
   useEffect(() => {
     if (!query) {
@@ -31,7 +65,7 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       const data = await searchUsers(query);
-      const mappedResults = (data.users || []).map(u => ({
+      const mappedResults = (data.users || []).map((u) => ({
         ...u,
         isFollowing: localFollowingHashed.includes(hashId(u._id)),
       }));
@@ -42,11 +76,22 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
   }, [query, localFollowingHashed]);
 
   const handleFollow = async (userId) => {
-    await followUser(userId);
-    const hashedId = hashId(userId);
-    setLocalFollowingHashed((prev) => [...prev, hashedId]);
-    setResults(results.map(u => u._id === userId ? { ...u, isFollowing: true } : u));
-    if (onFollow) onFollow(userId);
+    try {
+      await followUser(userId);
+      const hashedId = hashId(userId);
+      setLocalFollowingHashed((prev) => [...prev, hashedId]);
+
+      // Add the user to the following list
+      const userToFollow = results.find((u) => u._id === userId);
+      if (userToFollow) {
+        setFollowingUsers((prev) => [...prev, userToFollow]);
+      }
+
+      setResults(results.map((u) => (u._id === userId ? { ...u, isFollowing: true } : u)));
+      if (onFollow) onFollow(userId);
+    } catch (error) {
+      console.error("Error following user:", error);
+    }
   };
 
   return (
@@ -59,8 +104,8 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
           type="text"
           placeholder="Search users…"
           value={query}
-          onChange={e => setQuery(e.target.value)}
-          className="flex-1 border rounded px-3 py-2"
+          onChange={(e) => setQuery(e.target.value)}
+          className="flex-1 border rounded px-3 py-2 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
         />
       </div>
       {/* Floating results */}
@@ -78,7 +123,7 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
           )}
           {!loading && results.length > 0 && (
             <ul className="bg-white dark:bg-gray-900 border border-blue-100 dark:border-gray-800 rounded shadow-lg p-2 max-h-64 overflow-y-auto">
-              {results.map(user => (
+              {results.map((user) => (
                 <li
                   key={user._id}
                   className="flex items-center gap-3 py-2 px-2 hover:bg-blue-50 dark:hover:bg-gray-800 rounded transition"
@@ -96,10 +141,13 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
                     )}
                   </div>
                   <button
-                    className={`ml-2 px-3 py-1 rounded text-xs font-semibold transition
-                      ${user.isFollowing ? "bg-gray-200 dark:bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-[#a99d6b] text-white hover:bg-[#c2b77a]"}`}
+                    className={`ml-2 px-4 py-1.5 rounded text-sm font-semibold transition min-w-[80px] flex-shrink-0
+                      ${user.isFollowing
+                        ? "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed"
+                        : "bg-[#a99d6b] text-white hover:bg-[#c2b77a]"
+                    }`}
                     disabled={user.isFollowing}
-                    onClick={() => handleFollow(user._id)}
+                    onClick={() => !user.isFollowing && handleFollow(user._id)}
                   >
                     {user.isFollowing ? "Following" : "Follow"}
                   </button>
