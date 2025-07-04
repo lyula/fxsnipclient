@@ -29,8 +29,8 @@ export default defineConfig({
         enabled: true
       },
       manifest: {
-        name: 'FXsnip',
-        short_name: 'FXsnip',
+        name: 'Journalyze',
+        short_name: 'Journalyze',
         description: 'A platform for tracking and journaling trades.Socially connect with other traders by posting,commenting to posts replying to comments or direct messages',
         theme_color: '#0f172a',
         background_color: '#ffffff',
