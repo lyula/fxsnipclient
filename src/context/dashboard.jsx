@@ -272,7 +272,17 @@ export function DashboardProvider({ children }) {
 
   // Update a specific post
   const updatePost = useCallback((postId, updatedPost) => {
+    // Update community posts
     setCommunityPosts(prev => 
+      prev
+        .map(post => 
+          post._id === postId ? updatedPost : post
+        )
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    );
+    
+    // Also update following posts if the post exists there
+    setFollowingPosts(prev => 
       prev
         .map(post => 
           post._id === postId ? updatedPost : post
@@ -284,6 +294,7 @@ export function DashboardProvider({ children }) {
   // Delete a post
   const deletePostFromList = useCallback((postId) => {
     setCommunityPosts(prev => prev.filter(post => post._id !== postId));
+    setFollowingPosts(prev => prev.filter(post => post._id !== postId));
   }, []);
 
   // Add infinite scroll functions

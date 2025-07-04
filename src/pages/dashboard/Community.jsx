@@ -547,12 +547,14 @@ export default function Community({ user }) {
   const handleLike = useCallback(async (postId) => {
     const originalPostId = getOriginalPostId(postId);
     
+    // Find the post in either collection
     const currentPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
     if (!currentPost || !user) return;
     
     const currentUserId = user._id || user.id;
     const isCurrentlyLiked = currentPost.likes?.some(likeId => String(likeId) === String(currentUserId));
     
+    // Create optimistic update
     const optimisticUpdate = {
       ...currentPost,
       likes: isCurrentlyLiked 
@@ -560,15 +562,17 @@ export default function Community({ user }) {
         : [...(currentPost.likes || []), currentUserId]
     };
     
+    // Apply optimistic update to both collections
     updatePost(postId, optimisticUpdate);
 
     try {
-      console.log('Toggling like for post:', originalPostId);
+      console.log('Toggling like for post:', originalPostId, 'Currently liked:', isCurrentlyLiked);
       
       const res = await fetch(`${API_BASE}/posts/${originalPostId}/like`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
         },
       });
       
@@ -576,18 +580,23 @@ export default function Community({ user }) {
         const updatedPost = await res.json();
         console.log('Like toggled successfully:', updatedPost);
         
-        updatePost(postId, { 
+        // Update with server response, preserving display ID
+        const finalUpdate = { 
           ...updatedPost, 
-          _id: postId,
+          _id: postId, // Keep the display ID for React rendering
           _originalId: originalPostId 
-        });
+        };
+        
+        updatePost(postId, finalUpdate);
       } else {
-        const errorData = await res.json();
-        console.error("Failed to toggle like:", errorData);
+        const errorText = await res.text();
+        console.error("Failed to toggle like:", res.status, errorText);
+        // Revert optimistic update on error
         updatePost(postId, currentPost);
       }
     } catch (error) {
       console.error("Error toggling like:", error);
+      // Revert optimistic update on error
       updatePost(postId, currentPost);
     }
   }, [API_BASE, communityPosts, followingPosts, updatePost, user]);
@@ -598,14 +607,17 @@ export default function Community({ user }) {
 
     const viewKey = `viewed_post_${originalPostId}`;
     if (sessionStorage.getItem(viewKey)) {
-      return;
+      return; // Already viewed in this session
     }
 
+    // Mark as viewed in this session
     sessionStorage.setItem(viewKey, 'true');
 
+    // Find the post in either collection
     const post = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
     if (post) {
-      updatePost(postId, { ...post, views: (post.views || 0) + 1 });
+      const updatedPost = { ...post, views: (post.views || 0) + 1 };
+      updatePost(postId, updatedPost);
     }
 
     try {
@@ -613,7 +625,10 @@ export default function Community({ user }) {
       
       const res = await fetch(`${API_BASE}/posts/${originalPostId}/view`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
       });
       
       if (res.ok) {

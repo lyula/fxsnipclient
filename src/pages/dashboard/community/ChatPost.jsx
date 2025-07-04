@@ -3,34 +3,162 @@ import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser, FaEdit, FaTr
 import { Link, useLocation } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import MediaDisplay from '../../../components/media/MediaDisplay';
-import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes } from "../../../utils/api";
+import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers } from "../../../utils/api";
 import { formatPostDate } from '../../../utils/formatDate';
 
-// Dummy MentionInput component (replace with your actual implementation)
-function MentionInput({ value, onChange, onSubmit, loading, placeholder, disabled, onClose }) {
+// Enhanced MentionInput component with full mention functionality
+function MentionInput({ 
+  value, 
+  onChange, 
+  onSubmit, 
+  loading, 
+  placeholder, 
+  disabled, 
+  onClose,
+  initialMention = "",
+  className = ""
+}) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStart, setMentionStart] = useState(null);
+  const inputRef = useRef(null);
+
+  // Initialize with mention if provided
+  useEffect(() => {
+    if (initialMention && !value) {
+      const mentionText = `@${initialMention} `;
+      onChange({ target: { value: mentionText } });
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.selectionStart = inputRef.current.selectionEnd = mentionText.length;
+        }
+      }, 0);
+    }
+  }, [initialMention, value, onChange]);
+
+  const handleInputChange = async (e) => {
+    const inputValue = e.target.value;
+    onChange(e);
+
+    const caret = e.target.selectionStart;
+    const textUpToCaret = inputValue.slice(0, caret);
+    const mentionMatch = textUpToCaret.match(/@(\w*)$/);
+
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setMentionStart(caret - mentionMatch[1].length - 1);
+      setShowSuggestions(true);
+      try {
+        const users = await searchUsers(mentionMatch[1]);
+        setSuggestions(users.users || []);
+      } catch (err) {
+        setSuggestions([]);
+      }
+    } else {
+      setShowSuggestions(false);
+      setSuggestions([]);
+      setMentionQuery("");
+      setMentionStart(null);
+    }
+  };
+
+  const handleSuggestionClick = (username) => {
+    if (mentionStart === null) return;
+    const before = value.slice(0, mentionStart);
+    const after = value.slice(inputRef.current.selectionStart);
+    const newContent = `${before}@${username} ${after}`;
+    onChange({ target: { value: newContent } });
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setMentionQuery("");
+    setMentionStart(null);
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const newPosition = (before + "@" + username + " ").length;
+        inputRef.current.selectionStart = inputRef.current.selectionEnd = newPosition;
+      }
+    }, 0);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !showSuggestions) {
+      e.preventDefault();
+      onSubmit(e);
+    } else if (e.key === 'Escape' && showSuggestions) {
+      setShowSuggestions(false);
+      setSuggestions([]);
+      setMentionQuery("");
+      setMentionStart(null);
+    }
+  };
+
   return (
-    <form onSubmit={onSubmit} className="flex gap-2 items-center">
-      <input
-        type="text"
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={disabled || loading}
-        className="flex-1 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-      />
-      <button type="submit" disabled={loading || !value.trim()} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors">
-        {loading ? "Sending..." : "Send"}
-      </button>
-      {onClose && (
-        <button type="button" onClick={onClose} className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-          ×
+    <div className="relative w-full">
+      <form onSubmit={onSubmit} className="flex gap-2 items-center w-full max-w-full">
+        <div className="flex-1 relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled || loading}
+            className={`w-full min-w-0 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${className}`}
+          />
+          
+          {/* Mention suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-40 overflow-y-auto">
+              {suggestions.slice(0, 5).map((user) => (
+                <button
+                  key={user._id}
+                  type="button"
+                  onClick={() => handleSuggestionClick(user.username)}
+                  className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                >
+                  <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                    <FaUser className="text-gray-600 dark:text-gray-400 text-xs" />
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center gap-1">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      @{user.username}
+                    </span>
+                    {user.verified && <VerifiedBadge />}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <button 
+          type="submit" 
+          disabled={loading || !value.trim()} 
+          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors flex-shrink-0"
+        >
+          {loading ? "Sending..." : "Send"}
         </button>
-      )}
-    </form>
+        
+        {onClose && (
+          <button 
+            type="button" 
+            onClick={onClose} 
+            className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex-shrink-0"
+          >
+            ×
+          </button>
+        )}
+      </form>
+    </div>
   );
 }
 
-function ReplyInput({ onSubmit, loading, postId, commentId }) {
+
+function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
 
   const handleSubmit = (e) => {
@@ -40,20 +168,22 @@ function ReplyInput({ onSubmit, loading, postId, commentId }) {
     setReplyText("");
   };
 
+  const handleChange = (e) => {
+    setReplyText(e.target.value);
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 items-center">
-      <input
-        type="text"
+    <div className="w-full max-w-full">
+      <MentionInput
         value={replyText}
-        onChange={e => setReplyText(e.target.value)}
-        placeholder="Write a reply..."
-        disabled={loading}
-        className="flex-1 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+        onChange={handleChange}
+        onSubmit={handleSubmit}
+        loading={loading}
+        placeholder={`Reply to @${replyToUsername}...`}
+        initialMention={replyToUsername}
+        className="text-sm"
       />
-      <button type="submit" disabled={loading || !replyText.trim()} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors">
-        {loading ? "Sending..." : "Reply"}
-      </button>
-    </form>
+    </div>
   );
 }
 
@@ -387,6 +517,7 @@ export default function ChatPost({
       }
     } finally {
       setLoadingReply(prev => ({ ...prev, [commentId]: false }));
+      setActiveReply(null); // Close reply input after submission
     }
   };
 
@@ -1007,26 +1138,14 @@ export default function ChatPost({
               {/* Comment input */}
               {activeReply === null && showCommentInput && (
                 <div className="w-full mt-2 max-w-full">
-                  <div className="flex gap-2 w-full max-w-full flex-wrap">
-                    <input
-                      type="text"
-                      value={comment}
-                      onChange={e => setComment(e.target.value)}
-                      placeholder="Write a comment..."
-                      className="mobile-comment-input flex-1 border rounded px-2 py-1 text-sm sm:text-base min-w-0 box-border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                      disabled={loadingComment}
-                      style={{ maxWidth: "100%" }}
-                      onKeyPress={(e) => e.key === 'Enter' && handleCommentSubmit(e)}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleCommentSubmit}
-                      disabled={loadingComment || !comment.trim()}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 shrink-0 transition-colors"
-                    >
-                      {loadingComment ? "Sending..." : "Send"}
-                    </button>
-                  </div>
+                  <MentionInput
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    onSubmit={handleCommentSubmit}
+                    loading={loadingComment}
+                    placeholder="Write a comment..."
+                    className="mobile-comment-input text-sm sm:text-base"
+                  />
                 </div>
               )}
               
@@ -1062,23 +1181,23 @@ export default function ChatPost({
                                 onClick={() => setShowCommentMenus(prev => ({ ...prev, [comment._id]: !prev[comment._id] }))}
                                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
                               >
-                                <FaEllipsisV size={12} />
+                                <FaEllipsisV size={10} />
                               </button>
                               {showCommentMenus[comment._id] && (
                                 <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
                                   {canEditDelete(comment.author?._id || comment.user) && (
                                     <button
                                       onClick={() => handleEditComment(comment._id, comment.content)}
-                                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
+                                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
                                     >
-                                      <FaEdit size={10} /> Edit
+                                      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
                                     </button>
                                   )}
                                   <button
                                     onClick={() => handleDeleteComment(comment._id)}
-                                    className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
+                                    className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
                                   >
-                                    <FaTrash size={10} /> Delete
+                                    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
                                   </button>
                                 </div>
                               )}
@@ -1117,8 +1236,16 @@ export default function ChatPost({
                           />
                         )}
                         
-                        {/* Comment actions */}
+                        {/* Reply button - ALWAYS SHOW REPLIES */}
                         <div className="flex items-center gap-4 text-xs">
+                          <button
+                            onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
+                            className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+                          >
+                            Reply
+                          </button>
+                          
+                          {/* Like button for comments */}
                           <button
                             onClick={() => handleLikeComment(comment._id)}
                             disabled={loadingCommentLike[comment._id]}
@@ -1127,6 +1254,7 @@ export default function ChatPost({
                                 ? 'text-red-500'
                                 : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
                             }`}
+                            aria-label="Like comment"
                           >
                             {Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
                               ? <FaHeart /> 
@@ -1134,52 +1262,37 @@ export default function ChatPost({
                             }
                             <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
                           </button>
-                          
-                          <button
-                            onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
-                            className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                          >
-                            Reply
-                          </button>
-                          
-                          {comment.replies && comment.replies.length > 0 && (
-                            <button
-                              onClick={() => setExpandedReplies(expandedReplies === comment._id ? null : comment._id)}
-                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                            >
-                              {expandedReplies === comment._id ? 'Hide' : 'Show'} {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
-                            </button>
-                          )}
                         </div>
                         
-                        {/* Reply input */}
+                        {/* Reply input - Show when activeReply matches comment ID */}
                         {activeReply === comment._id && (
-                          <div className="mt-3">
+                          <div className="mt-2">
                             <ReplyInput
                               onSubmit={handleReply}
                               loading={loadingReply[comment._id]}
                               postId={localPost._id}
                               commentId={comment._id}
+                              replyToUsername={comment.author.username}
                             />
                           </div>
                         )}
                         
-                        {/* Replies */}
-                        {expandedReplies === comment._id && comment.replies && comment.replies.length > 0 && (
-                          <div className="mt-3 space-y-3">
+                        {/* Replies section - ALWAYS SHOW REPLIES */}
+                        {comment.replies && comment.replies.length > 0 && (
+                          <div className="mt-2 ml-4">
                             {comment.replies.map((reply) => (
-                              <div key={reply._id} className="flex items-start gap-2 pl-4 border-l border-gray-200 dark:border-gray-600">
+                              <div key={reply._id} className="flex items-start gap-3 mb-3">
                                 <Link 
                                   to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                  className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
                                 >
-                                  <FaUser className="text-gray-400 dark:text-gray-500 text-xs" />
+                                  <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
                                 </Link>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
                                     <Link
                                       to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                      className="font-semibold text-xs text-gray-900 dark:text-white hover:underline"
+                                      className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
                                     >
                                       {reply.author.username}
                                     </Link>
@@ -1278,21 +1391,18 @@ export default function ChatPost({
                     </div>
                   </div>
                 ))}
-
-                {/* Load more comments button */}
+                
+                {/* Load more comments button - ALWAYS SHOW */}
                 {hasMore && (
                   <div className="flex justify-center mt-4">
                     <button
                       onClick={loadMoreComments}
-                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg shadow-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg shadow-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                     >
                       {loadingMoreComments ? (
-                        <FaSpinner className="animate-spin" />
+                        <FaSpinner className="animate-spin text-gray-400" />
                       ) : (
-                        <>
-                          <FaSort className="text-gray-500 dark:text-gray-400" />
-                          Load more comments
-                        </>
+                        "Load more comments"
                       )}
                     </button>
                   </div>
