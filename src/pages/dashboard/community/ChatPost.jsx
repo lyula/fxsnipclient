@@ -96,9 +96,9 @@ function MentionInput({
   };
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full max-w-full overflow-x-hidden">
       <form onSubmit={onSubmit} className="flex gap-2 items-center w-full max-w-full">
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-0 max-w-full">
           <input
             ref={inputRef}
             type="text"
@@ -107,24 +107,24 @@ function MentionInput({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled || loading}
-            className={`w-full min-w-0 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${className}`}
+            className={`w-full max-w-full min-w-0 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${className}`}
           />
           
           {/* Mention suggestions dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-40 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-40 overflow-y-auto max-w-full">
               {suggestions.slice(0, 5).map((user) => (
                 <button
                   key={user._id}
                   type="button"
                   onClick={() => handleSuggestionClick(user.username)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                  className="w-full max-w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
                 >
                   <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
                     <FaUser className="text-gray-600 dark:text-gray-400 text-xs" />
                   </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-1">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  <div className="flex-1 min-w-0 max-w-full flex items-center gap-1">
+                    <span className="text-sm font-medium text-gray-900 dark:text-white break-words">
                       @{user.username}
                     </span>
                     {user.verified && <VerifiedBadge />}
@@ -172,7 +172,7 @@ function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = ""
   };
 
   return (
-    <div className="w-full max-w-full">
+    <div className="w-full max-w-full overflow-x-hidden">
       <MentionInput
         value={replyText}
         onChange={handleChange}
@@ -955,7 +955,7 @@ export default function ChatPost({
               </div>
             ) : (
               <span 
-                className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words"
+                className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words break-all overflow-wrap-anywhere w-full max-w-full"
                 dangerouslySetInnerHTML={{ __html: renderHighlightedContent(localPost.content || '') }}
               />
             )}
@@ -1158,7 +1158,7 @@ export default function ChatPost({
               
               {/* Comment input */}
               {activeReply === null && showCommentInput && (
-                <div className="w-full mt-2 max-w-full">
+                <div className="w-full mt-2 max-w-full overflow-x-hidden">
                   <MentionInput
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
@@ -1171,17 +1171,17 @@ export default function ChatPost({
               )}
               
               {/* Comments list */}
-              <div className="w-full max-w-full">
+              <div className="w-full max-w-full overflow-x-hidden">
                 {displayedComments.map((comment) => (
-                  <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
-                    <div className="flex items-start gap-3">
+                  <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
+                    <div className="flex items-start gap-3 w-full max-w-full">
                       <Link 
                         to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
                       >
                         <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
                       </Link>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 max-w-full overflow-x-hidden">
                         <div className="flex items-center gap-2 mb-1">
                           <Link
                             to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
@@ -1228,23 +1228,23 @@ export default function ChatPost({
                         
                         {/* Comment content */}
                         {editingComment === comment._id ? (
-                          <div className="space-y-2">
+                          <div className="space-y-2 w-full max-w-full">
                             <textarea
                               value={editCommentContent}
                               onChange={e => setEditCommentContent(e.target.value)}
-                              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                              className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                               rows="2"
                             />
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleSaveCommentEdit(comment._id)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
                               >
                                 Save
                               </button>
                               <button
                                 onClick={handleCancelCommentEdit}
-                                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
                               >
                                 Cancel
                               </button>
@@ -1252,7 +1252,7 @@ export default function ChatPost({
                           </div>
                         ) : (
                           <p 
-                            className="text-sm text-gray-900 dark:text-gray-100 break-words mb-2"
+                            className="text-sm text-gray-900 dark:text-gray-100 break-words break-all overflow-wrap-anywhere mb-2 w-full max-w-full"
                             dangerouslySetInnerHTML={{ __html: renderHighlightedContent(comment.content) }}
                           />
                         )}
@@ -1287,7 +1287,7 @@ export default function ChatPost({
                         
                         {/* Reply input - Show when activeReply matches comment ID */}
                         {activeReply === comment._id && (
-                          <div className="mt-2">
+                          <div className="mt-2 w-full max-w-full overflow-x-hidden">
                             <ReplyInput
                               onSubmit={handleReply}
                               loading={loadingReply[comment._id]}
@@ -1300,43 +1300,37 @@ export default function ChatPost({
                         
                         {/* Replies section with hide/show functionality */}
                         {comment.replies && comment.replies.length > 0 && (
-                          <div className="mt-2">
+                          <div className="mt-2 w-full max-w-full overflow-x-hidden">
                             {/* Show/Hide replies link */}
                             <span
                               onClick={() => toggleRepliesVisibility(comment._id)}
                               className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer transition-colors"
                             >
-                              {hiddenReplies[comment._id] === false ? 'hide replies' : 'show replies'}
+                              {hiddenReplies[comment._id] === false ? `hide replies (${comment.replies.length})` : `show replies (${comment.replies.length})`}
                             </span>
                             
                             {/* Replies list - only show if not hidden */}
                             {hiddenReplies[comment._id] === false && (
-                              <div className="ml-4 mt-2 space-y-3 border-l border-gray-200 dark:border-gray-700 pl-3">
+                              <div className="ml-4 mt-2 space-y-3 border-l border-gray-200 dark:border-gray-700 pl-3 w-full max-w-full overflow-x-hidden">
                                 {comment.replies.map((reply) => (
-                                  <div key={reply._id} data-reply-id={reply._id} className="flex items-start gap-3">
-                                    <Link 
-                                      to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
-                                    >
-                                      <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-                                    </Link>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-1">
+                                  <div key={reply._id} data-reply-id={reply._id} className="w-full max-w-full overflow-x-hidden">
+                                    <div className="flex-1 min-w-0 max-w-full overflow-x-hidden">
+                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                                         <Link
                                           to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                          className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
+                                          className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
                                         >
                                           {reply.author.username}
                                         </Link>
                                         {reply.author.verified && <VerifiedBadge />}
-                                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                                           {formatPostDate(reply.createdAt)}
                                         </span>
                                         <EditedIndicator item={reply} />
                                         
                                         {/* Reply menu */}
                                         {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
-                                          <div className="relative ml-auto">
+                                          <div className="relative ml-auto flex-shrink-0">
                                             <button
                                               onClick={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] }))}
                                               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
@@ -1367,23 +1361,23 @@ export default function ChatPost({
                                       
                                       {/* Reply content */}
                                       {editingReply === `${comment._id}-${reply._id}` ? (
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 w-full max-w-full">
                                           <textarea
                                             value={editReplyContent}
                                             onChange={e => setEditReplyContent(e.target.value)}
-                                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                            className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                             rows="2"
                                           />
                                           <div className="flex gap-2">
                                             <button
                                               onClick={() => handleSaveReplyEdit(comment._id, reply._id)}
-                                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
                                             >
                                               <FaSave size={10} />
                                             </button>
                                             <button
                                               onClick={handleCancelReplyEdit}
-                                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
                                             >
                                               <FaTimes size={10} />
                                             </button>
@@ -1391,7 +1385,7 @@ export default function ChatPost({
                                         </div>
                                       ) : (
                                         <p 
-                                          className="text-sm text-gray-900 dark:text-gray-100 break-words"
+                                          className="text-sm text-gray-900 dark:text-gray-100 break-words break-all overflow-wrap-anywhere w-full max-w-full"
                                           dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
                                         />
                                       )}
