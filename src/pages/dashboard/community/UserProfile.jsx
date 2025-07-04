@@ -535,7 +535,7 @@ export default function UserProfile() {
             ))}
           </div>
           <div className="w-full mt-4">
-            <div className="max-h-[400px] overflow-y-auto hide-scrollbar">
+            <div className="flex-1 overflow-y-auto hide-scrollbar" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               {activeTab === "posts" && (
                 <>
                   {posts.length === 0 ? (
