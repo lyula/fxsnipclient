@@ -75,99 +75,120 @@ export default function Community({ user }) {
 
   // Scroll handler for tabs visibility and infinite scroll
   useEffect(() => {
+    let ticking = false;
+    
     const handleScroll = async () => {
-      if (!containerRef.current || isLoadingRef.current) return;
+      if (!containerRef.current || isLoadingRef.current || ticking) return;
+      
+      ticking = true;
+      
+      requestAnimationFrame(async () => {
+        if (!containerRef.current) {
+          ticking = false;
+          return;
+        }
+        
+        const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+        const scrollBottom = scrollHeight - scrollTop - clientHeight;
+        const currentScrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
+        const scrollDelta = Math.abs(scrollTop - lastScrollTop);
 
-      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-      const scrollBottom = scrollHeight - scrollTop - clientHeight;
-      const currentScrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
+        // Only update if there's meaningful scroll movement
+        if (scrollDelta > 2) {
+          setScrollDirection(currentScrollDirection);
+          setLastScrollTop(scrollTop);
 
-      // Update scroll direction and tabs visibility
-      setScrollDirection(currentScrollDirection);
-      setLastScrollTop(scrollTop);
-
-      // Show tabs at topmost content or immediately on any upward scroll
-      if (scrollTop <= 10 || currentScrollDirection === 'up') {
-        setShowTabs(true);
-      } else if (currentScrollDirection === 'down' && scrollTop > 10) {
-        setShowTabs(false);
-      }
-
-      // Track upward scroll distance for "Load New Posts" button
-      if (currentScrollDirection === 'up') {
-        setScrollUpDistance(prev => {
-          const newDistance = prev + Math.abs(scrollTop - lastScrollTop);
-          if (newDistance > 100 && !showLoadNewButton && !isRefreshing && !isLoadingFresh) {
-            setShowLoadNewButton(true);
-            setTopScrollAttempts(prevAttempts => prevAttempts + 1);
-            if (buttonHideTimeout) {
-              clearTimeout(buttonHideTimeout);
-            }
-            const timeout = setTimeout(() => {
-              setShowLoadNewButton(false);
-              setScrollUpDistance(0);
-              setTopScrollAttempts(0);
-            }, 8000);
-            setButtonHideTimeout(timeout);
-          }
-          return newDistance;
-        });
-      } else if (currentScrollDirection === 'down') {
-        if (scrollTop > 100 && showLoadNewButton) {
-          setShowLoadNewButton(false);
-          if (buttonHideTimeout) {
-            clearTimeout(buttonHideTimeout);
-            setButtonHideTimeout(null);
+          // Improved tab visibility logic - more responsive to direction changes
+          if (scrollTop <= 20) {
+            // Always show tabs at the very top
+            setShowTabs(true);
+          } else if (currentScrollDirection === 'up' && scrollDelta > 5) {
+            // Show tabs immediately on any meaningful upward scroll
+            setShowTabs(true);
+          } else if (currentScrollDirection === 'down' && scrollTop > 50 && scrollDelta > 10) {
+            // Hide tabs on downward scroll, but with some threshold
+            setShowTabs(false);
           }
         }
-        setScrollUpDistance(0);
-        setTopScrollAttempts(0);
-      }
 
-      // Infinite scroll logic
-      if (scrollBottom < 500 && hasMore && !isLoadingRef.current) {
-        isLoadingRef.current = true;
-        setIsLoadingMore(true);
-        
-        const currentScrollHeight = scrollHeight;
-        const currentScrollTop = scrollTop;
-        
-        try {
-          const result = await loadMorePosts(currentOffset);
+        // Track upward scroll distance for "Load New Posts" button
+        if (currentScrollDirection === 'up') {
+          setScrollUpDistance(prev => {
+            const newDistance = prev + scrollDelta;
+            if (newDistance > 100 && !showLoadNewButton && !isRefreshing && !isLoadingFresh) {
+              setShowLoadNewButton(true);
+              setTopScrollAttempts(prevAttempts => prevAttempts + 1);
+              if (buttonHideTimeout) {
+                clearTimeout(buttonHideTimeout);
+              }
+              const timeout = setTimeout(() => {
+                setShowLoadNewButton(false);
+                setScrollUpDistance(0);
+                setTopScrollAttempts(0);
+              }, 8000);
+              setButtonHideTimeout(timeout);
+            }
+            return newDistance;
+          });
+        } else if (currentScrollDirection === 'down') {
+          if (scrollTop > 100 && showLoadNewButton) {
+            setShowLoadNewButton(false);
+            if (buttonHideTimeout) {
+              clearTimeout(buttonHideTimeout);
+              setButtonHideTimeout(null);
+            }
+          }
+          setScrollUpDistance(0);
+          setTopScrollAttempts(0);
+        }
+
+        // Infinite scroll logic (rest remains the same)
+        if (scrollBottom < 500 && hasMore && !isLoadingRef.current) {
+          isLoadingRef.current = true;
+          setIsLoadingMore(true);
           
-          if (result) {
-            if (result.hasMore === true) {
-              setHasMore(true);
-            } else if (!result.hasMore && cyclingInfo?.totalPostsInCycle > 0) {
-              console.log('End of posts reached, cycling back to start...');
-              setHasMore(true);
-              setCurrentOffset(0);
-              const cyclingResult = await loadMorePosts(0);
-              if (cyclingResult?.posts) {
-                setCurrentOffset(cyclingResult.posts.length);
+          const currentScrollHeight = scrollHeight;
+          const currentScrollTop = scrollTop;
+          
+          try {
+            const result = await loadMorePosts(currentOffset);
+            
+            if (result) {
+              if (result.hasMore === true) {
+                setHasMore(true);
+              } else if (!result.hasMore && cyclingInfo?.totalPostsInCycle > 0) {
+                console.log('End of posts reached, cycling back to start...');
+                setHasMore(true);
+                setCurrentOffset(0);
+                const cyclingResult = await loadMorePosts(0);
+                if (cyclingResult?.posts) {
+                  setCurrentOffset(cyclingResult.posts.length);
+                }
+              } else {
+                setHasMore(false);
+              }
+              
+              if (result.posts && result.posts.length > 0) {
+                setCurrentOffset(prev => prev + result.posts.length);
+                requestAnimationFrame(() => {
+                  if (containerRef.current && containerRef.current.scrollHeight > currentScrollHeight) {
+                    containerRef.current.scrollTop = currentScrollTop;
+                  }
+                });
               }
             } else {
               setHasMore(false);
             }
-            
-            if (result.posts && result.posts.length > 0) {
-              setCurrentOffset(prev => prev + result.posts.length);
-              requestAnimationFrame(() => {
-                if (containerRef.current && containerRef.current.scrollHeight > currentScrollHeight) {
-                  containerRef.current.scrollTop = currentScrollTop;
-                }
-              });
-            }
-          } else {
-            setHasMore(false);
+          } catch (error) {
+            console.error('Error loading more posts:', error);
+          } finally {
+            setIsLoadingMore(false);
+            isLoadingRef.current = false;
           }
-        } catch (error) {
-          console.error('Error loading more posts:', error);
-        } finally {
-          setIsLoadingMore(false);
-          isLoadingRef.current = false;
         }
-      }
+        
+        ticking = false;
+      });
     };
 
     const container = containerRef.current;
@@ -180,7 +201,7 @@ export default function Community({ user }) {
         }
       };
     }
-  }, [loadMorePosts, hasMore, cyclingInfo]);
+  }, [loadMorePosts, hasMore, cyclingInfo, lastScrollTop, showLoadNewButton, isRefreshing, isLoadingFresh, buttonHideTimeout]);
 
   // Touch handling for pull-to-refresh
   const handleTouchStart = (e) => {
@@ -441,7 +462,7 @@ export default function Community({ user }) {
 
   return (
     <div 
-      className="w-full h-full flex flex-col overflow-x-hidden overflow-y-hidden community-container"
+      className="w-full h-full flex flex-col overflow-x-hidden overflow-y-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-900 dark:via-slate-900 dark:to-gray-800"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -452,17 +473,9 @@ export default function Community({ user }) {
         overscrollBehavior: 'none'
       }}
     >
-      {isRefreshing && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-full shadow-lg z-50">
-          <div className="flex items-center gap-1 sm:gap-2 whitespace-nowrap">
-            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white flex-shrink-0"></div>
-            <span className="text-xs sm:text-sm font-medium">Loading fresh content...</span>
-          </div>
-        </div>
-      )}
-
+      {/* Enhanced tabs container with Tailwind glassmorphism */}
       <div 
-        className={`flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20 transition-all duration-200 ${
+        className={`flex-shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-20 transition-all duration-300 ${
           showTabs ? "opacity-100 translate-y-0 h-auto py-4" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
         }`}
         style={{ willChange: "transform, opacity, height" }}
@@ -477,14 +490,17 @@ export default function Community({ user }) {
         </div>
       </div>
 
+      {/* Modern posts container with Tailwind gradients */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden py-4 bg-gray-50 dark:bg-gray-800 hide-scrollbar community-posts-section"
+        className="flex-1 overflow-y-auto overflow-x-hidden py-6 bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar"
         style={{ 
           minHeight: 0,
           maxHeight: '100%',
           overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch'
+          WebkitOverflowScrolling: 'touch',
+          scrollBehavior: 'smooth',
+          willChange: 'scroll-position'
         }}
       >
         {showCreate && (
@@ -507,7 +523,7 @@ export default function Community({ user }) {
           </div>
         ) : (
           <>
-            <div className="w-full max-w-full overflow-x-hidden px-0 sm:max-w-2xl sm:mx-auto sm:px-4">
+            <div className="w-full max-w-full overflow-x-hidden px-4 sm:max-w-2xl sm:mx-auto">
               <ChatList
                 posts={communityPosts}
                 postRefs={postRefs}
@@ -553,7 +569,16 @@ export default function Community({ user }) {
           </>
         )}
       </div>
-
+      
+      {/* Enhanced create post button with Tailwind */}
+     <button
+  className="fixed bottom-20 sm:bottom-8 right-8 md:right-24 z-50 flex items-center gap-2 px-5 py-3 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full font-semibold shadow-xl hover:shadow-2xl hover:-translate-y-1 hover:scale-105 transition-all duration-300 max-w-[95vw] group"
+  onClick={() => setShowCreate(true)}
+>
+        <FaPlus className="text-lg group-hover:rotate-90 transition-transform duration-300" />
+        <span className="hidden sm:inline">Create Post</span>
+      </button>
+      
       {showLoadNewButton && !isLoadingFresh && (
         <button
           className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
@@ -574,14 +599,6 @@ export default function Community({ user }) {
           </div>
         </div>
       )}
-
-      <button
-        className="fixed bottom-20 sm:bottom-8 right-8 md:right-24 z-50 flex items-center gap-2 px-5 py-3 bg-[#a99d6b] text-white rounded-full font-semibold shadow-lg hover:bg-[#c2b77a] transition max-w-[95vw] truncate"
-        onClick={() => setShowCreate(true)}
-      >
-        <FaPlus className="text-lg" />
-        <span className="hidden sm:inline">Create Post</span>
-      </button>
     </div>
   );
 }

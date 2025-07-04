@@ -693,7 +693,7 @@ export default function MediaDisplay({
                   e.stopPropagation();
                   setShowImageModal(false);
                 }}
-                className="absolute top-6 right-6 cursor-pointer"
+                className="absolute bottom-6 left-6 cursor-pointer"
                 size={32}
                 style={{ color: "#a99d6b", zIndex: 60, background: "white", borderRadius: "50%", padding: "6px" }}
                 title="Back to Feed"

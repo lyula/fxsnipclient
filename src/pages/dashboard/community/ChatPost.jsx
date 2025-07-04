@@ -9,21 +9,16 @@ import { formatPostDate } from '../../../utils/formatDate';
 // Dummy MentionInput component (replace with your actual implementation)
 function MentionInput({ value, onChange, onSubmit, loading, placeholder, disabled, onClose }) {
   return (
-    <form onSubmit={onSubmit} className="flex gap-2 w-full max-w-full flex-wrap">
+    <form onSubmit={onSubmit} className="flex gap-2 items-center">
       <input
         type="text"
         value={value}
-        onChange={e => onChange(e.target.value)}
+        onChange={onChange}
         placeholder={placeholder}
-        className="flex-1 border rounded px-2 py-1 text-sm sm:text-base min-w-0 box-border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-        disabled={disabled}
-        style={{ maxWidth: "100%" }}
+        disabled={disabled || loading}
+        className="flex-1 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
       />
-      <button
-        type="submit"
-        disabled={loading || !value.trim()}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 shrink-0 transition-colors"
-      >
+      <button type="submit" disabled={loading || !value.trim()} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors">
         {loading ? "Sending..." : "Send"}
       </button>
       {onClose && (
@@ -36,48 +31,41 @@ function MentionInput({ value, onChange, onSubmit, loading, placeholder, disable
 }
 
 function ReplyInput({ onSubmit, loading, postId, commentId }) {
-  const [reply, setReply] = useState("");
+  const [replyText, setReplyText] = useState("");
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!reply.trim()) return;
-    await onSubmit(postId, reply, commentId);
-    setReply("");
+    if (!replyText.trim()) return;
+    onSubmit(postId, replyText, commentId);
+    setReplyText("");
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-full flex-wrap">
+    <form onSubmit={handleSubmit} className="flex gap-2 items-center">
       <input
         type="text"
-        value={reply}
-        onChange={e => setReply(e.target.value)}
+        value={replyText}
+        onChange={e => setReplyText(e.target.value)}
         placeholder="Write a reply..."
-        className="flex-1 border rounded px-2 py-1 text-sm sm:text-base min-w-0 box-border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
         disabled={loading}
-        style={{ maxWidth: "100%" }}
+        className="flex-1 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
       />
-      <button
-        type="submit"
-        disabled={loading || !reply.trim()}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 shrink-0 transition-colors"
-      >
-        {loading ? "Sending..." : "Send"}
+      <button type="submit" disabled={loading || !replyText.trim()} className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 transition-colors">
+        {loading ? "Sending..." : "Reply"}
       </button>
     </form>
   );
 }
 
 function renderHighlightedContent(content) {
-  const parts = (content || "").split(/(@\w+)/g);
-  return parts.map((part, i) =>
-    /^@\w+$/.test(part)
-      ? <span key={i} className="text-blue-600 dark:text-blue-400">{part}</span>
-      : <span key={i}>{part}</span>
-  );
+  if (!content) return "";
+  
+  // Basic mention highlighting
+  return content.replace(/@(\w+)/g, '<span class="text-blue-600 dark:text-blue-400 font-medium">@$1</span>');
 }
 
 // Helper function to check if content was actually edited
-const isContentEdited = (item) => {
+function isContentEdited(item) {
   // Method 1: Check for dedicated editedAt field (recommended backend approach)
   if (item.editedAt) {
     return true;
@@ -97,7 +85,7 @@ const isContentEdited = (item) => {
   
   // Fallback: If none of the above, don't show edited
   return false;
-};
+}
 
 // Component to display edit indicator
 const EditedIndicator = ({ item, size = "xs" }) => {
@@ -110,8 +98,8 @@ const EditedIndicator = ({ item, size = "xs" }) => {
   );
 };
 
-// Comment sorting functions
-const sortComments = (comments, sortType) => {
+// Comment sorting functions - MOVED BEFORE THE COMPONENT
+function sortComments(comments, sortType) {
   const sortedComments = [...comments];
   
   switch (sortType) {
@@ -122,7 +110,7 @@ const sortComments = (comments, sortType) => {
     case 'most_liked':
       return sortedComments.sort((a, b) => {
         const aLikes = Array.isArray(a.likes) ? a.likes.length : 0;
-        const bLikes = Array.isArray(b.likes) ? bLikes.length : 0;
+        const bLikes = Array.isArray(b.likes) ? b.likes.length : 0;
         return bLikes - aLikes;
       });
     case 'most_replies':
@@ -134,6 +122,36 @@ const sortComments = (comments, sortType) => {
     default:
       return sortedComments;
   }
+}
+
+// Get sort label - MOVED BEFORE THE COMPONENT
+function getSortLabel(sortType) {
+  switch (sortType) {
+    case 'newest': return 'Newest first';
+    case 'oldest': return 'Oldest first';
+    case 'most_liked': return 'Most liked';
+    case 'most_replies': return 'Most replies';
+    default: return 'Sort';
+  }
+}
+
+// Floating heart animation component using Tailwind
+const FloatingHeart = ({ x, y, onAnimationEnd }) => {
+  return (
+    <div 
+      className="fixed z-50 pointer-events-none animate-ping"
+      style={{ 
+        left: x - 15, 
+        top: y - 15,
+        animationDuration: '1s',
+        animationFillMode: 'forwards',
+        animationTimingFunction: 'ease-out'
+      }}
+      onAnimationEnd={onAnimationEnd}
+    >
+      <FaHeart className="text-red-500 text-2xl drop-shadow-lg" />
+    </div>
+  );
 };
 
 export default function ChatPost({
@@ -169,22 +187,49 @@ export default function ChatPost({
   const [showReplyMenus, setShowReplyMenus] = useState({});
   
   // Pagination and sorting states
-  const [commentSortType, setCommentSortType] = useState('newest'); // 'newest', 'oldest', 'most_liked', 'most_replies'
+  const [commentSortType, setCommentSortType] = useState('newest');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [commentsPerPage, setCommentsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingMoreComments, setLoadingMoreComments] = useState(false);
   const [hasMoreComments, setHasMoreComments] = useState(true);
   
+  // New state for animations
+  const [floatingHearts, setFloatingHearts] = useState([]);
+  const [likeAnimating, setLikeAnimating] = useState(false);
+  const [lastTap, setLastTap] = useState(0);
+  const postContainerRef = useRef(null);
+  
   const commentsRef = useRef(null);
   const postRef = useRef();
-  const previousContentRef = useRef(post.content); // Store previous content for reversion
+  const previousContentRef = useRef(post.content);
 
   const { search } = useLocation();
 
+  const liked = Array.isArray(localPost.likes) && currentUserId
+    ? localPost.likes.map(String).includes(String(currentUserId))
+    : false;
+
+  // Get sorted and paginated comments
+  const sortedComments = sortComments(localPost.comments || [], commentSortType);
+  const totalComments = sortedComments.length;
+  const startIndex = 0;
+  const endIndex = currentPage * commentsPerPage;
+  const displayedComments = sortedComments.slice(startIndex, endIndex);
+  const hasMore = endIndex < totalComments;
+
+  // Check permissions
+  const canEditDelete = (authorId) => {
+    return String(authorId) === String(currentUserId);
+  };
+
+  const canDeleteAsPostOwner = () => {
+    return String(post.author?._id || post.author) === String(currentUserId);
+  };
+
   useEffect(() => {
     setLocalPost(post);
-    previousContentRef.current = post.content; // Update previous content on post change
+    previousContentRef.current = post.content;
   }, [post]);
 
   useEffect(() => {
@@ -223,18 +268,6 @@ export default function ChatPost({
     setHasMoreComments(true);
   }, [commentSortType]);
 
-  const liked = Array.isArray(localPost.likes) && currentUserId
-    ? localPost.likes.map(String).includes(String(currentUserId))
-    : false;
-
-  // Get sorted and paginated comments
-  const sortedComments = sortComments(localPost.comments || [], commentSortType);
-  const totalComments = sortedComments.length;
-  const startIndex = 0;
-  const endIndex = currentPage * commentsPerPage;
-  const displayedComments = sortedComments.slice(startIndex, endIndex);
-  const hasMore = endIndex < totalComments;
-
   // Load more comments
   const loadMoreComments = async () => {
     if (!hasMore || loadingMoreComments) return;
@@ -262,7 +295,7 @@ export default function ChatPost({
       author: { username: currentUsername, verified: currentUserVerified },
       createdAt: new Date().toISOString(),
       replies: [],
-      likes: [], // Initialize likes array
+      likes: [],
     };
 
     setLocalPost(prev => ({
@@ -309,7 +342,7 @@ export default function ChatPost({
       user: currentUserId,
       author: { username: currentUsername, verified: currentUserVerified },
       createdAt: new Date().toISOString(),
-      likes: [], // Initialize likes array
+      likes: [],
     };
 
     setLocalPost(prev => ({
@@ -341,942 +374,832 @@ export default function ChatPost({
     }
   };
 
-  const handleLike = async () => {
-    setError(null);
-    setLocalPost(prev => {
-      const alreadyLiked = Array.isArray(prev.likes) && currentUserId
-        ? prev.likes.map(String).includes(String(currentUserId))
-        : false;
-      let newLikes;
-      if (alreadyLiked) {
-        newLikes = prev.likes.filter(like => String(like) !== String(currentUserId));
-      } else {
-        newLikes = [...(prev.likes || []), currentUserId];
-      }
-      return { ...prev, likes: newLikes };
-    });
-
-    try {
-      await likePost(localPost._id);
-      if (onLike) onLike(localPost._id);
-    } catch (e) {
-      if (e.message && e.message.includes("Network Error")) {
-        setError("Network error: Failed to like post");
-        setLocalPost(prev => ({
-          ...prev,
-          likes: prev.likes.filter(like => String(like) !== String(currentUserId)),
-        }));
-      }
+  // Enhanced like handler with animation
+  const handleLike = async (e) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
     }
-  };
-
-  const handleLikeComment = async (commentId) => {
-    setLoadingCommentLike(prev => ({ ...prev, [commentId]: true }));
+    
+    // Trigger pulse animation
+    setLikeAnimating(true);
+    setTimeout(() => setLikeAnimating(false), 300);
+    
+    // Create floating heart effect
+    if (e && !liked) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const heartId = Date.now();
+      const newHeart = {
+        id: heartId,
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      };
+      
+      setFloatingHearts(prev => [...prev, newHeart]);
+      
+      // Remove heart after animation
+      setTimeout(() => {
+        setFloatingHearts(prev => prev.filter(heart => heart.id !== heartId));
+      }, 1000);
+    }
+    
+    // Update liked state optimistically
+    const newLiked = !liked;
     setLocalPost(prev => ({
       ...prev,
-      comments: prev.comments.map(c => {
-        if (c._id !== commentId) return c;
-        const alreadyLiked = Array.isArray(c.likes) && currentUserId
-          ? c.likes.map(String).includes(String(currentUserId))
-          : false;
-        let newLikes;
-        if (alreadyLiked) {
-          newLikes = c.likes.filter(like => String(like) !== String(currentUserId));
-        } else {
-          newLikes = [...(c.likes || []), currentUserId];
-        }
-        return { ...c, likes: newLikes };
-      }),
-    }));
-    try {
-      await likeComment(localPost._id, commentId);
-    } catch (error) {
-      console.error("Error liking comment:", error);
-    }
-    setLoadingCommentLike(prev => ({ ...prev, [commentId]: false }));
-  };
-
-  const handleLikeReply = async (commentId, replyId) => {
-    setLoadingReplyLike(prev => ({ ...prev, [replyId]: true }));
-    setLocalPost(prev => ({
-      ...prev,
-      comments: prev.comments.map(c => {
-        if (c._id !== commentId) return c;
-        return {
-          ...c,
-          replies: c.replies.map(r => {
-            if (r._id !== replyId) return r;
-            const alreadyLiked = Array.isArray(r.likes) && currentUserId
-              ? r.likes.map(String).includes(String(currentUserId))
-              : false;
-            let newLikes;
-            if (alreadyLiked) {
-              newLikes = r.likes.filter(like => String(like) !== String(currentUserId));
-            } else {
-              newLikes = [...(r.likes || []), currentUserId];
-            }
-            return { ...r, likes: newLikes };
-          }),
-        };
-      }),
-    }));
-    try {
-      await likeReply(localPost._id, commentId, replyId);
-    } catch (error) {
-      console.error("Error liking reply:", error);
-    }
-    setLoadingReplyLike(prev => ({ ...prev, [replyId]: false }));
-  };
-
-  const handleEditPost = () => {
-    setEditPostContent(localPost.content);
-    setEditingPost(true);
-    setShowPostMenu(false);
-  };
-
-  const handleSavePostEdit = async () => {
-    if (!editPostContent.trim()) {
-      setError("Post content cannot be empty");
-      return;
-    }
-
-    // Store the current content for reversion in case of failure
-    const previousContent = localPost.content;
-
-    // Optimistically update the UI
-    setLocalPost(prev => ({
-      ...prev,
-      content: editPostContent,
-      editedAt: new Date().toISOString(), // Update editedAt for EditedIndicator
+      likes: newLiked 
+        ? (Array.isArray(prev.likes) ? [...prev.likes, currentUserId] : [currentUserId])
+        : (Array.isArray(prev.likes) ? prev.likes.filter(id => String(id) !== String(currentUserId)) : [])
     }));
 
     try {
-      const updatedPost = await editPost(localPost._id, editPostContent, localPost.image);
-      // Validate server response
-      if (updatedPost && updatedPost.content) {
-        setLocalPost(prev => ({
-          ...prev,
-          ...updatedPost, // Merge server response, preserving client-side state
-        }));
-        previousContentRef.current = updatedPost.content;
-      } else {
-        // Revert on invalid response
-        setLocalPost(prev => ({
-          ...prev,
-          content: previousContent,
-          editedAt: updatedPost.editedAt || prev.editedAt,
-        }));
-        setError("Invalid response from server. Changes not saved.");
-      }
+      await onLike();
     } catch (error) {
       // Revert on error
       setLocalPost(prev => ({
         ...prev,
-        content: previousContent,
-        editedAt: prev.editedAt,
+        likes: post.likes
       }));
-      setError("Failed to save post edits. Please try again.");
-      console.error("Error editing post:", error);
-    } finally {
+    }
+  };
+
+  // Double-tap to like handler
+  const handleDoubleTap = (e) => {
+    const now = Date.now();
+    const tapLength = now - lastTap;
+    
+    if (tapLength < 500 && tapLength > 0) {
+      // Double tap detected
+      e.preventDefault();
+      if (!liked) {
+        handleLike(e);
+      }
+    }
+    
+    setLastTap(now);
+  };
+
+  // Handler functions for editing
+  const handleEditPost = () => {
+    setEditingPost(true);
+    setEditPostContent(localPost.content || '');
+    setShowPostMenu(false);
+  };
+
+  const handleSavePostEdit = async () => {
+    if (!editPostContent.trim()) return;
+    
+    try {
+      await editPost(localPost._id, editPostContent);
+      setLocalPost(prev => ({ ...prev, content: editPostContent }));
       setEditingPost(false);
-      setEditPostContent("");
+    } catch (error) {
+      console.error('Failed to edit post:', error);
     }
   };
 
   const handleCancelPostEdit = () => {
     setEditingPost(false);
-    setEditPostContent("");
-    setError(null); // Clear any existing errors
+    setEditPostContent('');
   };
 
   const handleDeletePost = async () => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
+    if (window.confirm('Are you sure you want to delete this post?')) {
       try {
         await deletePost(localPost._id);
         if (onDelete) onDelete(localPost._id);
       } catch (error) {
-        console.error("Error deleting post:", error);
-        setError("Failed to delete post. Please try again.");
+        console.error('Failed to delete post:', error);
       }
     }
     setShowPostMenu(false);
   };
 
+  // Comment handlers
   const handleEditComment = (commentId, content) => {
-    setEditCommentContent(content);
     setEditingComment(commentId);
-    setShowCommentMenus(prev => ({ ...prev, [commentId]: false }));
+    setEditCommentContent(content);
+    setShowCommentMenus({});
   };
 
   const handleSaveCommentEdit = async (commentId) => {
+    if (!editCommentContent.trim()) return;
+    
     try {
-      const updatedPost = await editComment(localPost._id, commentId, editCommentContent);
-      setLocalPost(updatedPost);
+      await editComment(localPost._id, commentId, editCommentContent);
+      setLocalPost(prev => ({
+        ...prev,
+        comments: prev.comments.map(c => 
+          c._id === commentId ? { ...c, content: editCommentContent } : c
+        )
+      }));
       setEditingComment(null);
-      setEditCommentContent("");
     } catch (error) {
-      console.error("Error editing comment:", error);
-      setError("Failed to edit comment. Please try again.");
+      console.error('Failed to edit comment:', error);
     }
   };
 
   const handleCancelCommentEdit = () => {
     setEditingComment(null);
-    setEditCommentContent("");
-    setError(null);
+    setEditCommentContent('');
   };
 
   const handleDeleteComment = async (commentId) => {
-    if (window.confirm("Are you sure you want to delete this comment?")) {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
       try {
-        const updatedPost = await deleteComment(localPost._id, commentId);
-        setLocalPost(updatedPost);
+        await deleteComment(localPost._id, commentId);
+        setLocalPost(prev => ({
+          ...prev,
+          comments: prev.comments.filter(c => c._id !== commentId)
+        }));
       } catch (error) {
-        console.error("Error deleting comment:", error);
-        setError("Failed to delete comment. Please try again.");
+        console.error('Failed to delete comment:', error);
       }
     }
-    setShowCommentMenus(prev => ({ ...prev, [commentId]: false }));
+    setShowCommentMenus({});
   };
 
+  // Reply handlers
   const handleEditReply = (commentId, replyId, content) => {
-    setEditReplyContent(content);
     setEditingReply(`${commentId}-${replyId}`);
-    setShowReplyMenus(prev => ({ ...prev, [`${commentId}-${replyId}`]: false }));
+    setEditReplyContent(content);
+    setShowReplyMenus({});
   };
 
   const handleSaveReplyEdit = async (commentId, replyId) => {
+    if (!editReplyContent.trim()) return;
+    
     try {
-      const updatedPost = await editReply(localPost._id, commentId, replyId, editReplyContent);
-      setLocalPost(updatedPost);
+      await editReply(localPost._id, commentId, replyId, editReplyContent);
+      setLocalPost(prev => ({
+        ...prev,
+        comments: prev.comments.map(c => 
+          c._id === commentId 
+            ? {
+                ...c,
+                replies: c.replies.map(r => 
+                  r._id === replyId ? { ...r, content: editReplyContent } : r
+                )
+              }
+            : c
+        )
+      }));
       setEditingReply(null);
-      setEditReplyContent("");
     } catch (error) {
-      console.error("Error editing reply:", error);
-      setError("Failed to edit reply. Please try again.");
+      console.error('Failed to edit reply:', error);
     }
   };
 
   const handleCancelReplyEdit = () => {
     setEditingReply(null);
-    setEditReplyContent("");
-    setError(null);
+    setEditReplyContent('');
   };
 
   const handleDeleteReply = async (commentId, replyId) => {
-    if (window.confirm("Are you sure you want to delete this reply?")) {
+    if (window.confirm('Are you sure you want to delete this reply?')) {
       try {
-        const updatedPost = await deleteReply(localPost._id, commentId, replyId);
-        setLocalPost(updatedPost);
+        await deleteReply(localPost._id, commentId, replyId);
+        setLocalPost(prev => ({
+          ...prev,
+          comments: prev.comments.map(c => 
+            c._id === commentId 
+              ? { ...c, replies: c.replies.filter(r => r._id !== replyId) }
+              : c
+          )
+        }));
       } catch (error) {
-        console.error("Error deleting reply:", error);
-        setError("Failed to delete reply. Please try again.");
+        console.error('Failed to delete reply:', error);
       }
     }
-    setShowReplyMenus(prev => ({ ...prev, [`${commentId}-${replyId}`]: false }));
+    setShowReplyMenus({});
   };
 
-  const canEditDelete = (authorId) => {
-    return String(authorId) === String(currentUserId);
-  };
-
-  const canDeleteAsPostOwner = (authorId) => {
-    return String(localPost.author._id || localPost.author) === String(currentUserId);
-  };
-
-  const getSortLabel = (sortType) => {
-    switch (sortType) {
-      case 'newest': return 'Newest first';
-      case 'oldest': return 'Oldest first';
-      case 'most_liked': return 'Most liked';
-      case 'most_replies': return 'Most replies';
-      default: return 'Sort by';
+  // Like handlers
+  const handleLikeComment = async (commentId) => {
+    setLoadingCommentLike(prev => ({ ...prev, [commentId]: true }));
+    
+    try {
+      await likeComment(localPost._id, commentId);
+      // Update local state optimistically
+      setLocalPost(prev => ({
+        ...prev,
+        comments: prev.comments.map(c => {
+          if (c._id === commentId) {
+            const currentLikes = Array.isArray(c.likes) ? c.likes : [];
+            const userLiked = currentLikes.map(String).includes(String(currentUserId));
+            return {
+              ...c,
+              likes: userLiked 
+                ? currentLikes.filter(id => String(id) !== String(currentUserId))
+                : [...currentLikes, currentUserId]
+            };
+          }
+          return c;
+        })
+      }));
+    } catch (error) {
+      console.error('Failed to like comment:', error);
+    } finally {
+      setLoadingCommentLike(prev => ({ ...prev, [commentId]: false }));
     }
   };
 
-  if (error) {
-    return (
-      <div className="text-red-500 p-6">
-        {error}. Please try again later.
-      </div>
-    );
-  }
+  const handleLikeReply = async (commentId, replyId) => {
+    setLoadingReplyLike(prev => ({ ...prev, [replyId]: true }));
+    
+    try {
+      await likeReply(localPost._id, commentId, replyId);
+      // Update local state optimistically
+      setLocalPost(prev => ({
+        ...prev,
+        comments: prev.comments.map(c => {
+          if (c._id === commentId) {
+            return {
+              ...c,
+              replies: c.replies.map(r => {
+                if (r._id === replyId) {
+                  const currentLikes = Array.isArray(r.likes) ? r.likes : [];
+                  const userLiked = currentLikes.map(String).includes(String(currentUserId));
+                  return {
+                    ...r,
+                    likes: userLiked 
+                      ? currentLikes.filter(id => String(id) !== String(currentUserId))
+                      : [...currentLikes, currentUserId]
+                  };
+                }
+                return r;
+              })
+            };
+          }
+          return c;
+        })
+      }));
+    } catch (error) {
+      console.error('Failed to like reply:', error);
+    } finally {
+      setLoadingReplyLike(prev => ({ ...prev, [replyId]: false }));
+    }
+  };
 
   return (
     <>
-      {/* HR and Username above media (with bold dot and timestamp) */}
-      {(post.image || post.video) && (
-        <>
-          <hr className="my-2 border-gray-200 dark:border-gray-700" />
-          <div className="px-2 pt-4 pb-2">
-            <div className="flex items-center gap-2">
-              <span className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
-                <FaUser className="text-gray-400 text-lg" />
-              </span>
-              <Link
-                to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-                className="font-bold text-gray-800 dark:text-white hover:underline"
-              >
-                {post.author?.username || post.user}
-                {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
-                  <VerifiedBadge />
-                )}
-              </Link>
-              <span className="font-bold text-gray-800 dark:text-white">•</span>
-              <span className="text-xs text-gray-400 flex items-center">
-                {formatPostDate(post.createdAt)}
-              </span>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Media */}
-      {(post.image || post.video) && (
-        <div
-          ref={postRef}
-          className="border-x border-t border-b-0 border-gray-200 dark:border-gray-700 overflow-hidden flex justify-center items-center"
-          style={{ maxWidth: "100%", maxHeight: "60vh", borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
-        >
-          <MediaDisplay 
-            imageUrl={post.image} 
-            videoUrl={post.video}
-            altText={`${post.author?.username || 'User'}'s post media`}
-            className="max-w-full max-h-[60vh] object-contain w-auto h-auto"
-          />
-        </div>
-      )}
-
-      {/* Card wrapper for the rest */}
-      <div
-        className={`p-6 shadow-lg border bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 transition-all overflow-x-hidden max-w-full ${
-          post.image || post.video ? "rounded-none rounded-b-xl" : "rounded-xl"
-        }`}
-        style={{ maxWidth: "100%" }}
+      {/* Floating hearts */}
+      {floatingHearts.map(heart => (
+        <FloatingHeart
+          key={heart.id}
+          x={heart.x}
+          y={heart.y}
+          onAnimationEnd={() => {
+            setFloatingHearts(prev => prev.filter(h => h.id !== heart.id));
+          }}
+        />
+      ))}
+      
+      {/* Modern post wrapper - REMOVED hover effects */}
+      <div 
+        ref={postContainerRef}
+        className="w-full max-w-lg mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
+        onTouchStart={handleDoubleTap}
+        onDoubleClick={handleDoubleTap}
       >
-        {/* Username, EditedIndicator, and three-dot menu below media (before caption) */}
+        {/* HR and Username above media */}
         {(post.image || post.video) && (
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+          <>
+            <hr className="border-gray-200/50 dark:border-gray-700/50" />
+            <div className="px-6 pt-4 pb-2">
+              <div className="flex items-center gap-3">
+                {/* FIXED: Removed gradient background and hover scale */}
+                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                  <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
+                </div>
+                <Link
+                  to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
+                  className="font-bold text-gray-800 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                >
+                  {post.author?.username || post.user}
+                </Link>
+                {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
+                  <VerifiedBadge />
+                )}
+                <span className="text-gray-400 dark:text-gray-500">•</span>
+                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+                  {formatPostDate(post.createdAt)}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Media */}
+        {(post.image || post.video) && (
+          <div
+            ref={postRef}
+            className="overflow-hidden flex justify-center items-center"
+            style={{ maxWidth: "100%", maxHeight: "60vh" }}
+          >
+            <MediaDisplay 
+              imageUrl={post.image} 
+              videoUrl={post.video}
+              altText={`${post.author?.username || 'User'}'s post media`}
+              className="max-w-full max-h-[60vh] object-contain w-auto h-auto"
+            />
+          </div>
+        )}
+
+        {/* Main content wrapper */}
+        <div
+          className={`p-6 backdrop-blur-sm transition-all overflow-x-hidden max-w-full ${
+            post.image || post.video ? "rounded-none rounded-b-2xl" : "rounded-2xl"
+          }`}
+          style={{ maxWidth: "100%" }}
+        >
+          {/* Username and timestamp for non-media posts */}
+          {!(post.image || post.video) && (
+            <div className="flex items-center mb-4 gap-3">
+              <Link 
+                to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0"
+              >
+                <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
+              </Link>
               <Link
                 to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-                className="font-bold text-gray-800 dark:text-white flex items-center hover:underline"
+                className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               >
                 {post.author?.username || post.user}
                 {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
                   <VerifiedBadge />
                 )}
               </Link>
-              <EditedIndicator item={localPost} />
-            </div>
-            {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowPostMenu(!showPostMenu)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <FaEllipsisV />
-                </button>
-                {showPostMenu && (
-                  <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
-                    {canEditDelete(post.author?._id || post.author) && (
-                      <button
-                        onClick={handleEditPost}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                      >
-                        <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
-                      </button>
-                    )}
-                    <button
-                      onClick={handleDeletePost}
-                      className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                    >
-                      <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Caption/content for media posts (with edit mode) */}
-        {(post.image || post.video) && (
-          <div className="mb-2">
-            {editingPost ? (
-              <div className="space-y-3">
-                <textarea
-                  value={editPostContent}
-                  onChange={e => setEditPostContent(e.target.value)}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows="3"
-                  placeholder="Edit your post..."
-                />
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={handleSavePostEdit}
-                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50 transition-colors"
-                    disabled={loadingComment || !editPostContent.trim()}
-                  >
-                    <FaSave size={10} /> Save
-                  </button>
-                  <button
-                    onClick={handleCancelPostEdit}
-                    className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-xs transition-colors"
-                  >
-                    <FaTimes size={10} /> Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <span className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words">
-                {renderHighlightedContent(localPost.content || '')}
+              <span className="ml-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
+                {formatPostDate(post.createdAt)}
+                <EditedIndicator item={localPost} />
               </span>
-            )}
-          </div>
-        )}
-
-        {/* Card header for posts without media (with icon and edit mode) */}
-        {!(post.image || post.video) && (
-          <div className="flex items-center mb-3 gap-3">
-            <Link 
-              to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:opacity-80 transition-opacity flex-shrink-0"
-            >
-              <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-            </Link>
-            <Link
-              to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-              className="font-bold text-gray-800 dark:text-white flex items-center hover:underline"
-            >
-              {post.author?.username || post.user}
-              {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
-                <VerifiedBadge />
-              )}
-            </Link>
-            <span className="ml-3 text-xs text-gray-400 flex items-center">
-              {formatPostDate(post.createdAt)}
-              <EditedIndicator item={localPost} />
-            </span>
-            {/* Add post status indicator */}
-            {post.postStatus && (
-              <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-                post.postStatus === 'viral' 
-                  ? 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300'
-                  : post.postStatus === 'trending'
-                  ? 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300'
-                  : post.postStatus === 'hot'
-                  ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-300'
-                  : ''
-              }`}>
-                {post.postStatus === 'viral' && (
-                  <>
-                    <span>🔥</span>
-                    <span>Viral</span>
-                  </>
-                )}
-                {post.postStatus === 'trending' && (
-                  <>
-                    <span>📈</span>
-                    <span>Trending</span>
-                  </>
-                )}
-                {post.postStatus === 'hot' && (
-                  <>
-                    <span>🔥</span>
-                    <span>Hot</span>
-                  </>
-                )}
-              </span>
-            )}
-            
-            {/* Post menu */}
-            {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
-              <div className="ml-auto relative">
-                <button
-                  onClick={() => setShowPostMenu(!showPostMenu)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <FaEllipsisV />
-                </button>
-                {showPostMenu && (
-                  <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
-                    {canEditDelete(post.author?._id || post.author) && (
-                      <button
-                        onClick={handleEditPost}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                      >
-                        <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
-                      </button>
-                    )}
-                    <button
-                      onClick={handleDeletePost}
-                      className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                    >
-                      <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Caption/content for posts without media (with edit mode) */}
-        {!(post.image || post.video) && (
-          <div className="mb-3">
-            {editingPost ? (
-              <div className="space-y-3">
-                <textarea
-                  value={editPostContent}
-                  onChange={e => setEditPostContent(e.target.value)}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows="3"
-                  placeholder="Edit your post..."
-                />
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={handleSavePostEdit}
-                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50 transition-colors"
-                    disabled={loadingComment || !editPostContent.trim()}
-                  >
-                    <FaSave size={10} /> Save
-                  </button>
-                  <button
-                    onClick={handleCancelPostEdit}
-                    className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-xs transition-colors"
-                  >
-                    <FaTimes size={10} /> Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <span className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words">
-                {renderHighlightedContent(localPost.content || '')}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Feature bar - Modern engagement buttons */}
-        <div className="flex items-center gap-4 sm:gap-6 text-base mb-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-900 shadow-sm">
-          <button
-            onClick={handleLike}
-            className={`flex items-center gap-1 transition-colors ${
-              liked ? "text-red-500" : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-            }`}
-            aria-label="Like"
-          >
-            {liked ? <FaHeart className="text-red-500" /> : <FaRegHeart />}
-            <span className={liked ? "text-red-500" : ""}>
-              {Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setShowComments((prev) => !prev)}
-            className="flex items-center gap-1 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-            aria-label="Show comments"
-          >
-            <FaRegCommentDots />
-            <span>
-              {Array.isArray(localPost.comments)
-                ? localPost.comments.reduce(
-                    (total, comment) =>
-                      total +
-                      1 +
-                      (Array.isArray(comment.replies) ? comment.replies.length : 0),
-                    0
-                  )
-                : 0}
-            </span>
-          </button>
-
-          <span className="flex items-center gap-1 text-gray-400 dark:text-gray-500 ml-auto">
-            <FaChartBar /> {localPost.views || 0}
-          </span>
-        </div>
-
-        {/* Comments Section */}
-        {showComments && (
-          <div className="mt-4 relative w-full max-w-full overflow-x-hidden" ref={commentsRef}>
-            <div className="flex justify-between items-center mb-3">
-              <div className="flex items-center gap-3">
-                <div className="font-semibold text-sm text-blue-700 dark:text-blue-400">
-                  Comments ({totalComments})
-                </div>
-                
-                {/* Sort dropdown */}
-                {totalComments > 1 && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowSortMenu(!showSortMenu)}
-                      className="flex items-center gap-2 px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                    >
-                      <FaSort size={10} />
-                      {getSortLabel(commentSortType)}
-                    </button>
-                    {showSortMenu && (
-                      <div className="absolute left-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-2">
-                        {/*
-                          Consider moving sort options to a separate component
-                          for better readability and reusability.
-                        */}
-                        {/*
-                          Using a map function to render sort options for scalability.
-                          This way, adding or modifying sort options is easier.
-                        */}
-                        {/*
-                          Added key prop to each button for React's list rendering optimization.
-                        */}
-                        {['newest', 'oldest', 'most_liked', 'most_replies'].map((sortOption) => (
-                          <button
-                            key={sortOption}
-                            onClick={() => {
-                              setCommentSortType(sortOption);
-                              setShowSortMenu(false);
-                            }}
-                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                              commentSortType === sortOption 
-                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
-                                : 'text-gray-700 dark:text-gray-300'
-                            }`}
-                          >
-                            {sortOption === 'newest' && 'Newest first'}
-                            {sortOption === 'oldest' && 'Oldest first'}
-                            {sortOption === 'most_liked' && 'Most liked'}
-                            {sortOption === 'most_replies' && 'Most replies'}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
               
-              <button
-                className="mobile-touch-target text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 text-xl font-bold px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                onClick={() => setShowComments(false)}
-                aria-label="Close comments"
-                type="button"
-              >
-                ×
-              </button>
-            </div>
-            
-            {activeReply === null && showCommentInput && (
-              <div className="w-full mt-2 max-w-full">
-                <div className="flex gap-2 w-full max-w-full flex-wrap">
-                  <input
-                    type="text"
-                    value={comment}
-                    onChange={e => setComment(e.target.value)}
-                    placeholder="Write a comment..."
-                    className="mobile-comment-input flex-1 border rounded px-2 py-1 text-sm sm:text-base min-w-0 box-border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                    disabled={loadingComment}
-                    style={{ maxWidth: "100%" }}
-                    onKeyPress={(e) => e.key === 'Enter' && handleCommentSubmit(e)}
-                  />
+              {/* Post menu */}
+              {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
+                <div className="ml-auto relative">
                   <button
-                    type="button"
-                    onClick={handleCommentSubmit}
-                    disabled={loadingComment || !comment.trim()}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 shrink-0 transition-colors"
+                    onClick={() => setShowPostMenu(!showPostMenu)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   >
-                    {loadingComment ? "Sending..." : "Send"}
+                    <FaEllipsisV />
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowCommentInput(false)} 
-                    className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mobile-only"
+                  {showPostMenu && (
+                    <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
+                      {canEditDelete(post.author?._id || post.author) && (
+                        <button
+                          onClick={handleEditPost}
+                          className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                        >
+                          <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
+                        </button>
+                      )}
+                      <button
+                        onClick={handleDeletePost}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+                      >
+                        <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Content section */}
+          <div className="mb-4">
+            {editingPost ? (
+              <div className="space-y-3">
+                <textarea
+                  value={editPostContent}
+                  onChange={e => setEditPostContent(e.target.value)}
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Edit your post..."
+                />
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={handleSavePostEdit}
+                    className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50 transition-colors"
+                    disabled={loadingComment || !editPostContent.trim()}
                   >
-                    ×
+                    <FaSave size={10} /> Save
+                  </button>
+                  <button
+                    onClick={handleCancelPostEdit}
+                    className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded-lg text-xs transition-colors"
+                  >
+                    <FaTimes size={10} /> Cancel
                   </button>
                 </div>
               </div>
+            ) : (
+              <span 
+                className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words"
+                dangerouslySetInnerHTML={{ __html: renderHighlightedContent(localPost.content || '') }}
+              />
             )}
-            {activeReply === null && !showCommentInput && (
-              <div className="mt-2">
-                <button
-                  type="button"
-                  className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline text-sm transition-colors"
-                  onClick={() => setShowCommentInput(true)}
-                >
-                  Add a comment
-                </button>
-              </div>
-            )}
-            
-            <div className="w-full max-w-full">
-              {displayedComments.map((comment) => (
-                <div key={comment._id} className="mt-3 border-l-2 border-gray-100 dark:border-gray-700 pl-4">
-                  <div className="flex items-start gap-3">
-                    <Link 
-                      to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
-                    >
-                      <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-                    </Link>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Link
-                          to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                          className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
-                        >
-                          {comment.author.username}
-                        </Link>
-                        {comment.author.verified && <VerifiedBadge />}
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {formatPostDate(comment.createdAt)}
-                        </span>
-                        <EditedIndicator item={comment} />
-                        
-                        {/* Comment menu */}
-                        {(canEditDelete(comment.author?._id || comment.user) || canDeleteAsPostOwner()) && (
-                          <div className="relative ml-auto">
+          </div>
+
+          {/* Modern engagement bar - REMOVED hover translate effect */}
+          <div className="flex items-center gap-6 text-base mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300">
+            <button
+              onClick={handleLike}
+              className={`flex items-center gap-2 transition-all duration-300 hover:scale-110 active:scale-95 ${
+                likeAnimating ? 'scale-110' : ''
+              } ${
+                liked ? "text-red-500" : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+              }`}
+              aria-label="Like"
+            >
+              {liked ? (
+                <FaHeart className="text-red-500 drop-shadow-sm" />
+              ) : (
+                <FaRegHeart className="transition-transform duration-200 hover:scale-110" />
+              )}
+              <span className={`font-semibold ${liked ? "text-red-500" : ""}`}>
+                {Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setShowComments((prev) => !prev)}
+              className="flex items-center gap-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 active:scale-95"
+              aria-label="Show comments"
+            >
+              <FaRegCommentDots className="transition-transform duration-200 hover:scale-110" />
+              <span className="font-semibold">
+                {Array.isArray(localPost.comments)
+                  ? localPost.comments.reduce(
+                      (total, comment) =>
+                        total +
+                        1 +
+                        (Array.isArray(comment.replies) ? comment.replies.length : 0),
+                      0
+                    )
+                  : 0}
+              </span>
+            </button>
+
+            <span className="flex items-center gap-2 text-gray-400 dark:text-gray-500 ml-auto">
+              <FaChartBar className="transition-transform duration-200 hover:scale-110" />
+              <span className="font-semibold">{localPost.views || 0}</span>
+            </span>
+          </div>
+
+          {/* Comments section */}
+          {showComments && (
+            <div className="mt-4 relative w-full max-w-full overflow-x-hidden" ref={commentsRef}>
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="font-semibold text-sm text-blue-700 dark:text-blue-400">
+                    Comments ({totalComments})
+                  </div>
+                  
+                  {/* Sort dropdown */}
+                  {totalComments > 1 && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowSortMenu(!showSortMenu)}
+                        className="flex items-center gap-2 px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        <FaSort size={10} />
+                        {getSortLabel(commentSortType)}
+                      </button>
+                      {showSortMenu && (
+                        <div className="absolute left-0 top-8 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-2">
+                          {['newest', 'oldest', 'most_liked', 'most_replies'].map((sortOption) => (
                             <button
-                              onClick={() => setShowCommentMenus(prev => ({ ...prev, [comment._id]: !prev[comment._id] }))
-                              }
-                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
+                              key={sortOption}
+                              onClick={() => {
+                                setCommentSortType(sortOption);
+                                setShowSortMenu(false);
+                              }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                                commentSortType === sortOption 
+                                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}
                             >
-                              <FaEllipsisV size={12} />
+                              {getSortLabel(sortOption)}
                             </button>
-                            {showCommentMenus[comment._id] && (
-                              <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
-                                {canEditDelete(comment.author?._id || comment.user) && (
-                                  <button
-                                    onClick={() => handleEditComment(comment._id, comment.content)}
-                                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
-                                  >
-                                    <FaEdit size={10} /> Edit
-                                  </button>
-                                )}
-                                <button
-                                  onClick={() => handleDeleteComment(comment._id)}
-                                  className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
-                                >
-                                  <FaTrash size={10} /> Delete
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Comment content */}
-                      {editingComment === comment._id ? (
-                        <div className="space-y-2">
-                          <textarea
-                            value={editCommentContent}
-                            onChange={e => setEditCommentContent(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                            rows="2"
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleSaveCommentEdit(comment._id)}
-                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={handleCancelCommentEdit}
-                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-900 dark:text-gray-100 break-words mb-2">
-                          {renderHighlightedContent(comment.content)}
-                        </p>
-                      )}
-                      
-                      {/* Comment actions */}
-                      <div className="flex items-center gap-4 text-xs">
-                        <button
-                          onClick={() => handleLikeComment(comment._id)}
-                          disabled={loadingCommentLike[comment._id]}
-                          className={`flex items-center gap-1 transition-colors ${
-                            Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
-                              ? 'text-red-500'
-                              : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                          }`}
-                        >
-                          {Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
-                            ? <FaHeart /> 
-                            : <FaRegHeart />
-                          }
-                          <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
-                        </button>
-                        
-                        <button
-                          onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
-                          className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                        >
-                          Reply
-                        </button>
-                        
-                        {comment.replies && comment.replies.length > 0 && (
-                          <button
-                            onClick={() => setExpandedReplies(expandedReplies === comment._id ? null : comment._id)}
-                            className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                          >
-                            {expandedReplies === comment._id ? 'Hide' : 'Show'} {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
-                          </button>
-                        )}
-                      </div>
-                      
-                      {/* Reply input */}
-                      {activeReply === comment._id && (
-                        <div className="mt-3">
-                          <ReplyInput
-                            onSubmit={handleReply}
-                            loading={loadingReply[comment._id]}
-                            postId={localPost._id}
-                            commentId={comment._id}
-                          />
-                        </div>
-                      )}
-                      
-                      {/* Replies */}
-                      {expandedReplies === comment._id && comment.replies && comment.replies.length > 0 && (
-                        <div className="mt-3 space-y-3">
-                          {comment.replies.map((reply) => (
-                            <div key={reply._id} className="flex items-start gap-2 pl-4 border-l border-gray-200 dark:border-gray-600">
-                              <Link 
-                                to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:opacity-80 transition-opacity flex-shrink-0"
-                              >
-                                <FaUser className="text-gray-400 dark:text-gray-500 text-xs" />
-                              </Link>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Link
-                                    to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                    className="font-semibold text-xs text-gray-900 dark:text-white hover:underline"
-                                  >
-                                    {reply.author.username}
-                                  </Link>
-                                  {reply.author.verified && <VerifiedBadge />}
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    {formatPostDate(reply.createdAt)}
-                                  </span>
-                                  <EditedIndicator item={reply} />
-                                  
-                                  {/* Reply menu */}
-                                  {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
-                                    <div className="relative ml-auto">
-                                      <button
-                                        onClick={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] }))
-                                        }
-                                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
-                                      >
-                                        <FaEllipsisV size={10} />
-                                      </button>
-                                      {showReplyMenus[`${comment._id}-${reply._id}`] && (
-                                        <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
-                                          {canEditDelete(reply.author?._id || reply.user) && (
-                                            <button
-                                              onClick={() => handleEditReply(comment._id, reply._id, reply.content)}
-                                              className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
-                                            >
-                                              <FaEdit size={10} /> Edit
-                                            </button>
-                                          )}
-                                          <button
-                                            onClick={() => handleDeleteReply(comment._id, reply._id)}
-                                            className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
-                                          >
-                                            <FaTrash size={10} /> Delete
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                {/* Reply content */}
-                                {editingReply === `${comment._id}-${reply._id}` ? (
-                                  <div className="space-y-2">
-                                    <textarea
-                                      value={editReplyContent}
-                                      onChange={e => setEditReplyContent(e.target.value)}
-                                      className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                      rows="2"
-                                    />
-                                    <div className="flex gap-2">
-                                      <button
-                                        onClick={() => handleSaveReplyEdit(comment._id, reply._id)}
-                                        className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={handleCancelReplyEdit}
-                                        className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-gray-900 dark:text-gray-100 break-words mb-1">
-                                    {renderHighlightedContent(reply.content)}
-                                  </p>
-                                )}
-                                
-                                {/* Reply actions */}
-                                <div className="flex items-center gap-3 text-xs">
-                                  <button
-                                    onClick={() => handleLikeReply(comment._id, reply._id)}
-                                    disabled={loadingReplyLike[reply._id]}
-                                    className={`flex items-center gap-1 transition-colors ${
-                                      Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                        ? 'text-red-500'
-                                        : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                                    }`}
-                                  >
-                                    {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                      ? <FaHeart /> 
-                                      : <FaRegHeart />
-                                    }
-                                    <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
                           ))}
                         </div>
                       )}
                     </div>
+                  )}
+                </div>
+                
+                <button
+                  className="mobile-touch-target text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 text-xl font-bold px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setShowComments(false)}
+                  aria-label="Close comments"
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+              
+              {/* Comment input */}
+              {activeReply === null && showCommentInput && (
+                <div className="w-full mt-2 max-w-full">
+                  <div className="flex gap-2 w-full max-w-full flex-wrap">
+                    <input
+                      type="text"
+                      value={comment}
+                      onChange={e => setComment(e.target.value)}
+                      placeholder="Write a comment..."
+                      className="mobile-comment-input flex-1 border rounded px-2 py-1 text-sm sm:text-base min-w-0 box-border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                      disabled={loadingComment}
+                      style={{ maxWidth: "100%" }}
+                      onKeyPress={(e) => e.key === 'Enter' && handleCommentSubmit(e)}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCommentSubmit}
+                      disabled={loadingComment || !comment.trim()}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded disabled:opacity-50 shrink-0 transition-colors"
+                    >
+                      {loadingComment ? "Sending..." : "Send"}
+                    </button>
                   </div>
                 </div>
-              ))}
-              
-              {/* Load more comments */}
-              {hasMore && (
-                <div className="mt-4 text-center">
-                  <button
-                    onClick={loadMoreComments}
-                    disabled={loadingMoreComments}
-                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium hover:underline transition-colors disabled:opacity-50"
-                  >
-                    {loadingMoreComments ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <FaSpinner className="animate-spin" />
-                        Loading...
-                      </div>
-                    ) : (
-                      `Load more comments (${totalComments - displayedComments.length} remaining)`
-                    )}
-                  </button>
-                </div>
               )}
+              
+              {/* Comments list */}
+              <div className="w-full max-w-full">
+                {displayedComments.map((comment) => (
+                  <div key={comment._id} className="mt-3 border-l-2 border-gray-100 dark:border-gray-700 pl-4">
+                    <div className="flex items-start gap-3">
+                      <Link 
+                        to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
+                      >
+                        <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
+                      </Link>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Link
+                            to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
+                            className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
+                          >
+                            {comment.author.username}
+                          </Link>
+                          {comment.author.verified && <VerifiedBadge />}
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {formatPostDate(comment.createdAt)}
+                          </span>
+                          <EditedIndicator item={comment} />
+                          
+                          {/* Comment menu */}
+                          {(canEditDelete(comment.author?._id || comment.user) || canDeleteAsPostOwner()) && (
+                            <div className="relative ml-auto">
+                              <button
+                                onClick={() => setShowCommentMenus(prev => ({ ...prev, [comment._id]: !prev[comment._id] }))}
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
+                              >
+                                <FaEllipsisV size={12} />
+                              </button>
+                              {showCommentMenus[comment._id] && (
+                                <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
+                                  {canEditDelete(comment.author?._id || comment.user) && (
+                                    <button
+                                      onClick={() => handleEditComment(comment._id, comment.content)}
+                                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
+                                    >
+                                      <FaEdit size={10} /> Edit
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleDeleteComment(comment._id)}
+                                    className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
+                                  >
+                                    <FaTrash size={10} /> Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Comment content */}
+                        {editingComment === comment._id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              value={editCommentContent}
+                              onChange={e => setEditCommentContent(e.target.value)}
+                              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                              rows="2"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleSaveCommentEdit(comment._id)}
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={handleCancelCommentEdit}
+                                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p 
+                            className="text-sm text-gray-900 dark:text-gray-100 break-words mb-2"
+                            dangerouslySetInnerHTML={{ __html: renderHighlightedContent(comment.content) }}
+                          />
+                        )}
+                        
+                        {/* Comment actions */}
+                        <div className="flex items-center gap-4 text-xs">
+                          <button
+                            onClick={() => handleLikeComment(comment._id)}
+                            disabled={loadingCommentLike[comment._id]}
+                            className={`flex items-center gap-1 transition-colors ${
+                              Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
+                                ? 'text-red-500'
+                                : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
+                            }`}
+                          >
+                            {Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
+                              ? <FaHeart /> 
+                              : <FaRegHeart />
+                            }
+                            <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
+                            className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+                          >
+                            Reply
+                          </button>
+                          
+                          {comment.replies && comment.replies.length > 0 && (
+                            <button
+                              onClick={() => setExpandedReplies(expandedReplies === comment._id ? null : comment._id)}
+                              className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            >
+                              {expandedReplies === comment._id ? 'Hide' : 'Show'} {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Reply input */}
+                        {activeReply === comment._id && (
+                          <div className="mt-3">
+                            <ReplyInput
+                              onSubmit={handleReply}
+                              loading={loadingReply[comment._id]}
+                              postId={localPost._id}
+                              commentId={comment._id}
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Replies */}
+                        {expandedReplies === comment._id && comment.replies && comment.replies.length > 0 && (
+                          <div className="mt-3 space-y-3">
+                            {comment.replies.map((reply) => (
+                              <div key={reply._id} className="flex items-start gap-2 pl-4 border-l border-gray-200 dark:border-gray-600">
+                                <Link 
+                                  to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:opacity-80 transition-opacity flex-shrink-0"
+                                >
+                                  <FaUser className="text-gray-400 dark:text-gray-500 text-xs" />
+                                </Link>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Link
+                                      to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
+                                      className="font-semibold text-xs text-gray-900 dark:text-white hover:underline"
+                                    >
+                                      {reply.author.username}
+                                    </Link>
+                                    {reply.author.verified && <VerifiedBadge />}
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      {formatPostDate(reply.createdAt)}
+                                    </span>
+                                    <EditedIndicator item={reply} />
+                                    
+                                    {/* Reply menu */}
+                                    {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
+                                      <div className="relative ml-auto">
+                                        <button
+                                          onClick={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] }))}
+                                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
+                                        >
+                                          <FaEllipsisV size={10} />
+                                        </button>
+                                        {showReplyMenus[`${comment._id}-${reply._id}`] && (
+                                          <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
+                                            {canEditDelete(reply.author?._id || reply.user) && (
+                                              <button
+                                                onClick={() => handleEditReply(comment._id, reply._id, reply.content)}
+                                                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
+                                              >
+                                                <FaEdit size={10} /> Edit
+                                              </button>
+                                            )}
+                                            <button
+                                              onClick={() => handleDeleteReply(comment._id, reply._id)}
+                                              className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
+                                            >
+                                              <FaTrash size={10} /> Delete
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Reply content */}
+                                  {editingReply === `${comment._id}-${reply._id}` ? (
+                                    <div className="space-y-2">
+                                      <textarea
+                                        value={editReplyContent}
+                                        onChange={e => setEditReplyContent(e.target.value)}
+                                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                        rows="2"
+                                      />
+                                      <div className="flex gap-2">
+                                        <button
+                                          onClick={() => handleSaveReplyEdit(comment._id, reply._id)}
+                                          className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                        >
+                                          Save
+                                        </button>
+                                        <button
+                                          onClick={handleCancelReplyEdit}
+                                          className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                                        >
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p 
+                                      className="text-xs text-gray-900 dark:text-gray-100 break-words mb-1"
+                                      dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
+                                    />
+                                  )}
+                                  
+                                  {/* Reply actions */}
+                                  <div className="flex items-center gap-3 text-xs">
+                                    <button
+                                      onClick={() => handleLikeReply(comment._id, reply._id)}
+                                      disabled={loadingReplyLike[reply._id]}
+                                      className={`flex items-center gap-1 transition-colors ${
+                                        Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                                          ? 'text-red-500'
+                                          : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
+                                      }`}
+                                    >
+                                      {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                                        ? <FaHeart /> 
+                                        : <FaRegHeart />
+                                      }
+                                      <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Load more comments */}
+                {hasMore && (
+                  <div className="mt-4 text-center">
+                    <button
+                      onClick={loadMoreComments}
+                      disabled={loadingMoreComments}
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium hover:underline transition-colors disabled:opacity-50"
+                    >
+                      {loadingMoreComments ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <FaSpinner className="animate-spin" />
+                          Loading...
+                        </div>
+                      ) : (
+                        `Load more comments (${totalComments - displayedComments.length} remaining)`
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </>
   );
