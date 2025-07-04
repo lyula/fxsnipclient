@@ -23,11 +23,15 @@ export function DashboardProvider({ children }) {
   // State for community posts
   const [communityPosts, setCommunityPosts] = useState([]);
   
+  // State for following posts
+  const [followingPosts, setFollowingPosts] = useState([]);
+  
   // Loading states
   const [loadingStates, setLoadingStates] = useState({
     conversations: false,
     notifications: false,
     posts: false,
+    followingPosts: false,
   });
 
   // Message cache
@@ -38,6 +42,7 @@ export function DashboardProvider({ children }) {
 
   // Add to dashboard context state
   const [cyclingInfo, setCyclingInfo] = useState(null);
+  const [followingCyclingInfo, setFollowingCyclingInfo] = useState({});
 
   // Polling state
   const [pollingInterval, setPollingInterval] = useState(null);
@@ -171,6 +176,50 @@ export function DashboardProvider({ children }) {
     }
   }, []);
 
+  // Fetch following posts
+  const fetchFollowingPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
+    try {
+      setLoadingStates(prev => ({ ...prev, followingPosts: offset === 0 ? true : false }));
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      const timestamp = Date.now();
+      const params = new URLSearchParams({
+        limit: loadFresh ? '30' : '20',
+        offset: offset.toString(),
+        scrollDirection: direction,
+        refreshFeed: refresh.toString(),
+        loadFresh: loadFresh.toString(),
+        timestamp: timestamp.toString(),
+        cacheBust: Math.random().toString(36)
+      });
+      
+      const res = await fetch(`${API_BASE}/posts/following?${params}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setFollowingCyclingInfo(data.cyclingInfo);
+        if (refresh || loadFresh || offset === 0 || direction === 'fresh') {
+          setFollowingPosts(data.posts || []);
+        }
+        return data;
+      } else {
+        console.error('Failed to fetch following posts:', res.status, res.statusText);
+        return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
+      }
+    } catch (error) {
+      console.error("Error fetching following posts:", error);
+      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, followingPosts: false }));
+    }
+  }, []);
+
   // Add refresh function for swipe up
   const refreshCommunityFeed = useCallback(async () => {
     await fetchCommunityPosts(true);
@@ -274,6 +323,46 @@ export function DashboardProvider({ children }) {
     }
   }, [fetchCommunityPosts, loadingStates.posts]);
 
+  // Load more for following posts
+  const loadMoreFollowingPosts = useCallback(async (currentOffset) => {
+    if (loadingStates.followingPosts) return { hasMore: true, posts: [] };
+    setLoadingStates(prev => ({ ...prev, followingPosts: true }));
+    try {
+      const result = await fetchFollowingPosts(false, currentOffset, 'down');
+      if (result?.cyclingInfo) {
+        setFollowingCyclingInfo(result.cyclingInfo);
+      }
+      if (result?.posts && result.posts.length > 0) {
+        setFollowingPosts(prev => {
+          const existingPostIds = new Set(prev.map(post => post._id));
+          const newPosts = result.cyclingInfo?.isRepeatingContent 
+            ? result.posts.map(post => ({
+                ...post,
+                _id: `${post._id}_cycle_${result.cyclingInfo.completedCycles}_${Date.now()}`,
+                _originalId: post._id,
+                _isCyled: true,
+                _cycleNumber: result.cyclingInfo.completedCycles
+              }))
+            : result.posts.filter(post => !existingPostIds.has(post._id));
+          if (newPosts.length > 0) {
+            return [...prev, ...newPosts];
+          }
+          return prev;
+        });
+      }
+      return {
+        ...result,
+        posts: result.posts,
+        hasMore: result.hasMore === true || (result.cyclingInfo?.totalPostsInCycle > 0)
+      };
+    } catch (error) {
+      console.error("Error loading more following posts:", error);
+      return { hasMore: false, posts: [] };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, followingPosts: false }));
+    }
+  }, [fetchFollowingPosts, loadingStates.followingPosts]);
+
   const loadNewerPosts = useCallback(async (forceFresh = false) => {
     const result = await fetchCommunityPosts(true, 0, 'up');
     if (result?.cyclingInfo) {
@@ -310,6 +399,44 @@ export function DashboardProvider({ children }) {
       setLoadingStates(prev => ({ ...prev, posts: false }));
     }
   }, [fetchCommunityPosts]);
+
+  // Load newer following posts (equivalent to loadNewerPosts but for following)
+  const loadNewerFollowingPosts = useCallback(async (forceFresh = false) => {
+    const result = await fetchFollowingPosts(true, 0, 'up');
+    if (result?.cyclingInfo) {
+      setFollowingCyclingInfo(result.cyclingInfo);
+    }
+    if (forceFresh && result?.posts) {
+      const freshPosts = result.posts.sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      setFollowingPosts(freshPosts);
+    }
+    return result;
+  }, [fetchFollowingPosts]);
+
+  // Load fresh following content (equivalent to loadFreshContent but for following)
+  const loadFreshFollowingContent = useCallback(async () => {
+    try {
+      setLoadingStates(prev => ({ ...prev, followingPosts: true }));
+      const result = await fetchFollowingPosts(false, 0, 'fresh', true);
+      if (result?.cyclingInfo) {
+        setFollowingCyclingInfo(result.cyclingInfo);
+      }
+      if (result?.posts) {
+        const sortedFreshPosts = result.posts.sort((a, b) => 
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        setFollowingPosts(sortedFreshPosts);
+      }
+      return result;
+    } catch (error) {
+      console.error("Error loading fresh following content:", error);
+      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, followingPosts: false }));
+    }
+  }, [fetchFollowingPosts]);
 
   // Utility function to deduplicate posts by _id, keeping the first occurrence
   const deduplicatePostsById = useCallback((posts) => {
@@ -354,6 +481,12 @@ export function DashboardProvider({ children }) {
     loadFreshContent,
     startPolling,
     stopPolling,
+    followingPosts,
+    fetchFollowingPosts,
+    loadMoreFollowingPosts,
+    followingCyclingInfo,
+    loadNewerFollowingPosts,
+    loadFreshFollowingContent,
   }), [
     conversations,
     fetchConversations,
@@ -379,6 +512,12 @@ export function DashboardProvider({ children }) {
     loadFreshContent,
     startPolling,
     stopPolling,
+    followingPosts,
+    fetchFollowingPosts,
+    loadMoreFollowingPosts,
+    followingCyclingInfo,
+    loadNewerFollowingPosts,
+    loadFreshFollowingContent,
   ]);
 
   return (
@@ -391,8 +530,8 @@ export function DashboardProvider({ children }) {
 // Add the missing hook and export
 export function useDashboard() {
   const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error("useDashboard must be used within a DashboardProvider");
+  if (context === undefined) {
+    throw new Error('useDashboard must be used within a DashboardProvider');
   }
   return context;
 }

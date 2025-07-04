@@ -5,6 +5,7 @@ import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
 import CreatePostBox from "./community/CreatePostBox";
 import UserSearch from "./community/UserSearch";
+import FollowingFeed from "./community/FollowingFeed";
 import { useDashboard } from "../../context/dashboard";
 
 export default function Community({ user }) {
@@ -25,9 +26,17 @@ export default function Community({ user }) {
   const [buttonHideTimeout, setButtonHideTimeout] = useState(null);
   const [isLoadingFresh, setIsLoadingFresh] = useState(false);
   const [topScrollAttempts, setTopScrollAttempts] = useState(0);
+
+  // Following tab specific states
+  const [followingShowLoadNewButton, setFollowingShowLoadNewButton] = useState(false);
+  const [followingScrollUpDistance, setFollowingScrollUpDistance] = useState(0);
+  const [followingButtonHideTimeout, setFollowingButtonHideTimeout] = useState(null);
+  const [followingIsLoadingFresh, setFollowingIsLoadingFresh] = useState(false);
+
   const location = useLocation();
   const postRefs = useRef({});
   const containerRef = useRef(null);
+  const followingContainerRef = useRef(null);
   const isLoadingRef = useRef(false);
   const [showTabs, setShowTabs] = useState(true);
 
@@ -41,7 +50,10 @@ export default function Community({ user }) {
     addPostOptimistically,
     updatePost,
     deletePost,
-    loadFreshContent
+    loadFreshContent,
+    followingPosts,
+    loadNewerFollowingPosts,
+    loadFreshFollowingContent
   } = useDashboard();
 
   // API base URL
@@ -56,6 +68,183 @@ export default function Community({ user }) {
   // Extract original ID helper function
   const getOriginalPostId = (postId) => {
     return postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
+  };
+
+  // Load saved tab from localStorage on component mount (enhanced persistence)
+  useEffect(() => {
+    const savedTab = localStorage.getItem('communityActiveTab');
+    if (savedTab && (savedTab === 'forYou' || savedTab === 'following')) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  // Save tab changes to localStorage (enhanced persistence)
+  useEffect(() => {
+    localStorage.setItem('communityActiveTab', activeTab);
+  }, [activeTab]);
+
+  // Enhanced tab-specific container reference
+  const getCurrentContainer = useCallback(() => {
+    return activeTab === 'following' ? followingContainerRef.current : containerRef.current;
+  }, [activeTab]);
+
+  // Enhanced swipe handlers with better tab switching and pull-to-refresh
+  const handleTouchStart = (e) => {
+    setTouchStart(e.targetTouches[0].clientY);
+    setHorizontalTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+    setHorizontalTouchEnd(e.targetTouches[0].clientX);
+    
+    const currentHorizontalDistance = Math.abs(e.targetTouches[0].clientX - horizontalTouchStart);
+    const currentVerticalDistance = Math.abs(e.targetTouches[0].clientY - touchStart);
+    
+    // Prevent default for horizontal swipes
+    if (currentHorizontalDistance > 5 && currentHorizontalDistance >= currentVerticalDistance) {
+      e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = async (e) => {
+    if (!touchStart || !touchEnd || !horizontalTouchStart || !horizontalTouchEnd) return;
+    
+    const verticalDistance = touchEnd - touchStart;
+    const horizontalDistance = horizontalTouchStart - horizontalTouchEnd;
+    
+    const minHorizontalDistance = 10;
+    const minVerticalDistance = 50;
+    
+    const absHorizontal = Math.abs(horizontalDistance);
+    const absVertical = Math.abs(verticalDistance);
+    
+    const isHorizontalSwipe = absHorizontal >= minHorizontalDistance && (absHorizontal > absVertical || absVertical < 20);
+    const isVerticalSwipe = absVertical >= minVerticalDistance && absVertical > absHorizontal;
+    
+    // Enhanced horizontal swipe for tab switching
+    if (isHorizontalSwipe) {
+      e.preventDefault();
+      
+      if (horizontalDistance > 0 && activeTab === "forYou") {
+        setActiveTab("following");
+      } else if (horizontalDistance < 0 && activeTab === "following") {
+        setActiveTab("forYou");
+      }
+    }
+    // Enhanced vertical swipe for pull-to-refresh (tab-specific)
+    else if (isVerticalSwipe) {
+      const isPullToRefresh = verticalDistance > 100;
+      const container = getCurrentContainer();
+      
+      if (isPullToRefresh && container && container.scrollTop < 50) {
+        if (activeTab === 'following') {
+          setIsRefreshing(true);
+          try {
+            await loadNewerFollowingPosts();
+          } catch (error) {
+            console.error('Error refreshing following feed:', error);
+          } finally {
+            setIsRefreshing(false);
+          }
+        } else {
+          setIsRefreshing(true);
+          try {
+            const result = await loadNewerPosts();
+            setCurrentOffset(20);
+            setHasMore(true);
+          } catch (error) {
+            console.error('Error refreshing feed:', error);
+          } finally {
+            setIsRefreshing(false);
+          }
+        }
+      }
+    }
+    
+    // Reset touch states
+    setTouchStart(0);
+    setTouchEnd(0);
+    setHorizontalTouchStart(0);
+    setHorizontalTouchEnd(0);
+  };
+
+  // Enhanced scroll handler for following tab
+  const handleFollowingScroll = useCallback(() => {
+    const container = followingContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const scrollDelta = Math.abs(scrollTop - lastScrollTop);
+    const currentScrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
+
+    if (scrollDelta > 2) {
+      setScrollDirection(currentScrollDirection);
+      setLastScrollTop(scrollTop);
+
+      // Tab visibility logic
+      if (scrollTop <= 20) {
+        setShowTabs(true);
+      } else if (currentScrollDirection === 'up' && scrollDelta > 5) {
+        setShowTabs(true);
+      } else if (currentScrollDirection === 'down' && scrollTop > 50 && scrollDelta > 10) {
+        setShowTabs(false);
+      }
+    }
+
+    // Track upward scroll for "Load New Posts" button (following-specific)
+    if (currentScrollDirection === 'up') {
+      setFollowingScrollUpDistance(prev => {
+        const newDistance = prev + scrollDelta;
+        if (newDistance > 100 && !followingShowLoadNewButton && !isRefreshing && !followingIsLoadingFresh) {
+          setFollowingShowLoadNewButton(true);
+          if (followingButtonHideTimeout) {
+            clearTimeout(followingButtonHideTimeout);
+          }
+          const timeout = setTimeout(() => {
+            setFollowingShowLoadNewButton(false);
+            setFollowingScrollUpDistance(0);
+          }, 8000);
+          setFollowingButtonHideTimeout(timeout);
+        }
+        return newDistance;
+      });
+    } else if (currentScrollDirection === 'down') {
+      if (scrollTop > 100 && followingShowLoadNewButton) {
+        setFollowingShowLoadNewButton(false);
+        if (followingButtonHideTimeout) {
+          clearTimeout(followingButtonHideTimeout);
+          setFollowingButtonHideTimeout(null);
+        }
+      }
+      setFollowingScrollUpDistance(0);
+    }
+  }, [lastScrollTop, followingShowLoadNewButton, isRefreshing, followingIsLoadingFresh, followingButtonHideTimeout]);
+
+  // Load fresh following posts handler
+  const handleLoadFreshFollowingPosts = async () => {
+    setFollowingIsLoadingFresh(true);
+    setFollowingShowLoadNewButton(false);
+    setFollowingScrollUpDistance(0);
+    
+    if (followingButtonHideTimeout) {
+      clearTimeout(followingButtonHideTimeout);
+      setFollowingButtonHideTimeout(null);
+    }
+    
+    try {
+      await loadFreshFollowingContent();
+      
+      if (followingContainerRef.current) {
+        followingContainerRef.current.scrollTop = 0;
+      }
+      
+      console.log('Fresh following content loaded');
+    } catch (error) {
+      console.error('Error loading fresh following posts:', error);
+    } finally {
+      setFollowingIsLoadingFresh(false);
+    }
   };
 
   // Initial load
@@ -88,12 +277,12 @@ export default function Community({ user }) {
     }
   }, [location.search, communityPosts]);
 
-  // Scroll handler for tabs visibility and infinite scroll
+  // Enhanced scroll handler for for-you tab (existing logic)
   useEffect(() => {
     let ticking = false;
     
     const handleScroll = async () => {
-      if (!containerRef.current || isLoadingRef.current || ticking) return;
+      if (!containerRef.current || isLoadingRef.current || ticking || activeTab !== 'forYou') return;
       
       ticking = true;
       
@@ -108,20 +297,15 @@ export default function Community({ user }) {
         const currentScrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
         const scrollDelta = Math.abs(scrollTop - lastScrollTop);
 
-        // Only update if there's meaningful scroll movement
         if (scrollDelta > 2) {
           setScrollDirection(currentScrollDirection);
           setLastScrollTop(scrollTop);
 
-          // Improved tab visibility logic - more responsive to direction changes
           if (scrollTop <= 20) {
-            // Always show tabs at the very top
             setShowTabs(true);
           } else if (currentScrollDirection === 'up' && scrollDelta > 5) {
-            // Show tabs immediately on any meaningful upward scroll
             setShowTabs(true);
           } else if (currentScrollDirection === 'down' && scrollTop > 50 && scrollDelta > 10) {
-            // Hide tabs on downward scroll, but with some threshold
             setShowTabs(false);
           }
         }
@@ -157,7 +341,7 @@ export default function Community({ user }) {
           setTopScrollAttempts(0);
         }
 
-        // Infinite scroll logic (rest remains the same)
+        // Infinite scroll logic
         if (scrollBottom < 500 && hasMore && !isLoadingRef.current) {
           isLoadingRef.current = true;
           setIsLoadingMore(true);
@@ -207,7 +391,7 @@ export default function Community({ user }) {
     };
 
     const container = containerRef.current;
-    if (container) {
+    if (container && activeTab === 'forYou') {
       container.addEventListener('scroll', handleScroll, { passive: true });
       return () => {
         container.removeEventListener('scroll', handleScroll);
@@ -216,86 +400,23 @@ export default function Community({ user }) {
         }
       };
     }
-  }, [loadMorePosts, hasMore, cyclingInfo, lastScrollTop, showLoadNewButton, isRefreshing, isLoadingFresh, buttonHideTimeout]);
+  }, [loadMorePosts, hasMore, cyclingInfo, lastScrollTop, showLoadNewButton, isRefreshing, isLoadingFresh, buttonHideTimeout, activeTab]);
 
-  // Touch handling for pull-to-refresh and tab switching
-  const handleTouchStart = (e) => {
-    setTouchStart(e.targetTouches[0].clientY); // Vertical for pull-to-refresh
-    setHorizontalTouchStart(e.targetTouches[0].clientX); // Horizontal for tab switching
-  };
-
-  const handleTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientY); // Vertical
-    setHorizontalTouchEnd(e.targetTouches[0].clientX); // Horizontal
-    
-    // Calculate current distances
-    const currentHorizontalDistance = Math.abs(e.targetTouches[0].clientX - horizontalTouchStart);
-    const currentVerticalDistance = Math.abs(e.targetTouches[0].clientY - touchStart);
-    
-    // Prevent default behavior for even small horizontal movements
-    if (currentHorizontalDistance > 5 && currentHorizontalDistance >= currentVerticalDistance) {
-      e.preventDefault();
-    }
-  };
-
-  const handleTouchEnd = async (e) => {
-    if (!touchStart || !touchEnd || !horizontalTouchStart || !horizontalTouchEnd) return;
-    
-    const verticalDistance = touchEnd - touchStart; // Positive = downward swipe, negative = upward swipe
-    const horizontalDistance = horizontalTouchStart - horizontalTouchEnd; // Positive = left swipe, negative = right swipe
-    
-    // Much more sensitive thresholds for horizontal swipes
-    const minHorizontalDistance = 10; // Very small threshold for horizontal swipes
-    const minVerticalDistance = 50; // Keep vertical threshold higher
-    
-    const absHorizontal = Math.abs(horizontalDistance);
-    const absVertical = Math.abs(verticalDistance);
-    
-    // Determine if this is primarily a horizontal or vertical swipe
-    const isHorizontalSwipe = absHorizontal >= minHorizontalDistance && (absHorizontal > absVertical || absVertical < 20);
-    const isVerticalSwipe = absVertical >= minVerticalDistance && absVertical > absHorizontal;
-    
-    // Handle horizontal swipes for tab switching with very low threshold
-    if (isHorizontalSwipe) {
-      e.preventDefault(); // Prevent any default touch behavior
-      
-      console.log('Horizontal swipe detected:', horizontalDistance); // Debug log
-      
-      if (horizontalDistance > 0 && activeTab === "forYou") {
-        console.log('Switching to following tab'); // Debug log
-        setActiveTab("following");
-      } else if (horizontalDistance < 0 && activeTab === "following") {
-        console.log('Switching to forYou tab'); // Debug log
-        setActiveTab("forYou");
-      }
-    }
-    // Handle vertical swipes for pull-to-refresh
-    else if (isVerticalSwipe) {
-      const isPullToRefresh = verticalDistance > 100; // Downward swipe of more than 100px
-      const container = containerRef.current;
-      
-      // Pull-to-refresh should trigger on downward swipe when at the top
-      if (isPullToRefresh && container && container.scrollTop < 50) {
-        setIsRefreshing(true);
-        try {
-          const result = await loadNewerPosts();
-          setCurrentOffset(20);
-          setHasMore(true);
-        } catch (error) {
-          console.error('Error refreshing feed:', error);
-        } finally {
-          setIsRefreshing(false);
+  // Enhanced following tab scroll handler
+  useEffect(() => {
+    const container = followingContainerRef.current;
+    if (container && activeTab === 'following') {
+      container.addEventListener('scroll', handleFollowingScroll, { passive: true });
+      return () => {
+        container.removeEventListener('scroll', handleFollowingScroll);
+        if (followingButtonHideTimeout) {
+          clearTimeout(followingButtonHideTimeout);
         }
-      }
+      };
     }
-    
-    // Reset all touch states
-    setTouchStart(0);
-    setTouchEnd(0);
-    setHorizontalTouchStart(0);
-    setHorizontalTouchEnd(0);
-  };
+  }, [activeTab, handleFollowingScroll, followingButtonHideTimeout]);
 
+  // Rest of your existing handlers (handleNewPost, handleComment, handleReply, etc.)
   const handleNewPost = async (content, image, video) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticPost = {
@@ -357,7 +478,6 @@ export default function Community({ user }) {
     }
   };
 
-  // FIXED: Comment handler with proper original post ID extraction
   const handleComment = useCallback(async (postId, commentContent) => {
     const originalPostId = getOriginalPostId(postId);
     
@@ -374,10 +494,9 @@ export default function Community({ user }) {
         const updatedPost = await res.json();
         console.log('Comment added successfully:', updatedPost);
         
-        // Update with server response, preserving display ID
         updatePost(postId, { 
           ...updatedPost, 
-          _id: postId, // Keep the display ID for React rendering
+          _id: postId,
           _originalId: originalPostId 
         });
         return updatedPost;
@@ -392,7 +511,6 @@ export default function Community({ user }) {
     }
   }, [API_BASE, authHeaders, updatePost]);
 
-  // FIXED: Reply handler with proper original post ID extraction
   const handleReply = useCallback(async (postId, replyContent, commentId) => {
     const originalPostId = getOriginalPostId(postId);
     
@@ -409,10 +527,9 @@ export default function Community({ user }) {
         const updatedPost = await res.json();
         console.log('Reply added successfully:', updatedPost);
         
-        // Update with server response, preserving display ID
         updatePost(postId, { 
           ...updatedPost, 
-          _id: postId, // Keep the display ID for React rendering
+          _id: postId,
           _originalId: originalPostId 
         });
         return updatedPost;
@@ -427,18 +544,15 @@ export default function Community({ user }) {
     }
   }, [API_BASE, authHeaders, updatePost]);
 
-  // FIXED: Like handler with optimistic updates and proper toggle logic
   const handleLike = useCallback(async (postId) => {
     const originalPostId = getOriginalPostId(postId);
     
-    // Get current post to check if it's already liked
-    const currentPost = communityPosts.find(p => p._id === postId);
+    const currentPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
     if (!currentPost || !user) return;
     
     const currentUserId = user._id || user.id;
     const isCurrentlyLiked = currentPost.likes?.some(likeId => String(likeId) === String(currentUserId));
     
-    // Optimistic update - toggle the like immediately
     const optimisticUpdate = {
       ...currentPost,
       likes: isCurrentlyLiked 
@@ -462,41 +576,34 @@ export default function Community({ user }) {
         const updatedPost = await res.json();
         console.log('Like toggled successfully:', updatedPost);
         
-        // Update with server response, preserving display ID
         updatePost(postId, { 
           ...updatedPost, 
-          _id: postId, // Keep the display ID for React rendering
+          _id: postId,
           _originalId: originalPostId 
         });
       } else {
         const errorData = await res.json();
         console.error("Failed to toggle like:", errorData);
-        // Revert optimistic update on error
         updatePost(postId, currentPost);
       }
     } catch (error) {
       console.error("Error toggling like:", error);
-      // Revert optimistic update on error
       updatePost(postId, currentPost);
     }
-  }, [API_BASE, communityPosts, updatePost, user]);
+  }, [API_BASE, communityPosts, followingPosts, updatePost, user]);
 
-  // FIXED: View handler with proper session tracking and original post ID
   const handleView = useCallback(async (postId) => {
     const originalPostId = getOriginalPostId(postId);
     if (!originalPostId) return;
 
-    // Use session storage to track views per browser session
     const viewKey = `viewed_post_${originalPostId}`;
     if (sessionStorage.getItem(viewKey)) {
-      return; // Already viewed in this session
+      return;
     }
 
-    // Mark as viewed in this session
     sessionStorage.setItem(viewKey, 'true');
 
-    // Optimistic update for immediate UI feedback
-    const post = communityPosts.find(p => p._id === postId);
+    const post = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
     if (post) {
       updatePost(postId, { ...post, views: (post.views || 0) + 1 });
     }
@@ -518,13 +625,11 @@ export default function Community({ user }) {
     } catch (error) {
       console.error("Error tracking view:", error);
     }
-  }, [communityPosts, updatePost, API_BASE]);
+  }, [communityPosts, followingPosts, updatePost, API_BASE]);
 
-  // FIXED: Delete handler with proper original post ID extraction
   const handleDeletePost = useCallback(async (postId) => {
     const originalPostId = getOriginalPostId(postId);
     
-    // Optimistic update - remove from UI immediately
     deletePost(postId);
     
     try {
@@ -539,8 +644,6 @@ export default function Community({ user }) {
         console.log('Post deleted successfully');
       } else {
         console.error("Failed to delete post on server:", res.status);
-        // Note: We don't revert the optimistic update here since the post is already gone from UI
-        // In a production app, you might want to add error handling to restore the post
       }
     } catch (error) {
       console.error("Error deleting post:", error);
@@ -562,16 +665,6 @@ export default function Community({ user }) {
       setCurrentOffset(result?.nextOffset || 20);
       setHasMore(true);
       
-      // Clear view tracking for fresh content
-      // const keysToRemove = [];
-      // for (let i = 0; i < sessionStorage.length; i++) {
-      //   const key = sessionStorage.key(i);
-      //   if (key && key.startsWith('viewed_post_')) {
-      //     keysToRemove.push(key);
-      //   }
-      // }
-      // keysToRemove.forEach(key => sessionStorage.removeItem(key));
-      
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
       }
@@ -585,7 +678,7 @@ export default function Community({ user }) {
   };
 
   const preserveScrollPosition = useCallback((callback) => {
-    const container = containerRef.current;
+    const container = getCurrentContainer();
     if (!container) return callback();
     
     const scrollTop = container.scrollTop;
@@ -598,12 +691,12 @@ export default function Community({ user }) {
         container.scrollTop = scrollTop;
       }
     });
-  }, []);
+  }, [getCurrentContainer]);
 
   const showLoading = loadingStates.posts && communityPosts.length === 0;
 
   useEffect(() => {
-    const container = containerRef.current;
+    const container = getCurrentContainer();
     if (!container) return;
     
     const currentScrollTop = container.scrollTop;
@@ -615,7 +708,7 @@ export default function Community({ user }) {
     }, 10);
     
     return () => clearTimeout(timeoutId);
-  }, [communityPosts.length]);
+  }, [communityPosts.length, followingPosts.length, getCurrentContainer]);
 
   return (
     <div 
@@ -630,14 +723,13 @@ export default function Community({ user }) {
         overscrollBehavior: 'none'
       }}
     >
-      {/* Enhanced tabs container with Tailwind glassmorphism */}
+      {/* Enhanced tabs container */}
       <div 
         className={`flex-shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-20 transition-all duration-300 ${
           showTabs ? "opacity-100 translate-y-0 h-auto py-2" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
         }`}
         style={{ willChange: "transform, opacity, height" }}
       >
-        {/* Use same container structure as posts */}
         <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
           <CommunityTabs
             activeTab={activeTab}
@@ -648,10 +740,12 @@ export default function Community({ user }) {
         </div>
       </div>
 
-      {/* Modern posts container with Tailwind gradients */}
+      {/* Enhanced posts container */}
       <div 
-        ref={containerRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden py-6 bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar"
+        ref={activeTab === 'forYou' ? containerRef : followingContainerRef}
+        className={`flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar ${
+          activeTab === 'following' ? '' : 'py-6'
+        }`}
         style={{ 
           minHeight: 0,
           maxHeight: '100%',
@@ -674,7 +768,17 @@ export default function Community({ user }) {
             Loading posts...
           </div>
         ) : activeTab === "following" ? (
-          <UserSearch currentUser={user} />
+          <FollowingFeed 
+            user={user}
+            onReply={handleReply}
+            onComment={handleComment}
+            onLike={handleLike}
+            onView={handleView}
+            onDelete={handleDeletePost}
+            containerRef={followingContainerRef}
+            onLoadFresh={handleLoadFreshFollowingPosts}
+            isLoadingFresh={followingIsLoadingFresh}
+          />
         ) : communityPosts.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             No posts yet. Be the first to share something!
@@ -726,9 +830,19 @@ export default function Community({ user }) {
             )}
           </>
         )}
+
+        {/* Enhanced load new posts buttons - ONLY for forYou tab */}
+        {activeTab === 'forYou' && showLoadNewButton && !isLoadingFresh && (
+          <button
+            className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
+            onClick={handleLoadFreshPosts}
+          >
+            Load New Posts
+          </button>
+        )}
       </div>
       
-      {/* Mobile-only floating create post button */}
+      {/* Mobile floating create post button */}
       <button
         className="fixed bottom-14 right-6 z-50 sm:hidden flex items-center justify-center w-14 h-14 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
         onClick={() => setShowCreate(true)}
@@ -736,27 +850,6 @@ export default function Community({ user }) {
       >
         <FaPlus className="text-xl" />
       </button>
-      
-      {showLoadNewButton && !isLoadingFresh && (
-        <button
-          className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
-          onClick={handleLoadFreshPosts}
-        >
-          <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
-          </svg>
-          <span className="font-medium">Load New Posts</span>
-        </button>
-      )}
-
-      {isLoadingFresh && (
-        <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-2 py-1.5 sm:px-4 sm:py-2.5 rounded-full shadow-lg z-50">
-          <div className="flex items-center gap-1 sm:gap-1.5 whitespace-nowrap">
-            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white flex-shrink-0"></div>
-            <span className="text-xs sm:text-sm font-medium">Loading fresh posts...</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
