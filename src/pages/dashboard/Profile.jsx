@@ -10,6 +10,46 @@ export default function Profile() {
   const [form, setForm] = useState({ username: "", email: "" });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [countsLoading, setCountsLoading] = useState(true);
+
+  // API base URL
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+
+  // Auth headers
+  const authHeaders = {
+    Authorization: `Bearer ${localStorage.getItem("token")}`
+  };
+
+  // Fetch follower and following counts
+  const fetchFollowerCounts = async (username) => {
+    if (!username) return;
+    
+    setCountsLoading(true);
+    try {
+      const [followersRes, followingRes] = await Promise.all([
+        fetch(`${API_BASE}/user/followers/${encodeURIComponent(username)}`),
+        fetch(`${API_BASE}/user/following/${encodeURIComponent(username)}`, {
+          headers: authHeaders,
+        })
+      ]);
+
+      if (followersRes.ok) {
+        const result = await followersRes.json();
+        setFollowers(result.followers || []);
+      }
+
+      if (followingRes.ok) {
+        const result = await followingRes.json();
+        setFollowing(result.following || []);
+      }
+    } catch (error) {
+      console.error("Error fetching follower counts:", error);
+    } finally {
+      setCountsLoading(false);
+    }
+  };
 
   useEffect(() => {
     getProfile()
@@ -17,6 +57,8 @@ export default function Profile() {
         if (data && data.username) {
           setUser(data);
           setForm({ username: data.username, email: data.email });
+          // Fetch follower counts after getting user data
+          fetchFollowerCounts(data.username);
         } else {
           setMessage(data.message || "Failed to load profile.");
         }
@@ -54,6 +96,10 @@ export default function Profile() {
       setEditMode(false);
       setMessage("Profile updated!");
       refreshUser(); // <-- Refresh global user data
+      // If username changed, refetch follower counts
+      if (res.username !== user.username) {
+        fetchFollowerCounts(res.username);
+      }
     } else {
       setMessage(res.message || "Update failed.");
     }
@@ -93,7 +139,7 @@ export default function Profile() {
         <div className="flex items-center justify-center gap-10 w-full mb-2">
           <div className="flex flex-col items-center">
             <span className="font-bold text-lg text-[#1E3A8A] dark:text-[#a99d6b]">
-              {user.followers}
+              {countsLoading ? "..." : followers.length}
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Followers
@@ -101,7 +147,7 @@ export default function Profile() {
           </div>
           <div className="flex flex-col items-center">
             <span className="font-bold text-lg text-[#1E3A8A] dark:text-[#a99d6b]">
-              {user.following}
+              {countsLoading ? "..." : following.length}
             </span>
             <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Following
@@ -116,9 +162,11 @@ export default function Profile() {
             Date Joined:
           </span>
           <span className="text-gray-600 dark:text-gray-300">
-            {user.joined
+            {user.createdAt
+              ? new Date(user.createdAt).toLocaleDateString()
+              : user.joined 
               ? new Date(user.joined).toLocaleDateString()
-              : ""}
+              : "Not available"}
           </span>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">

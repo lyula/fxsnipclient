@@ -5,7 +5,6 @@ import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
 import CreatePostBox from "./community/CreatePostBox";
 import UserSearch from "./community/UserSearch";
-import { incrementPostViews } from "../../utils/api";
 import { useDashboard } from "../../context/dashboard";
 
 export default function Community({ user }) {
@@ -42,6 +41,20 @@ export default function Community({ user }) {
     deletePost,
     loadFreshContent
   } = useDashboard();
+
+  // API base URL
+  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+
+  // Auth headers
+  const authHeaders = {
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
+    "Content-Type": "application/json",
+  };
+
+  // Extract original ID helper function
+  const getOriginalPostId = (postId) => {
+    return postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
+  };
 
   // Initial load
   useEffect(() => {
@@ -264,16 +277,11 @@ export default function Community({ user }) {
     if (containerRef.current) {
       containerRef.current.scrollTop = 0;
     }
-
-    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
     
     try {
       const res = await fetch(`${API_BASE}/posts`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
+        headers: authHeaders,
         body: JSON.stringify({ content, image, video }),
       });
       
@@ -302,101 +310,195 @@ export default function Community({ user }) {
     }
   };
 
-  const handleComment = async (postId, commentContent) => {
-    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+  // FIXED: Comment handler with proper original post ID extraction
+  const handleComment = useCallback(async (postId, commentContent) => {
+    const originalPostId = getOriginalPostId(postId);
+    
     try {
-      const res = await fetch(`${API_BASE}/posts/${postId}/comments`, {
+      console.log('Adding comment to post:', originalPostId);
+      
+      const res = await fetch(`${API_BASE}/posts/${originalPostId}/comments`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
+        headers: authHeaders,
         body: JSON.stringify({ content: commentContent }),
       });
+      
       if (res.ok) {
-        const data = await res.json();
-        updatePost(postId, data);
-        return data;
+        const updatedPost = await res.json();
+        console.log('Comment added successfully:', updatedPost);
+        
+        // Update with server response, preserving display ID
+        updatePost(postId, { 
+          ...updatedPost, 
+          _id: postId, // Keep the display ID for React rendering
+          _originalId: originalPostId 
+        });
+        return updatedPost;
       } else {
-        console.error("Failed to add comment");
+        const errorData = await res.json();
+        console.error("Failed to add comment:", errorData);
         return null;
       }
     } catch (error) {
       console.error("Error adding comment:", error);
       return null;
     }
-  };
+  }, [API_BASE, authHeaders, updatePost]);
 
-  const handleReply = async (postId, replyContent, commentId) => {
-    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+  // FIXED: Reply handler with proper original post ID extraction
+  const handleReply = useCallback(async (postId, replyContent, commentId) => {
+    const originalPostId = getOriginalPostId(postId);
+    
     try {
-      const res = await fetch(`${API_BASE}/posts/${postId}/comments/${commentId}/replies`, {
+      console.log('Adding reply to comment:', commentId, 'on post:', originalPostId);
+      
+      const res = await fetch(`${API_BASE}/posts/${originalPostId}/comments/${commentId}/replies`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
+        headers: authHeaders,
         body: JSON.stringify({ content: replyContent }),
       });
+      
       if (res.ok) {
-        const data = await res.json();
-        updatePost(postId, data);
-        return data;
+        const updatedPost = await res.json();
+        console.log('Reply added successfully:', updatedPost);
+        
+        // Update with server response, preserving display ID
+        updatePost(postId, { 
+          ...updatedPost, 
+          _id: postId, // Keep the display ID for React rendering
+          _originalId: originalPostId 
+        });
+        return updatedPost;
       } else {
-        console.error("Failed to add reply");
+        const errorData = await res.json();
+        console.error("Failed to add reply:", errorData);
         return null;
       }
     } catch (error) {
       console.error("Error adding reply:", error);
       return null;
     }
-  };
+  }, [API_BASE, authHeaders, updatePost]);
 
-  const handleLike = async (postId) => {
-    return;
-  };
-
-  const handleView = async (postId) => {
-    if (!postId) return;
-
-    const viewedPosts = JSON.parse(localStorage.getItem("viewedPosts") || "[]");
-    if (!viewedPosts.includes(postId)) {
-      viewedPosts.push(postId);
-      localStorage.setItem("viewedPosts", JSON.stringify(viewedPosts));
-
-      const post = communityPosts.find(p => p._id === postId);
-      if (post) {
-        updatePost(postId, { ...post, views: (post.views || 0) + 1 });
-      }
-
-      try {
-        await incrementPostViews(postId);
-      } catch (error) {
-        console.error("Error incrementing post views:", error);
-      }
-    }
-  };
-
-  const handleDeletePost = async (postId) => {
-    deletePost(postId);
+  // FIXED: Like handler with optimistic updates and proper toggle logic
+  const handleLike = useCallback(async (postId) => {
+    const originalPostId = getOriginalPostId(postId);
     
-    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    // Get current post to check if it's already liked
+    const currentPost = communityPosts.find(p => p._id === postId);
+    if (!currentPost || !user) return;
     
+    const currentUserId = user._id || user.id;
+    const isCurrentlyLiked = currentPost.likes?.some(likeId => String(likeId) === String(currentUserId));
+    
+    // Optimistic update - toggle the like immediately
+    const optimisticUpdate = {
+      ...currentPost,
+      likes: isCurrentlyLiked 
+        ? (currentPost.likes || []).filter(likeId => String(likeId) !== String(currentUserId))
+        : [...(currentPost.likes || []), currentUserId]
+    };
+    
+    updatePost(postId, optimisticUpdate);
+
     try {
-      const res = await fetch(`${API_BASE}/posts/${postId}`, {
-        method: "DELETE",
+      console.log('Toggling like for post:', originalPostId);
+      
+      const res = await fetch(`${API_BASE}/posts/${originalPostId}/like`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
       
-      if (!res.ok) {
-        console.error("Failed to delete post on server");
+      if (res.ok) {
+        const updatedPost = await res.json();
+        console.log('Like toggled successfully:', updatedPost);
+        
+        // Update with server response, preserving display ID
+        updatePost(postId, { 
+          ...updatedPost, 
+          _id: postId, // Keep the display ID for React rendering
+          _originalId: originalPostId 
+        });
+      } else {
+        const errorData = await res.json();
+        console.error("Failed to toggle like:", errorData);
+        // Revert optimistic update on error
+        updatePost(postId, currentPost);
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      // Revert optimistic update on error
+      updatePost(postId, currentPost);
+    }
+  }, [API_BASE, communityPosts, updatePost, user]);
+
+  // FIXED: View handler with proper session tracking and original post ID
+  const handleView = useCallback(async (postId) => {
+    const originalPostId = getOriginalPostId(postId);
+    if (!originalPostId) return;
+
+    // Use session storage to track views per browser session
+    const viewKey = `viewed_post_${originalPostId}`;
+    if (sessionStorage.getItem(viewKey)) {
+      return; // Already viewed in this session
+    }
+
+    // Mark as viewed in this session
+    sessionStorage.setItem(viewKey, 'true');
+
+    // Optimistic update for immediate UI feedback
+    const post = communityPosts.find(p => p._id === postId);
+    if (post) {
+      updatePost(postId, { ...post, views: (post.views || 0) + 1 });
+    }
+
+    try {
+      console.log('Tracking view for post:', originalPostId);
+      
+      const res = await fetch(`${API_BASE}/posts/${originalPostId}/view`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      
+      if (res.ok) {
+        const result = await res.json();
+        console.log('View tracked successfully:', result);
+      } else {
+        console.error("Failed to track view:", res.status);
+      }
+    } catch (error) {
+      console.error("Error tracking view:", error);
+    }
+  }, [communityPosts, updatePost, API_BASE]);
+
+  // FIXED: Delete handler with proper original post ID extraction
+  const handleDeletePost = useCallback(async (postId) => {
+    const originalPostId = getOriginalPostId(postId);
+    
+    // Optimistic update - remove from UI immediately
+    deletePost(postId);
+    
+    try {
+      console.log('Deleting post:', originalPostId);
+      
+      const res = await fetch(`${API_BASE}/posts/${originalPostId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      
+      if (res.ok) {
+        console.log('Post deleted successfully');
+      } else {
+        console.error("Failed to delete post on server:", res.status);
+        // Note: We don't revert the optimistic update here since the post is already gone from UI
+        // In a production app, you might want to add error handling to restore the post
       }
     } catch (error) {
       console.error("Error deleting post:", error);
     }
-  };
+  }, [API_BASE, deletePost]);
 
   const handleLoadFreshPosts = async () => {
     setIsLoadingFresh(true);
@@ -413,7 +515,15 @@ export default function Community({ user }) {
       setCurrentOffset(result?.nextOffset || 20);
       setHasMore(true);
       
-      localStorage.removeItem("viewedPosts");
+      // Clear view tracking for fresh content
+      const keysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('viewed_post_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => sessionStorage.removeItem(key));
       
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
@@ -572,13 +682,13 @@ export default function Community({ user }) {
       </div>
       
       {/* Mobile-only floating create post button */}
-<button
-  className="fixed bottom-14 right-6 z-50 sm:hidden flex items-center justify-center w-14 h-14 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
-  onClick={() => setShowCreate(true)}
-  aria-label="Create new post"
->
-  <FaPlus className="text-xl" />
-</button>
+      <button
+        className="fixed bottom-14 right-6 z-50 sm:hidden flex items-center justify-center w-14 h-14 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
+        onClick={() => setShowCreate(true)}
+        aria-label="Create new post"
+      >
+        <FaPlus className="text-xl" />
+      </button>
       
       {showLoadNewButton && !isLoadingFresh && (
         <button

@@ -34,9 +34,10 @@ export default function UserProfile() {
     []
   );
 
-  const authHeaders = useMemo(() => ({
-    Authorization: `Bearer ${localStorage.getItem("token")}`
-  }), []);
+  const authHeaders = useMemo(() => {
+    const token = localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, []);
 
   const cacheKey = `profile_${username}`;
 
@@ -203,34 +204,85 @@ export default function UserProfile() {
     setIsFollowing(followersHashed.includes(hashedCurrentUserId));
   }, [profile, currentUser]);
 
-  // Like handler with optimistic updates
+  // Like handler with debugging
   const handleLike = useCallback(async (postId) => {
-    // Optimistic update
+    console.log('handleLike called with postId:', postId);
+    
+    // Extract original ID if it's a cycled post
+    const originalPostId = postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
+    console.log('originalPostId:', originalPostId);
+    
+    // Check if currently liked
+    const currentPost = posts.find(post => post._id === postId);
+    const currentUserId = currentUser._id || currentUser.id;
+    const isCurrentlyLiked = currentPost?.likes?.some(likeId => String(likeId) === String(currentUserId));
+    
+    console.log('currentPost likes:', currentPost?.likes);
+    console.log('currentUserId:', currentUserId);
+    console.log('isCurrentlyLiked:', isCurrentlyLiked);
+    
+    // Optimistic update - toggle the like
     setPosts(prevPosts =>
       prevPosts.map(post =>
         post._id === postId 
-          ? { ...post, likes: [...post.likes, currentUser._id || currentUser.id] }
+          ? { 
+              ...post, 
+              likes: isCurrentlyLiked 
+                ? (post.likes || []).filter(likeId => String(likeId) !== String(currentUserId))
+                : [...(post.likes || []), currentUserId]
+            }
           : post
       )
     );
 
     try {
-      await fetch(`${API_BASE}/posts/${postId}/like`, {
+      const url = `${API_BASE}/posts/${originalPostId}/like`;
+      console.log('Making request to:', url);
+      console.log('With headers:', authHeaders);
+      
+      const response = await fetch(url, {
         method: "POST",
         headers: authHeaders,
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      }
+
+      // Get the updated post data from server
+      const updatedPost = await response.json();
+      
+      // Update with server response
+      setPosts(prevPosts =>
+        prevPosts.map(post =>
+          post._id === postId 
+            ? { ...post, likes: updatedPost.likes }
+            : post
+        )
+      );
+
     } catch (error) {
-      console.error("Error liking post:", error);
+      console.error("Full error details:", error);
       // Revert optimistic update on error
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post._id === postId 
-            ? { ...post, likes: post.likes.filter(id => id !== (currentUser._id || currentUser.id)) }
+            ? { 
+                ...post, 
+                likes: isCurrentlyLiked
+                  ? [...(post.likes || []), currentUserId]  // Revert: add back if was liked
+                  : (post.likes || []).filter(likeId => String(likeId) !== String(currentUserId)) // Revert: remove if wasn't liked
+              }
             : post
         )
       );
     }
-  }, [API_BASE, authHeaders, currentUser]);
+  }, [API_BASE, authHeaders, currentUser, posts]);
 
   // Comment handler
   const handleComment = useCallback(async (postId, content) => {
@@ -352,11 +404,21 @@ export default function UserProfile() {
     console.log('Reply:', { postId, replyText, commentId });
   }, []);
 
-  // View handler
+  // View handler - Actually implement API call
   const handleView = useCallback(async (postId) => {
-    // Handle view tracking
-    console.log('View:', postId);
-  }, []);
+    // Extract original ID if it's a cycled post
+    const originalPostId = postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
+    
+    try {
+      await fetch(`${API_BASE}/posts/${originalPostId}/view`, {
+        method: "POST",
+        headers: authHeaders,
+      });
+    } catch (error) {
+      console.error("Error tracking view:", error);
+      // Ignore view tracking errors silently
+    }
+  }, [API_BASE, authHeaders]);
 
   // Delete post handler
   const handleDeletePost = useCallback(async (postId) => {

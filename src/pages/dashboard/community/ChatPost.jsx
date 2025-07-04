@@ -242,21 +242,32 @@ export default function ChatPost({
     const node = postRef.current;
     if (!node) return;
 
+    // Extract original post ID for tracking
+    const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
+    
+    // Check if we've already viewed this post in this session
+    const viewKey = `viewed_post_${originalPostId}`;
+    if (sessionStorage.getItem(viewKey)) {
+      return; // Already viewed in this session
+    }
+
     let hasViewed = false;
     const observer = new window.IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasViewed) {
-            onView(post._id);
+            // Mark as viewed in this session
+            sessionStorage.setItem(viewKey, 'true');
+            onView(post._id); // Pass the display ID to the handler
             hasViewed = true;
             observer.disconnect();
           }
         });
       },
-      { threshold: 0.5 }
+      { threshold: 0.5, rootMargin: '0px 0px -10% 0px' }
     );
+    
     observer.observe(node);
-
     return () => observer.disconnect();
   }, [post, onView]);
 
@@ -407,7 +418,7 @@ export default function ChatPost({
         setFloatingHearts(prev => prev.filter(heart => heart.id !== heartId));
       }, 1000);
     }
-    
+
     // Update liked state optimistically
     const newLiked = !liked;
     setLocalPost(prev => ({
@@ -418,8 +429,10 @@ export default function ChatPost({
     }));
 
     try {
-      await onLike();
+      // FIXED: Pass the post ID to the onLike callback
+      await onLike(post._id);
     } catch (error) {
+      console.error("Error in handleLike:", error);
       // Revert on error
       setLocalPost(prev => ({
         ...prev,
@@ -1158,7 +1171,7 @@ export default function ChatPost({
                               <div key={reply._id} className="flex items-start gap-2 pl-4 border-l border-gray-200 dark:border-gray-600">
                                 <Link 
                                   to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                  className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 hover:opacity-80 transition-opacity flex-shrink-0"
+                                  className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700"
                                 >
                                   <FaUser className="text-gray-400 dark:text-gray-500 text-xs" />
                                 </Link>

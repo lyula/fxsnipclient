@@ -253,7 +253,7 @@ export function DashboardProvider({ children }) {
             ? result.posts.map(post => ({
                 ...post,
                 _id: `${post._id}_cycle_${result.cyclingInfo.completedCycles}_${Date.now()}`,
-                _originalId: post._id,
+                _originalId: post._id, // Keep the original ID for API calls
                 _isCyled: true,
                 _cycleNumber: result.cyclingInfo.completedCycles
               }))
