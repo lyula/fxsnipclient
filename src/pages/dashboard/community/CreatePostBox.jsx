@@ -285,10 +285,10 @@ export default function CreatePostBox({ onPost, onClose }) {
   const canSubmit = content.trim() && !isUploading;
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-start justify-center z-40 p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 flex items-center justify-center p-4 overflow-y-auto">
       <div 
         ref={modalRef}
-        className="relative w-full max-w-lg mx-auto mt-8 mb-8 min-h-0"
+        className="relative w-full max-w-lg mx-auto min-h-0"
       >
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full relative max-h-[85vh] overflow-y-auto">
           

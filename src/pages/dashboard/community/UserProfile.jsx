@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { FaArrowLeft, FaEnvelope, FaUser } from "react-icons/fa";
 import { formatCount } from "../../../utils/formatNumber";
 import VerifiedBadge from "../../../components/VerifiedBadge";
-import Post from "../../../components/common/Post";
+import ChatPost from "./ChatPost";
 import { useAuth } from "../../../context/auth";
 import { hashId } from "../../../utils/hash";
 
@@ -346,6 +346,23 @@ export default function UserProfile() {
     navigate(`/dashboard/inbox?chat=${encodeURIComponent(profile.username)}`);
   }, [navigate, profile?.username]);
 
+  // Reply handler
+  const handleReply = useCallback(async (postId, replyText, commentId) => {
+    // Handle reply logic - you can implement this based on your API
+    console.log('Reply:', { postId, replyText, commentId });
+  }, []);
+
+  // View handler
+  const handleView = useCallback(async (postId) => {
+    // Handle view tracking
+    console.log('View:', postId);
+  }, []);
+
+  // Delete post handler
+  const handleDeletePost = useCallback(async (postId) => {
+    setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
+  }, []);
+
   const tabs = ["posts", "followers", "following"];
 
   if (loading) {
@@ -472,13 +489,19 @@ export default function UserProfile() {
                       })
                       .slice(0, 70)
                       .map((post) => (
-                        <Link
-                          key={post._id}
-                          to={`/dashboard/community?postId=${post._id}`}
-                          style={{ display: "block", textDecoration: "none" }}
-                        >
-                          <Post post={post} onLike={handleLike} onComment={handleComment} />
-                        </Link>
+                        <div key={post._id}>
+                          <ChatPost
+                            post={post}
+                            onReply={handleReply}
+                            onComment={handleComment}
+                            onLike={handleLike}
+                            onView={handleView}
+                            onDelete={handleDeletePost}
+                            currentUserId={currentUser?._id}
+                            currentUsername={currentUser?.username}
+                            currentUserVerified={currentUser?.verified}
+                          />
+                        </div>
                       ))
                   )}
                 </>

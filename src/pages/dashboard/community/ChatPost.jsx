@@ -3,7 +3,7 @@ import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser, FaEdit, FaTr
 import { Link, useLocation } from "react-router-dom";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import MediaDisplay from '../../../components/media/MediaDisplay';
-import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply } from "../../../utils/api";
+import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes } from "../../../utils/api";
 import { formatPostDate } from '../../../utils/formatDate';
 
 // Dummy MentionInput component (replace with your actual implementation)
@@ -199,6 +199,11 @@ export default function ChatPost({
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const postContainerRef = useRef(null);
+  
+  // New state for likes
+  const [showLikes, setShowLikes] = useState(false);
+  const [likesUsers, setLikesUsers] = useState([]);
+  const [loadingLikes, setLoadingLikes] = useState(false);
   
   const commentsRef = useRef(null);
   const postRef = useRef();
@@ -805,27 +810,60 @@ export default function ChatPost({
 
           {/* Modern engagement bar - REMOVED hover translate effect */}
           <div className="flex items-center gap-6 text-base mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300">
-            <button
-              onClick={handleLike}
-              className={`flex items-center gap-2 transition-all duration-300 hover:scale-110 active:scale-95 ${
-                likeAnimating ? 'scale-110' : ''
-              } ${
-                liked ? "text-red-500" : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-              }`}
-              aria-label="Like"
-            >
-              {liked ? (
-                <FaHeart className="text-red-500 drop-shadow-sm" />
-              ) : (
-                <FaRegHeart className="transition-transform duration-200 hover:scale-110" />
-              )}
-              <span className={`font-semibold ${liked ? "text-red-500" : ""}`}>
+            <div className="flex items-center gap-2">
+              {/* Like icon button */}
+              <button
+                onClick={handleLike}
+                className={`transition-all duration-300 hover:scale-110 active:scale-95 ${
+                  likeAnimating ? 'scale-110' : ''
+                } ${
+                  liked ? "text-red-500" : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+                }`}
+                aria-label="Like"
+              >
+                {liked ? (
+                  <FaHeart className="text-red-500 drop-shadow-sm" />
+                ) : (
+                  <FaRegHeart className="transition-transform duration-200 hover:scale-110" />
+                )}
+              </button>
+              
+              {/* Likes count button */}
+              <button
+                className={`font-semibold hover:underline transition-colors ${liked ? "text-red-500" : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const likesCount = Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0;
+                  if (likesCount > 0) {
+                    setShowLikes(!showLikes);
+                    
+                    // Load likes if not already loaded and showing likes
+                    if (!showLikes && likesUsers.length === 0) {
+                      setLoadingLikes(true);
+                      try {
+                        const response = await getPostLikes(localPost._id, 100);
+                        if (response.likes) {
+                          setLikesUsers(response.likes);
+                        }
+                      } catch (error) {
+                        console.error('Error fetching likes:', error);
+                      } finally {
+                        setLoadingLikes(false);
+                      }
+                    }
+                  }
+                }}
+                disabled={Array.isArray(localPost.likes) ? localPost.likes.length === 0 : (localPost.likes || 0) === 0}
+              >
                 {Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0}
-              </span>
-            </button>
+              </button>
+            </div>
 
             <button
-              onClick={() => setShowComments((prev) => !prev)}
+             onClick={() => {
+  setShowLikes(false); // Close likes list first
+  setShowComments((prev) => !prev);
+}}
               className="flex items-center gap-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 active:scale-95"
               aria-label="Show comments"
             >
@@ -849,8 +887,59 @@ export default function ChatPost({
             </span>
           </div>
 
-          {/* Comments section */}
-          {showComments && (
+          {/* Likes section */}
+          {showLikes && (
+            <div className="mt-4 relative w-full max-w-full overflow-x-hidden">
+              <div className="flex justify-between items-center mb-3">
+                <div className="font-semibold text-sm text-red-600 dark:text-red-400">
+                  Liked by {Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0} {(Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0) === 1 ? 'person' : 'people'}
+                </div>
+                
+                <button
+                  className="mobile-touch-target text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 text-xl font-bold px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  onClick={() => setShowLikes(false)}
+                  aria-label="Close likes"
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="w-full max-w-full">
+                {loadingLikes ? (
+                  <div className="flex items-center justify-center py-4">
+                    <FaSpinner className="animate-spin text-gray-400" />
+                  </div>
+                ) : likesUsers.length === 0 ? (
+                  <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                    No likes yet
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {likesUsers.map((user) => (
+                      <div key={user._id} className="flex items-center gap-3 py-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
+                        <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
+                          <FaUser className="text-gray-600 dark:text-gray-400 text-sm" />
+                        </div>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Link
+                            to={`/dashboard/community/user/${encodeURIComponent(user.username)}`}
+                            className="font-medium text-gray-900 dark:text-white hover:text-red-600 dark:hover:text-red-400 transition-colors text-sm"
+                          >
+                            {user.username}
+                          </Link>
+                          {user.verified && <VerifiedBadge />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Comments section - Only show if likes are NOT showing */}
+          {showComments && !showLikes && (
             <div className="mt-4 relative w-full max-w-full overflow-x-hidden" ref={commentsRef}>
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-3">
@@ -1144,13 +1233,13 @@ export default function ChatPost({
                                     </div>
                                   ) : (
                                     <p 
-                                      className="text-xs text-gray-900 dark:text-gray-100 break-words mb-1"
+                                      className="text-sm text-gray-900 dark:text-gray-100 break-words mb-2"
                                       dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
                                     />
                                   )}
                                   
                                   {/* Reply actions */}
-                                  <div className="flex items-center gap-3 text-xs">
+                                  <div className="flex items-center gap-4 text-xs">
                                     <button
                                       onClick={() => handleLikeReply(comment._id, reply._id)}
                                       disabled={loadingReplyLike[reply._id]}
@@ -1176,22 +1265,21 @@ export default function ChatPost({
                     </div>
                   </div>
                 ))}
-                
-                {/* Load more comments */}
+
+                {/* Load more comments button */}
                 {hasMore && (
-                  <div className="mt-4 text-center">
+                  <div className="flex justify-center mt-4">
                     <button
                       onClick={loadMoreComments}
-                      disabled={loadingMoreComments}
-                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium hover:underline transition-colors disabled:opacity-50"
+                      className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg shadow-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
                     >
                       {loadingMoreComments ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <FaSpinner className="animate-spin" />
-                          Loading...
-                        </div>
+                        <FaSpinner className="animate-spin" />
                       ) : (
-                        `Load more comments (${totalComments - displayedComments.length} remaining)`
+                        <>
+                          <FaSort className="text-gray-500 dark:text-gray-400" />
+                          Load more comments
+                        </>
                       )}
                     </button>
                   </div>

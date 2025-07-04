@@ -310,3 +310,13 @@ export async function getUnreadConversationCount() {
   });
   return res.json();
 }
+
+// Get users who liked a post
+export async function getPostLikes(postId, limit = 100) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/likes?limit=${limit}`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  return res.json();
+}
