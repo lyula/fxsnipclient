@@ -228,11 +228,12 @@ export default function Community({ user }) {
   const handleTouchEnd = async () => {
     if (!touchStart || !touchEnd) return;
     
-    const distance = touchEnd - touchStart;
-    const isDownSwipe = distance > 100;
+    const distance = touchEnd - touchStart; // Positive = downward swipe, negative = upward swipe  
+    const isPullToRefresh = distance > 100; // Downward swipe of more than 100px
     const container = containerRef.current;
     
-    if (isDownSwipe && container && container.scrollTop < 50) {
+    // Pull-to-refresh should trigger on downward swipe when at the top
+    if (isPullToRefresh && container && container.scrollTop < 50) {
       setIsRefreshing(true);
       try {
         const result = await loadNewerPosts();
@@ -516,14 +517,14 @@ export default function Community({ user }) {
       setHasMore(true);
       
       // Clear view tracking for fresh content
-      const keysToRemove = [];
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && key.startsWith('viewed_post_')) {
-          keysToRemove.push(key);
-        }
-      }
-      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      // const keysToRemove = [];
+      // for (let i = 0; i < sessionStorage.length; i++) {
+      //   const key = sessionStorage.key(i);
+      //   if (key && key.startsWith('viewed_post_')) {
+      //     keysToRemove.push(key);
+      //   }
+      // }
+      // keysToRemove.forEach(key => sessionStorage.removeItem(key));
       
       if (containerRef.current) {
         containerRef.current.scrollTop = 0;
