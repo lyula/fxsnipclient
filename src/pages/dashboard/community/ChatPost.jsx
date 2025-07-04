@@ -1311,7 +1311,7 @@ export default function ChatPost({
                             
                             {/* Replies list - only show if not hidden */}
                             {hiddenReplies[comment._id] === false && (
-                              <div className="ml-4 mt-2 space-y-3 border-l border-gray-200 dark:border-gray-700 pl-3 w-full max-w-full overflow-x-hidden">
+                              <div className="mt-2 space-y-3 w-full max-w-full overflow-x-hidden">
                                 {comment.replies.map((reply) => (
                                   <div key={reply._id} data-reply-id={reply._id} className="w-full max-w-full overflow-x-hidden">
                                     <div className="flex-1 min-w-0 max-w-full overflow-x-hidden">
