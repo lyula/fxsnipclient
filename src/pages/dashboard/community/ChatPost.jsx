@@ -193,6 +193,19 @@ function renderHighlightedContent(content) {
   return content.replace(/@(\w+)/g, '<span class="text-blue-600 dark:text-blue-400 font-medium">@$1</span>');
 }
 
+// Helper function to check if content has more than 3 lines
+function hasMoreThanThreeLines(content) {
+  if (!content) return false;
+  const lineCount = content.split('\n').length;
+  return lineCount > 3;
+}
+
+// Helper function to get the first line of content
+function getFirstLine(content) {
+  if (!content) return "";
+  return content.split('\n')[0];
+}
+
 // Helper function to check if content was actually edited
 function isContentEdited(item) {
   // Method 1: Check for dedicated editedAt field (recommended backend approach)
@@ -315,6 +328,9 @@ export default function ChatPost({
   const [showCommentMenus, setShowCommentMenus] = useState({});
   const [showReplyMenus, setShowReplyMenus] = useState({});
   
+  // State for read more functionality
+  const [showFullContent, setShowFullContent] = useState(false);
+  
   // Pagination and sorting states
   const [commentSortType, setCommentSortType] = useState('newest');
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -364,6 +380,7 @@ export default function ChatPost({
   useEffect(() => {
     setLocalPost(prev => ({ ...prev, ...post }));
     previousContentRef.current = post.content;
+    setShowFullContent(false); // Reset read more state when post changes
   }, [post]);
 
   useEffect(() => {
@@ -393,7 +410,7 @@ export default function ChatPost({
           }
         });
       },
-      { threshold: 0.5, rootMargin: '0px 0px -10% 0px' }
+      { threshold: 0.5, rootMargin: '0px 0px -10%  Weighing scales-0px' }
     );
     
     observer.observe(node);
@@ -954,10 +971,35 @@ export default function ChatPost({
                 </div>
               </div>
             ) : (
-              <span 
-                className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words break-all overflow-wrap-anywhere w-full max-w-full"
-                dangerouslySetInnerHTML={{ __html: renderHighlightedContent(localPost.content || '') }}
-              />
+              <div className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal w-full max-w-full">
+                {hasMoreThanThreeLines(localPost.content || '') && !showFullContent ? (
+                  <>
+                    <span 
+                      dangerouslySetInnerHTML={{ __html: renderHighlightedContent(getFirstLine(localPost.content || '')) }}
+                    />
+                    <button
+                      onClick={() => setShowFullContent(true)}
+                      className="ml-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors cursor-pointer"
+                    >
+                      read more
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span 
+                      dangerouslySetInnerHTML={{ __html: renderHighlightedContent(localPost.content || '') }}
+                    />
+                    {hasMoreThanThreeLines(localPost.content || '') && showFullContent && (
+                      <button
+                        onClick={() => setShowFullContent(false)}
+                        className="ml-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors cursor-pointer"
+                      >
+                        read less
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
 
@@ -1252,7 +1294,7 @@ export default function ChatPost({
                           </div>
                         ) : (
                           <p 
-                            className="text-sm text-gray-900 dark:text-gray-100 break-words break-all overflow-wrap-anywhere mb-2 w-full max-w-full"
+                            className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
                             dangerouslySetInnerHTML={{ __html: renderHighlightedContent(comment.content) }}
                           />
                         )}
@@ -1385,7 +1427,7 @@ export default function ChatPost({
                                         </div>
                                       ) : (
                                         <p 
-                                          className="text-sm text-gray-900 dark:text-gray-100 break-words break-all overflow-wrap-anywhere w-full max-w-full"
+                                          className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal w-full max-w-full"
                                           dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
                                         />
                                       )}
