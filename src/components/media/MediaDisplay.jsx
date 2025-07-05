@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useMemo, createContext, useContext, Component } from 'react';
 import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaVolumeDown, FaChevronDown, FaChevronUp, FaEye, FaEyeSlash, FaExpand, FaCompress, FaArrowLeft } from 'react-icons/fa';
 
@@ -355,9 +354,9 @@ export default function MediaDisplay({
     setUserInteracted(true);
     setLastManualAction(Date.now());
     
-    if (isActualMobile) {
-      initMobileAudioContext();
-    }
+  if (isActualMobile) {
+  initMobileAudioContext();
+}
     
     if (isPlaying) {
       mediaRef.current.pause();
@@ -397,371 +396,626 @@ export default function MediaDisplay({
     setUserInteracted(true);
     setLastManualAction(Date.now());
     
-    if (isActualMobile) {
-      initMobileAudioContext();
-    }
+   if (isActualMobile) {
+  initMobileAudioContext();
+}
     
     const newMuted = !mediaRef.current.muted;
-    mediaRef.current.muted = newMuted;
-    setIsMuted(newMuted);
-    setIsMuted(newMuted); // Update context
-  };
-
-  const handleVolumeChange = (e) => {
-    if (!mediaRef.current) return;
     
-    setUserInteracted(true);
-    setLastManualAction(Date.now());
-    
-    const newVolume = parseFloat(e.target.value);
-    mediaRef.current.volume = newVolume;
-    setVolume(newVolume);
-    
-    if (newVolume === 0) {
-      mediaRef.current.muted = true;
-      setIsMuted(true);
-    } else if (mediaRef.current.muted) {
-      mediaRef.current.muted = false;
-      setIsMuted(false);
-    }
-  };
-
-  const toggleFullscreen = () => {
-    if (!mediaRef.current) return;
-    
-    setUserInteracted(true);
-    setLastManualAction(Date.now());
-    
-    if (!isFullscreen) {
-      const requestFullscreen = mediaRef.current.requestFullscreen || 
-        mediaRef.current.webkitRequestFullscreen ||
-        mediaRef.current.mozRequestFullScreen ||
-        mediaRef.current.msRequestFullscreen;
-      
-      if (requestFullscreen) {
-        requestFullscreen.call(mediaRef.current);
-      }
+    if (isActualMobile && !newMuted) {
+      initMobileAudioContext();
+      // Small delay to ensure audio context is ready
+      setTimeout(() => {
+        mediaRef.current.muted = newMuted;
+        setIsMuted(newMuted);
+        if (!newMuted && mediaRef.current.volume === 0) {
+          const newVolume = 0.5;
+          setVolume(newVolume);
+          mediaRef.current.volume = newVolume;
+        }
+      }, 100);
     } else {
-      const exitFullscreen = document.exitFullscreen || 
-        document.webkitExitFullscreen ||
-        document.mozCancelFullScreen ||
-        document.msExitFullscreen;
-      
-      if (exitFullscreen) {
-        exitFullscreen.call(document);
+      mediaRef.current.muted = newMuted;
+      setIsMuted(newMuted);
+      if (!newMuted && mediaRef.current.volume === 0) {
+        const newVolume = 0.5;
+        setVolume(newVolume);
+        mediaRef.current.volume = newVolume;
       }
     }
+    
+    showControlsWithTimeout();
   };
 
-  const handleProgressChange = (e) => {
-    if (!mediaRef.current) return;
+  const toggleFullscreen = async () => {
+    if (!containerRef.current) return;
     
     setUserInteracted(true);
     setLastManualAction(Date.now());
-    
-    const newTime = parseFloat(e.target.value);
-    mediaRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
 
-  const formatTime = (seconds) => {
-    if (!isFinite(seconds)) return '0:00';
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
-  const toggleExpandCaption = () => {
-    setIsExpanded(!isExpanded);
-  };
-
-  const toggleImageModal = () => {
-    setShowImageModal(!showImageModal);
-  };
-
-  const handleImageLoad = () => {
-    if (imgRef.current) {
-      const { naturalWidth, naturalHeight, clientWidth, clientHeight } = imgRef.current;
-      const aspectRatio = naturalWidth / naturalHeight;
-      const isCropped = clientWidth < naturalWidth || clientHeight < naturalHeight;
-      setIsImageCropped(isCropped);
-      
-      if (aspectRatio < 0.75) {
-        setVideoFormat('portrait');
-      } else if (aspectRatio <= 1.33) {
-        setVideoFormat('square');
+    try {
+      if (!isFullscreen) {
+        if (containerRef.current.requestFullscreen) {
+          await containerRef.current.requestFullscreen();
+        } else if (containerRef.current.webkitRequestFullscreen) {
+          await containerRef.current.webkitRequestFullscreen();
+        } else if (containerRef.current.mozRequestFullScreen) {
+          await containerRef.current.mozRequestFullScreen();
+        } else if (containerRef.current.msRequestFullscreen) {
+          await containerRef.current.msRequestFullscreen();
+        }
       } else {
-        setVideoFormat('landscape');
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          await document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          await document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          await document.msExitFullscreen();
+        }
       }
-      
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Fullscreen error:', error);
     }
+    showControlsWithTimeout();
   };
 
   const toggleMediaVisibility = () => {
     setHideMedia(!hideMedia);
   };
 
-  const renderImageCaption = () => {
-    if (!caption) return null;
+  const handleVolumeChangeSlider = (newVolume) => {
+    if (mediaRef.current) {
+      setUserInteracted(true);
+      setLastManualAction(Date.now());
+      setVolume(newVolume);
+      mediaRef.current.volume = newVolume;
+      mediaRef.current.muted = newVolume === 0;
+      setIsMuted(newVolume === 0);
+      showControlsWithTimeout();
+    }
+  };
+
+  const handleSeek = (e) => {
+    if (mediaRef.current && duration > 0) {
+      setUserInteracted(true);
+      setLastManualAction(Date.now());
+      showControlsWithTimeout();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const percent = (e.clientX - rect.left) / rect.width;
+      const newTime = percent * duration;
+      mediaRef.current.currentTime = newTime;
+      setCurrentTime(newTime);
+    }
+  };
+
+  const formatTime = (time) => {
+    if (isNaN(time)) return '0:00';
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleMediaInteraction = (e) => {
+    e.preventDefault();
+    setUserInteracted(true);
+    setLastManualAction(Date.now());
+    showControlsWithTimeout();
+    togglePlay();
+  };
+
+  const handleMouseMove = () => {
+    if (!shouldUseMobileLayout) {
+      showControlsWithTimeout();
+    }
+  };
+
+  const handleReadMore = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const handleCaptionClose = () => {
+    setShowFullCaption(false);
+    setIsExpanded(false);
+  };
+
+  const showControlsWithTimeout = () => {
+    setShowControls(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     
-    return (
-      <div className="w-screen max-w-none text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-3 break-words break-keep-all overflow-wrap-normal">
-        {displayCaption}
-        {shouldTruncate && (
-          <button 
-            onClick={toggleExpandCaption}
-            className="text-blue-600 dark:text-blue-400 hover:underline ml-2"
-          >
-            {isExpanded ? 'Show less' : 'Show more'}
-          </button>
-        )}
-      </div>
-    );
+    timeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
   };
 
   const renderVideoCaption = () => {
-    if (!caption) return null;
-
-    const captionClasses = showCaptionOverlay 
-      ? 'absolute bottom-4 left-4 right-4 bg-black/50 text-white p-2 rounded'
-      : 'text-sm text-gray-700 dark:text-gray-300 mt-2 break-words break-keep-all overflow-wrap-normal';
+    if (!caption || !showCaptionOverlay) return null;
 
     return (
-      <div className={captionClasses}>
-        {displayCaption}
-        {shouldTruncate && (
-          <button 
-            onClick={toggleExpandCaption}
-            className="text-blue-300 hover:underline ml-2"
-          >
-            {isExpanded ? 'Show less' : 'Show more'}
-          </button>
-        )}
-      </div>
-    );
-  };
-
-  const renderControls = () => {
-    if (!showControls) return null;
-
-    return (
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={togglePlay}
-            className="text-white hover:text-gray-300"
-            aria-label={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? <FaPause size={20} /> : <FaPlay size={20} />}
-          </button>
-          
-          <div className="relative">
-            <button 
-              onClick={() => setShowVolumeSlider(!showVolumeSlider)}
-              className="text-white hover:text-gray-300"
-              aria-label={isMuted ? 'Unmute' : 'Mute'}
-            >
-              {isMuted || volume === 0 ? (
-                <FaVolumeMute size={20} />
-              ) : volume < 0.5 ? (
-                <FaVolumeDown size={20} />
-              ) : (
-                <FaVolumeUp size={20} />
-              )}
-            </button>
-            {showVolumeSlider && (
-              <div className="absolute bottom-12 left-0 w-24 bg-gray-800 p-2 rounded">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={volume}
-                  onChange={handleVolumeChange}
-                  className="w-full"
-                  orient="vertical"
-                />
-              </div>
-            )}
+      <div className={"absolute top-4 left-4 right-4 z-30 " + (showFullCaption ? "bottom-20" : "")}>
+        <div className={
+          "bg-black bg-opacity-75 text-white p-3 rounded-lg backdrop-blur-sm " +
+          (showFullCaption ? "max-h-full overflow-y-auto" : "max-h-32 overflow-hidden")
+        }>
+          <div className="text-sm leading-relaxed">
+            {showFullCaption ? caption : displayCaption}
           </div>
           
-          <span className="text-white text-sm">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={toggleMediaVisibility}
-            className="text-white hover:text-gray-300"
-            aria-label={hideMedia ? 'Show media' : 'Hide media'}
-          >
-            {hideMedia ? <FaEye size={20} /> : <FaEyeSlash size={20} />}
-          </button>
-          
-          <button 
-            onClick={toggleFullscreen}
-            className="text-white hover:text-gray-300"
-            aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          >
-            {isFullscreen ? <FaCompress size={20} /> : <FaExpand size={20} />}
-          </button>
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-2">
+              {shouldTruncate && !showFullCaption && (
+                <button
+                  onClick={() => setShowFullCaption(true)}
+                  className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors"
+                >
+                  <FaChevronDown size={10} />
+                  Read full caption
+                </button>
+              )}
+              
+              {shouldTruncate && !showFullCaption && (
+                <button
+                  onClick={handleReadMore}
+                  className="flex items-center gap-1 text-gray-300 hover:text-white text-xs transition-colors"
+                >
+                  {isExpanded ? (
+                    <>
+                      <FaChevronUp size={10} />
+                      Less
+                    </>
+                  ) : (
+                    <>
+                      <FaChevronDown size={10} />
+                      More
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {(isExpanded || showFullCaption) && (
+              <button
+                onClick={handleCaptionClose}
+                className="text-gray-300 hover:text-white text-xs transition-colors"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
-  const renderImageContent = () => {
-    if (hideMedia) {
-      return (
-        <div className="w-full h-64 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-          <button 
-            onClick={toggleMediaVisibility}
-            className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
-          >
-            <FaEye size={24} />
-            <span className="ml-2">Show Image</span>
-          </button>
-        </div>
-      );
-    }
+  const renderImageCaption = () => {
+    if (!caption) return null;
 
     return (
       <>
-        <img
-          ref={imgRef}
-          src={imageUrl}
-          alt={altText}
-          className={`w-full h-auto object-contain ${className} ${isImageCropped ? 'cursor-pointer' : ''}`}
-          onLoad={handleImageLoad}
-          onError={() => setMediaError(true)}
-          onClick={isImageCropped ? toggleImageModal : undefined}
-        />
-        {renderImageCaption()}
+        <div className="w-screen max-w-none text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-3 break-words">
+          {displayCaption}
+        </div>
+        
+        {shouldTruncate && (
+          <button
+            onClick={handleReadMore}
+            className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs font-medium transition-colors mt-2"
+          >
+            {isExpanded ? (
+              <>
+                <FaChevronUp size={10} />
+                Read less
+              </>
+            ) : (
+              <>
+                <FaChevronDown size={10} />
+                Read more
+              </>
+            )}
+          </button>
+        )}
+        
+        {isExpanded && caption.length > 200 && (
+          <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+            {caption.length} characters
+          </div>
+        )}
       </>
     );
   };
 
-  const renderVideoContent = () => {
-    if (hideMedia) {
-      return (
-        <div className="w-full h-64 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-          <button 
-            onClick={toggleMediaVisibility}
-            className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
-          >
-            <FaEye size={24} />
-            <span className="ml-2">Show Video</span>
-          </button>
-        </div>
-      );
+  const ensureMP4Format = (videoUrl) => {
+    if (!videoUrl) return videoUrl;
+    
+    if (!videoUrl.toLowerCase().includes('.mp4')) {
+      console.warn('Video URL may not be MP4 format:', videoUrl);
     }
-
-    return (
-      <div className="relative" style={{ aspectRatio: videoAspectRatio || '16/9' }}>
-        <video
-          ref={mediaRef}
-          src={videoUrl}
-          className={`w-full h-auto ${className}`}
-          playsInline
-          muted={isMuted}
-          onClick={togglePlay}
-        />
-        {renderControls()}
-        {showCaptionOverlay && renderVideoCaption()}
-      </div>
-    );
+    
+    return videoUrl;
   };
 
-  const renderAudioContent = () => {
-    if (hideMedia) {
-      return (
-        <div className="w-full h-64 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-          <button 
-            onClick={toggleMediaVisibility}
-            className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
-          >
-            <FaEye size={24} />
-            <span className="ml-2">Show Audio</span>
-          </button>
-        </div>
-      );
-    }
-
+  if (imageUrl && !hasMedia) {
     return (
-      <div className="relative w-full">
-        <audio
-          ref={mediaRef}
-          src={audioUrl}
-          className="w-full"
-          onClick={togglePlay}
-        />
-        {renderControls()}
-      </div>
-    );
-  };
-
-  const renderImageModal = () => {
-    if (!showImageModal) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div className="relative max-w-full max-h-full">
-          <button 
-            onClick={toggleImageModal}
-            className="absolute top-4 left-4 text-white hover:text-gray-300"
-            aria-label="Close modal"
-          >
-            <FaArrowLeft size={24} />
-          </button>
-          <img
-            src={imageUrl}
-            alt={altText}
-            className="max-w-full max-h-[90vh] object-contain"
-          />
+      <ErrorBoundary>
+        <div className="w-full overflow-x-hidden relative">
+          {!hideMedia && (
+            <div className="w-full overflow-x-hidden relative">
+              <img
+                ref={imgRef}
+                src={imageUrl}
+                alt={altText}
+                className="w-full h-auto object-cover border border-gray-200 dark:border-gray-600 shadow-sm"
+                loading="lazy"
+                onError={() => setMediaError(true)}
+                style={{ cursor: isImageCropped ? "zoom-in" : "default" }}
+                onClick={() => isImageCropped && setShowImageModal(true)}
+                onLoad={() => {
+                  if (imgRef.current) {
+                    const cropped =
+                      imgRef.current.naturalHeight > imgRef.current.clientHeight + 2 ||
+                      imgRef.current.naturalWidth > imgRef.current.clientWidth + 2;
+                    setIsImageCropped(cropped);
+                  }
+                }}
+              />
+              {isImageCropped && (
+                <FaExpand
+                  onClick={e => {
+                    e.stopPropagation();
+                    setShowImageModal(true);
+                  }}
+                  className="absolute bottom-2 right-2 cursor-pointer shadow-md"
+                  size={28}
+                  style={{
+                    color: "#a99d6b",
+                    background: "white",
+                    borderRadius: "50%",
+                    padding: "6px",
+                    zIndex: 10,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.12)"
+                  }}
+                  title="View full image"
+                />
+              )}
+            </div>
+          )}
           {renderImageCaption()}
-        </div>
-      </div>
-    );
-  };
 
-  if (mediaError) {
-    return (
-      <div className="w-full p-4 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-200 rounded-lg">
-        <p>Failed to load media.</p>
-        <button 
-          onClick={() => {
-            setMediaError(false);
-            setIsLoading(true);
-            if (mediaRef.current) mediaRef.current.load();
-          }}
-          className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-        >
-          Retry
-        </button>
-      </div>
+          {showImageModal && (
+            <div
+              className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90"
+              onClick={() => setShowImageModal(false)}
+              style={{ cursor: "zoom-out" }}
+            >
+              <FaArrowLeft
+                onClick={e => {
+                  e.stopPropagation();
+                  setShowImageModal(false);
+                }}
+                className="absolute bottom-6 left-6 cursor-pointer"
+                size={32}
+                style={{ color: "#a99d6b", zIndex: 60, background: "white", borderRadius: "50%", padding: "6px" }}
+                title="Back to Feed"
+              />
+              <img
+                src={imageUrl}
+                alt={altText}
+                className="max-w-full max-h-full"
+                style={{ objectFit: "contain" }}
+                onClick={e => e.stopPropagation()}
+              />
+            </div>
+          )}
+        </div>
+      </ErrorBoundary>
     );
   }
 
-  return (
-    <ErrorBoundary>
-      <div 
-        ref={containerRef}
-        className={`relative w-full ${shouldUseMobileLayout ? 'max-w-md mx-auto' : ''}`}
-      >
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-200 dark:bg-gray-700">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-          </div>
-        )}
+  if (isAudioMedia) {
+    return (
+      <ErrorBoundary>
+        <div className="w-full bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+          {!hideMedia && (
+            <div className="p-4">
+              <audio
+                ref={mediaRef}
+                src={audioUrl}
+                className="w-full"
+                preload="metadata"
+                controls={false}
+              >
+                Your browser does not support the audio tag.
+              </audio>
 
-        {imageUrl && renderImageContent()}
-        {isVideoMedia && renderVideoContent()}
-        {isAudioMedia && renderAudioContent()}
-        {!showCaptionOverlay && (isVideoMedia || isAudioMedia) && renderVideoCaption()}
-        {renderImageModal()}
-      </div>
-    </ErrorBoundary>
-  );
+              <div className="flex items-center justify-between bg-white dark:bg-gray-700 rounded-lg p-3 mt-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={togglePlay}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 transition-colors"
+                  >
+                    {isPlaying ? <FaPause size={16} /> : <FaPlay size={16} />}
+                  </button>
+                  
+                  <button
+                    onClick={toggleMute}
+                    className="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  >
+                    {isMuted ? (
+                      <FaVolumeMute size={16} />
+                    ) : volume < 0.5 ? (
+                      <FaVolumeDown size={16} />
+                    ) : (
+                      <FaVolumeUp size={16} />
+                    )}
+                  </button>
+                  
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
+                </div>
+
+                <button
+                  onClick={toggleMediaVisibility}
+                  className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  title="Hide audio player"
+                >
+                  <FaEyeSlash size={14} />
+                </button>
+              </div>
+
+              <div
+                className="w-full bg-gray-300 dark:bg-gray-600 rounded-full h-2 mt-3 cursor-pointer"
+                onClick={handleSeek}
+              >
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all duration-100"
+                  style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                />
+              </div>
+
+              {isLoading && !mediaError && (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Loading audio...</div>
+                </div>
+              )}
+
+              {mediaError && (
+                <div className="text-center py-4">
+                  <div className="text-sm text-red-600 dark:text-red-400 mb-2">Audio failed to load</div>
+                  <button
+                    onClick={() => {
+                      setMediaError(false);
+                      setIsLoading(true);
+                      mediaRef.current?.load();
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-xs transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
+  if (isVideoMedia) {
+    return (
+      <ErrorBoundary>
+        <div className="w-full overflow-x-hidden">
+          {!hideMedia && (
+            <div 
+              ref={containerRef}
+              className="relative overflow-hidden cursor-pointer w-full"
+              style={{
+                minHeight: shouldUseMobileLayout ? 'auto' : 'auto',
+                height: isFullscreen ? '100vh' : 'auto',
+                background: 'transparent',
+                maxWidth: '100vw'
+              }}
+              onClick={handleMediaInteraction}
+              onMouseMove={handleMouseMove}
+            >
+              <video
+                ref={mediaRef}
+                src={ensureMP4Format(videoUrl)}
+                className="w-full block"
+                style={{
+                  height: 'auto',
+                  maxHeight: shouldUseMobileLayout ? '70vh' : '60vh',
+                  objectFit: 'cover',
+                  display: 'block',
+                  backgroundColor: 'transparent'
+                }}
+                playsInline
+                webkit-playsinline="true"
+                x5-playsinline="true"
+                x5-video-player-type="h5"
+                x5-video-player-fullscreen="false"
+                muted={isMuted}
+                loop
+                preload="metadata"
+                controls={false}
+                onLoadStart={() => {
+                  setIsLoading(true);
+                }}
+                onCanPlayThrough={() => {
+                  setIsLoading(false);
+                  setCanPlay(true);
+                  setMediaError(false);
+                }}
+                onError={(e) => {
+                  console.error('Video loading error:', e);
+                  setMediaError(true);
+                  setIsLoading(false);
+                }}
+                onLoadedMetadata={(e) => {
+                  const video = e.target;
+                  setDuration(video.duration);
+                  
+                  if (video.videoWidth && video.videoHeight) {
+                    const aspectRatio = video.videoWidth / video.videoHeight;
+                    setVideoAspectRatio(aspectRatio);
+                    
+                    if (aspectRatio < 0.8) {
+                      setVideoFormat('portrait');
+                    } else if (aspectRatio > 1.2) {
+                      setVideoFormat('landscape');
+                    } else {
+                      setVideoFormat('square');
+                    }
+                  }
+                }}
+              >
+                <source src={ensureMP4Format(videoUrl)} type="video/mp4; codecs=avc1.42E01E,mp4a.40.2" />
+                <source src={ensureMP4Format(videoUrl)} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+
+              <div 
+                className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${
+                  showControls ? 'opacity-100' : 'opacity-0'
+                }`}
+                style={{ zIndex: 10 }}
+              >
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePlay();
+                    showControlsWithTimeout();
+                  }}
+                  className={`text-white rounded-full transition-all duration-200 hover:scale-110 pointer-events-auto ${
+                    shouldUseMobileLayout 
+                      ? 'p-6 bg-black/70 border-2 border-white/90'
+                      : 'p-5 bg-black/60 hover:bg-black/80'
+                  }`}
+                  style={{
+                    minWidth: shouldUseMobileLayout ? '80px' : '70px',
+                    minHeight: shouldUseMobileLayout ? '80px' : '70px',
+                    zIndex: 20
+                  }}
+                >
+                  {isPlaying ? (
+                    <FaPause size={shouldUseMobileLayout ? 32 : 28} />
+                  ) : (
+                    <FaPlay size={shouldUseMobileLayout ? 32 : 28} />
+                  )}
+                </button>
+
+                <div 
+                  className={`absolute bottom-12 left-4 pointer-events-none transition-opacity duration-300 ${
+                    showControls ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={{ zIndex: 15 }}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMute();
+                      showControlsWithTimeout();
+                    }}
+                    className={`text-white rounded-full transition-all duration-200 hover:scale-110 pointer-events-auto ${
+                      shouldUseMobileLayout 
+                        ? 'p-2 bg-black/60 border border-white/70'
+                        : 'p-2 bg-black/50 hover:bg-black/70'
+                    }`}
+                    style={{
+                      minWidth: shouldUseMobileLayout ? '36px' : '32px',
+                      minHeight: shouldUseMobileLayout ? '36px' : '32px',
+                      zIndex: 20
+                    }}
+                  >
+                    {isMuted ? (
+                      <FaVolumeMute size={shouldUseMobileLayout ? 16 : 14} />
+                    ) : (
+                      <FaVolumeUp size={shouldUseMobileLayout ? 16 : 14} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {isLoading && !mediaError && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center bg-black/20"
+                  style={{ zIndex: 15 }}
+                >
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                </div>
+              )}
+
+              {mediaError && (
+                <div 
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white"
+                  style={{ zIndex: 15 }}
+                >
+                  <div className="text-lg font-semibold mb-2">Video failed to load</div>
+                  <button
+                    onClick={() => {
+                      setMediaError(false);
+                      setIsLoading(true);
+                      mediaRef.current?.load();
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {renderVideoCaption()}
+            </div>
+          )}
+          
+          {hideMedia && caption && (
+            <div className="w-full flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="max-w-2xl text-center">
+                <div className="text-lg text-gray-700 dark:text-gray-300 leading-relaxed mb-4">
+                  {caption}
+                </div>
+                <button
+                  onClick={toggleMediaVisibility}
+                  className="flex items-center gap-2 mx-auto text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                >
+                  <FaEye size={16} />
+                  Show video
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {!hideMedia && caption && (
+            <>
+              <div className="w-full text-sm text-gray-700 dark:text-gray-300 leading-relaxed mt-3 break-words">
+                {displayCaption}
+              </div>
+              {shouldTruncate && (
+                <button
+                  onClick={handleReadMore}
+                  className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-xs font-medium transition-colors mt-2"
+                >
+                  {isExpanded ? (
+                    <>
+                      <FaChevronUp size={10} />
+                      Read less
+                    </>
+                  ) : (
+                    <>
+                      <FaChevronDown size={10} />
+                      Read more
+                    </>
+                  )}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </ErrorBoundary>
+    );
+  }
+
+  return null;
 }
