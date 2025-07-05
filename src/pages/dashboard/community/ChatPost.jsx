@@ -665,10 +665,9 @@ export default function ChatPost({
   };
 
   const handleEditComment = (commentId, content) => {
-  console.log('Editing comment:', commentId, content);
+  console.log('handleEditComment called:', commentId, content); // Debug
   setEditingComment(commentId);
   setEditCommentContent(content);
-  // Don't close menu here - let the onClick handler do it
 };
 
   // Fixed handleSaveCommentEdit function
@@ -694,14 +693,15 @@ export default function ChatPost({
   }
 };
 
-  // Fixed handleDeleteComment function
   const handleDeleteComment = async (commentId) => {
+  console.log('handleDeleteComment called:', commentId); // Debug
   if (window.confirm('Are you sure you want to delete this comment?')) {
     try {
       const response = await deleteComment(localPost._id, commentId);
       
       if (response && !response.error && response._id) {
         setLocalPost(response);
+        console.log('Comment deleted successfully'); // Debug
       } else {
         console.error('Failed to delete comment:', response?.error || 'Unknown error');
         alert('Failed to delete comment. Please try again.');
@@ -711,14 +711,12 @@ export default function ChatPost({
       alert('Failed to delete comment. Please try again.');
     }
   }
-  // Don't close menu here - let the onClick handler do it
 };
 
   const handleEditReply = (commentId, replyId, content) => {
-  console.log('Editing reply:', commentId, replyId, content);
+  console.log('handleEditReply called:', commentId, replyId, content); // Debug
   setEditingReply(`${commentId}-${replyId}`);
   setEditReplyContent(content);
-  // Don't close menu here - let the onClick handler do it
 };
 
   // Fixed handleSaveReplyEdit function
@@ -756,12 +754,14 @@ export default function ChatPost({
 };
 
   const handleDeleteReply = async (commentId, replyId) => {
+  console.log('handleDeleteReply called:', commentId, replyId); // Debug
   if (window.confirm('Are you sure you want to delete this reply?')) {
     try {
       const response = await deleteReply(localPost._id, commentId, replyId);
       
       if (response && !response.error && response._id) {
         setLocalPost(response);
+        console.log('Reply deleted successfully'); // Debug
       } else {
         console.error('Failed to delete reply:', response?.error || 'Unknown error');
         alert('Failed to delete reply. Please try again.');
@@ -1302,14 +1302,12 @@ export default function ChatPost({
 >
   {canEditDelete(comment.author?._id || comment.user) && (
     <button
-      onClick={(e) => {
+      onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        console.log('Edit comment button clicked:', comment._id);
         handleEditComment(comment._id, comment.content);
-        // Close menu after action
-        setTimeout(() => {
-          setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }));
-        }, 0);
+        setShowCommentMenus({});
       }}
       className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
     >
@@ -1317,14 +1315,15 @@ export default function ChatPost({
     </button>
   )}
   <button
-    onClick={(e) => {
+    onMouseDown={(e) => {
       e.preventDefault();
       e.stopPropagation();
-      handleDeleteComment(comment._id);
-      // Close menu after action
-      setTimeout(() => {
-        setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }));
-      }, 0);
+      console.log('Delete comment button clicked:', comment._id);
+      setShowCommentMenus({});
+      // Use requestAnimationFrame to ensure menu closes first
+      requestAnimationFrame(() => {
+        handleDeleteComment(comment._id);
+      });
     }}
     className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
   >
@@ -1442,21 +1441,19 @@ export default function ChatPost({
                                             >
                                               <FaEllipsisV size={10} />
                                             </button>
-                                           <FloatingMenu
+                                         <FloatingMenu
   anchorRef={{ current: replyMenuRefs.current[`${comment._id}-${reply._id}`] }}
   open={!!showReplyMenus[`${comment._id}-${reply._id}`]}
   onClose={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }))}
 >
   {canEditDelete(reply.author?._id || reply.user) && (
     <button
-      onClick={(e) => {
+      onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        console.log('Edit reply button clicked:', reply._id);
         handleEditReply(comment._id, reply._id, reply.content);
-        // Close menu after action
-        setTimeout(() => {
-          setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }));
-        }, 0);
+        setShowReplyMenus({});
       }}
       className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
     >
@@ -1464,14 +1461,15 @@ export default function ChatPost({
     </button>
   )}
   <button
-    onClick={(e) => {
+    onMouseDown={(e) => {
       e.preventDefault();
       e.stopPropagation();
-      handleDeleteReply(comment._id, reply._id);
-      // Close menu after action
-      setTimeout(() => {
-        setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }));
-      }, 0);
+      console.log('Delete reply button clicked:', reply._id);
+      setShowReplyMenus({});
+      // Use requestAnimationFrame to ensure menu closes first
+      requestAnimationFrame(() => {
+        handleDeleteReply(comment._id, reply._id);
+      });
     }}
     className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
   >
