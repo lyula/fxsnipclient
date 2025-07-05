@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
-import { FaSmile, FaPoll, FaImage, FaVideo, FaTimes } from "react-icons/fa";
+import { FaSmile, FaPoll, FaImage, FaVideo, FaTimes, FaEllipsisV } from "react-icons/fa";
 import { searchUsers } from "../../../utils/api";
 import { uploadToCloudinary } from "../../../utils/cloudinaryUpload";
+import FloatingMenu from "../../../components/common/FloatingMenu"; 
 
 export default function CreatePostBox({ onPost, onClose }) {
   const [content, setContent] = useState("");
@@ -16,6 +17,8 @@ export default function CreatePostBox({ onPost, onClose }) {
   const [uploadPercentage, setUploadPercentage] = useState(0);
   const [previewFile, setPreviewFile] = useState(null);
   const [previewType, setPreviewType] = useState("");
+  const [showCommentMenus, setShowCommentMenus] = useState({});
+  const commentMenuRefs = useRef({});
   const textareaRef = useRef(null);
   const modalRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -326,7 +329,7 @@ export default function CreatePostBox({ onPost, onClose }) {
                 {(previewType === "image" || (image && !video)) && (
                   <div className="max-w-full max-h-48 overflow-hidden rounded-lg">
                     <img
-                      src={previewFile ? URL.createObjectURL(previewFile) : image}
+                      src={previewFile || image}
                       alt="Preview"
                       className="w-full h-auto object-cover rounded-lg"
                     />
@@ -337,7 +340,7 @@ export default function CreatePostBox({ onPost, onClose }) {
                 {(previewType === "video" || (video && !image)) && (
                   <div className="max-w-full max-h-48 overflow-hidden rounded-lg">
                     <video
-                      src={previewFile ? URL.createObjectURL(previewFile) : video}
+                      src={previewFile || video}
                       controls
                       className="w-full h-auto object-cover rounded-lg"
                     />

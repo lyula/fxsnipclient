@@ -131,50 +131,62 @@ export function DashboardProvider({ children }) {
   }, [lastNotificationFetch, notifications]);
 
   // Enhanced fetchCommunityPosts with proper fresh content support
-  const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
-    try {
-      setLoadingStates(prev => ({ ...prev, posts: offset === 0 ? true : false }));
-      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
-      const timestamp = Date.now();
-      const params = new URLSearchParams({
-        limit: loadFresh ? '30' : '20',
-        offset: offset.toString(),
-        scrollDirection: direction,
-        refreshFeed: refresh.toString(),
-        loadFresh: loadFresh.toString(),
-        timestamp: timestamp.toString(),
-        cacheBust: Math.random().toString(36)
-      });
-      if (loadFresh || direction === 'fresh') {
-        params.append('sortBy', 'newest');
-        params.append('includeRecent', 'true');
-      }
-      const res = await fetch(`${API_BASE}/posts?${params}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCyclingInfo(data.cyclingInfo);
-        if (refresh || loadFresh || offset === 0 || direction === 'fresh') {
-          setCommunityPosts(data.posts || []);
-        }
-        return data;
-      } else {
-        console.error('Failed to fetch posts:', res.status, res.statusText);
-        return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
-      }
-    } catch (error) {
-      console.error("Error fetching community posts:", error);
-      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
-    } finally {
-      setLoadingStates(prev => ({ ...prev, posts: false }));
+  // Enhanced fetchCommunityPosts with strict optimistic post protection
+const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
+  try {
+    setLoadingStates(prev => ({ ...prev, posts: offset === 0 ? true : false }));
+    const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+    const timestamp = Date.now();
+    const params = new URLSearchParams({
+      limit: loadFresh ? '30' : '20',
+      offset: offset.toString(),
+      scrollDirection: direction,
+      refreshFeed: refresh.toString(),
+      loadFresh: loadFresh.toString(),
+      timestamp: timestamp.toString(),
+      cacheBust: Math.random().toString(36)
+    });
+    if (loadFresh || direction === 'fresh') {
+      params.append('sortBy', 'newest');
+      params.append('includeRecent', 'true');
     }
-  }, []);
+    const res = await fetch(`${API_BASE}/posts?${params}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setCyclingInfo(data.cyclingInfo);
+      
+      // STRICT RULE: Only replace posts if this is a user-initiated refresh/load fresh
+      // Do NOT replace posts on initial loads or infinite scroll
+      if ((refresh && offset === 0) || (loadFresh && offset === 0) || direction === 'fresh') {
+        setCommunityPosts(prev => {
+          // For user-initiated refresh, preserve optimistic posts
+          const optimisticPosts = prev.filter(post => post.isOptimistic);
+          const newPosts = data.posts || [];
+          console.log('User-initiated refresh: preserving', optimisticPosts.length, 'optimistic posts');
+          return [...optimisticPosts, ...newPosts];
+        });
+      }
+      // For all other cases (initial load, infinite scroll), do NOT touch the posts array
+      
+      return data;
+    } else {
+      console.error('Failed to fetch posts:', res.status, res.statusText);
+      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
+    }
+  } catch (error) {
+    console.error("Error fetching community posts:", error);
+    return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
+  } finally {
+    setLoadingStates(prev => ({ ...prev, posts: false }));
+  }
+}, []);
 
   // Fetch following posts
   const fetchFollowingPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
@@ -271,25 +283,24 @@ export function DashboardProvider({ children }) {
   }, []);
 
   // Update a specific post
-  const updatePost = useCallback((postId, updatedPost) => {
-    // Update community posts
-    setCommunityPosts(prev => 
-      prev
-        .map(post => 
-          post._id === postId ? updatedPost : post
-        )
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    );
-    
-    // Also update following posts if the post exists there
-    setFollowingPosts(prev => 
-      prev
-        .map(post => 
-          post._id === postId ? updatedPost : post
-        )
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    );
-  }, []);
+ // Update a specific post
+const updatePost = useCallback((postId, updatedPost) => {
+  // Update community posts - DON'T sort, preserve the current position
+  setCommunityPosts(prev => 
+    prev.map(post => 
+      post._id === postId ? updatedPost : post
+    )
+    // Remove the .sort() to preserve position in the array
+  );
+  
+  // Also update following posts if the post exists there - DON'T sort
+  setFollowingPosts(prev => 
+    prev.map(post => 
+      post._id === postId ? updatedPost : post
+    )
+    // Remove the .sort() to preserve position in the array
+  );
+}, []);
 
   // Delete a post
   const deletePostFromList = useCallback((postId) => {
@@ -297,42 +308,95 @@ export function DashboardProvider({ children }) {
     setFollowingPosts(prev => prev.filter(post => post._id !== postId));
   }, []);
 
-  // Add infinite scroll functions
-  const loadMorePosts = useCallback(async (currentOffset) => {
-    if (loadingStates.posts) return { hasMore: true, posts: [] };
-    setLoadingStates(prev => ({ ...prev, posts: true }));
+  // Load initial posts only when the array is empty
+  const loadInitialPosts = useCallback(async () => {
     try {
-      const result = await fetchCommunityPosts(false, currentOffset, 'down');
-      if (result?.cyclingInfo) {
-        setCyclingInfo(result.cyclingInfo);
-      }
-      if (result?.posts && result.posts.length > 0) {
+      setLoadingStates(prev => ({ ...prev, posts: true }));
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      const timestamp = Date.now();
+      const params = new URLSearchParams({
+        limit: '20',
+        offset: '0',
+        scrollDirection: 'down',
+        refreshFeed: 'false',
+        loadFresh: 'false',
+        timestamp: timestamp.toString(),
+        cacheBust: Math.random().toString(36)
+      });
+      
+      const res = await fetch(`${API_BASE}/posts?${params}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setCyclingInfo(data.cyclingInfo);
+        
+        // ONLY set posts if the array is completely empty
         setCommunityPosts(prev => {
-          const existingPostIds = new Set(prev.map(post => post._id));
-          const newPosts = result.cyclingInfo?.isRepeatingContent 
-            ? result.posts.map(post => ({
-                ...post,
-                _id: `${post._id}_cycle_${result.cyclingInfo.completedCycles}_${Date.now()}`,
-                _originalId: post._id, // Keep the original ID for API calls
-                _isCyled: true,
-                _cycleNumber: result.cyclingInfo.completedCycles
-              }))
-            : result.posts.filter(post => !existingPostIds.has(post._id));
-          if (newPosts.length > 0) {
-            return [...prev, ...newPosts];
+          if (prev.length === 0) {
+            console.log('Initial load: setting', data.posts?.length || 0, 'posts');
+            return data.posts || [];
           }
-          return prev;
+          console.log('Initial load: skipping because posts already exist');
+          return prev; // Don't overwrite existing posts
         });
+        
+        return data;
       }
-      return {
-        ...result,
-        posts: result.posts,
-        hasMore: result.hasMore === true || (result.cyclingInfo?.totalPostsInCycle > 0)
-      };
+      return { posts: [], hasMore: false, nextOffset: 0 };
+    } catch (error) {
+      console.error("Error loading initial posts:", error);
+      return { posts: [], hasMore: false, nextOffset: 0 };
     } finally {
       setLoadingStates(prev => ({ ...prev, posts: false }));
     }
-  }, [fetchCommunityPosts, loadingStates.posts]);
+  }, []);
+
+  // Add infinite scroll functions
+  const loadMorePosts = useCallback(async (currentOffset) => {
+  if (loadingStates.posts) return { hasMore: true, posts: [] };
+  setLoadingStates(prev => ({ ...prev, posts: true }));
+  try {
+    const result = await fetchCommunityPosts(false, currentOffset, 'down');
+    if (result?.cyclingInfo) {
+      setCyclingInfo(result.cyclingInfo);
+    }
+    
+    // ONLY append posts if this is NOT an initial load (offset > 0)
+    if (result?.posts && result.posts.length > 0 && currentOffset > 0) {
+      setCommunityPosts(prev => {
+        const existingPostIds = new Set(prev.map(post => post._id));
+        const newPosts = result.cyclingInfo?.isRepeatingContent 
+          ? result.posts.map(post => ({
+              ...post,
+              _id: `${post._id}_cycle_${result.cyclingInfo.completedCycles}_${Date.now()}`,
+              _originalId: post._id,
+              _isCyled: true,
+              _cycleNumber: result.cyclingInfo.completedCycles
+            }))
+          : result.posts.filter(post => !existingPostIds.has(post._id));
+        if (newPosts.length > 0) {
+          return [...prev, ...newPosts];
+        }
+        return prev;
+      });
+    }
+    
+    return {
+      ...result,
+      posts: result.posts,
+      hasMore: result.hasMore === true || (result.cyclingInfo?.totalPostsInCycle > 0)
+    };
+  } finally {
+    setLoadingStates(prev => ({ ...prev, posts: false }));
+  }
+}, [fetchCommunityPosts, loadingStates.posts]);
 
   // Load more for following posts
   const loadMoreFollowingPosts = useCallback(async (currentOffset) => {
@@ -380,11 +444,15 @@ export function DashboardProvider({ children }) {
       setCyclingInfo(result.cyclingInfo);
     }
     if (forceFresh && result?.posts) {
-      const freshPosts = result.posts.sort((a, b) => 
-        new Date(b.createdAt) - new Date(a.createdAt)
-      );
-      setCommunityPosts(freshPosts);
-    }
+  const freshPosts = result.posts.sort((a, b) => 
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
+  setCommunityPosts(prev => {
+    // Preserve optimistic posts when force refreshing
+    const optimisticPosts = prev.filter(post => post.isOptimistic);
+    return [...optimisticPosts, ...freshPosts];
+  });
+}
     return result;
   }, [fetchCommunityPosts]);
 
@@ -396,12 +464,16 @@ export function DashboardProvider({ children }) {
       if (result?.cyclingInfo) {
         setCyclingInfo(result.cyclingInfo);
       }
-      if (result?.posts) {
-        const sortedFreshPosts = result.posts.sort((a, b) => 
-          new Date(b.createdAt) - new Date(a.createdAt)
-        );
-        setCommunityPosts(sortedFreshPosts);
-      }
+     if (result?.posts) {
+  const sortedFreshPosts = result.posts.sort((a, b) => 
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
+  setCommunityPosts(prev => {
+    // Preserve optimistic posts when loading fresh content
+    const optimisticPosts = prev.filter(post => post.isOptimistic);
+    return [...optimisticPosts, ...sortedFreshPosts];
+  });
+}
       return result;
     } catch (error) {
       console.error("Error loading fresh content:", error);
@@ -476,6 +548,7 @@ export function DashboardProvider({ children }) {
     communityPosts,
     dedupedCommunityPosts,
     fetchCommunityPosts,
+    loadInitialPosts,
     loadMorePosts,
     loadNewerPosts,
     refreshCommunityFeed,
@@ -507,6 +580,7 @@ export function DashboardProvider({ children }) {
     communityPosts,
     dedupedCommunityPosts,
     fetchCommunityPosts,
+    loadInitialPosts,
     loadMorePosts,
     loadNewerPosts,
     refreshCommunityFeed,

@@ -40,21 +40,22 @@ export default function Community({ user }) {
   const isLoadingRef = useRef(false);
   const [showTabs, setShowTabs] = useState(true);
 
-  const {
-    dedupedCommunityPosts: communityPosts,
-    cyclingInfo,
-    fetchCommunityPosts,
-    loadMorePosts,
-    loadNewerPosts,
-    loadingStates,
-    addPostOptimistically,
-    updatePost,
-    deletePost,
-    loadFreshContent,
-    followingPosts,
-    loadNewerFollowingPosts,
-    loadFreshFollowingContent
-  } = useDashboard();
+ const {
+  dedupedCommunityPosts: communityPosts,
+  cyclingInfo,
+  fetchCommunityPosts,
+  loadInitialPosts,
+  loadMorePosts,
+  loadNewerPosts,
+  loadingStates,
+  addPostOptimistically,
+  updatePost,
+  deletePost,
+  loadFreshContent,
+  followingPosts,
+  loadNewerFollowingPosts,
+  loadFreshFollowingContent
+} = useDashboard();
 
   // API base URL
   const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -66,9 +67,15 @@ export default function Community({ user }) {
   };
 
   // Extract original ID helper function
-  const getOriginalPostId = (postId) => {
-    return postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
-  };
+const getOriginalPostId = (postId) => {
+  // Handle temporary posts
+  if (postId.startsWith('temp-')) {
+    return null; // Temp posts don't have server IDs yet
+  }
+  
+  // Handle cycled posts
+  return postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
+};
 
   // Load saved tab from localStorage on component mount (enhanced persistence)
   useEffect(() => {
@@ -247,11 +254,16 @@ export default function Community({ user }) {
     }
   };
 
-  // Initial load
+  // Initial load - truly one-time only
+  const hasEverLoaded = useRef(false);
+
   useEffect(() => {
-    const loadInitialPosts = async () => {
+    if (hasEverLoaded.current) return;
+    hasEverLoaded.current = true;
+
+    const doInitialLoad = async () => {
       try {
-        const result = await fetchCommunityPosts(false, 0, 'down');
+        const result = await loadInitialPosts(); // Use the new function
         setCurrentOffset(result?.nextOffset || 20);
         setHasMore(result?.hasMore !== false);
       } catch (error) {
@@ -260,8 +272,8 @@ export default function Community({ user }) {
       }
     };
     
-    loadInitialPosts();
-  }, [fetchCommunityPosts]);
+    doInitialLoad();
+  }, []); // No dependencies, truly one-time
 
   // Scroll to post if postId is in URL
   useEffect(() => {
@@ -496,10 +508,17 @@ export default function Community({ user }) {
       });
       
       if (res.ok) {
-        const newPost = await res.json();
-        updatePost(tempId, { ...newPost, sending: false, isOptimistic: false });
-        console.log('Post created successfully:', newPost);
-      } else {
+  const newPost = await res.json();
+  // Keep the temp ID for the update, but merge in the server response
+  updatePost(tempId, { 
+    ...newPost, 
+    _id: tempId, // Keep the temp ID that React is tracking
+    _originalId: newPost._id, // Store the real server ID
+    sending: false, 
+    isOptimistic: false 
+  });
+  console.log('Post created successfully:', newPost);
+} else {
         const errorData = await res.json();
         console.error("Failed to create post:", errorData);
         updatePost(tempId, { 
@@ -643,46 +662,52 @@ export default function Community({ user }) {
     }
   }, [API_BASE, communityPosts, followingPosts, updatePost, user]);
 
-  const handleView = useCallback(async (postId) => {
-    const originalPostId = getOriginalPostId(postId);
-    if (!originalPostId) return;
-
-    const viewKey = `viewed_post_${originalPostId}`;
-    if (sessionStorage.getItem(viewKey)) {
-      return; // Already viewed in this session
+ const handleView = async (postId) => {
+  try {
+    // Handle different types of post IDs
+    let originalPostId;
+    
+    // Find the post to get the real server ID
+    const currentPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
+    
+    if (!currentPost) {
+      console.log('Post not found for view tracking:', postId);
+      return;
     }
-
-    // Mark as viewed in this session
-    sessionStorage.setItem(viewKey, 'true');
-
-    // Find the post in either collection
-    const post = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
-    if (post) {
-      const updatedPost = { ...post, views: (post.views || 0) + 1 };
-      updatePost(postId, updatedPost);
-    }
-
-    try {
-      console.log('Tracking view for post:', originalPostId);
-      
-      const res = await fetch(`${API_BASE}/posts/${originalPostId}/view`, {
-        method: "POST",
-        headers: { 
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      });
-      
-      if (res.ok) {
-        const result = await res.json();
-        console.log('View tracked successfully:', result);
+    
+    // Check if this is a temporary post (not yet saved to server)
+    if (postId.startsWith('temp-')) {
+      // If it's still a temp post, check if we have the original ID
+      if (currentPost._originalId) {
+        originalPostId = currentPost._originalId;
       } else {
-        console.error("Failed to track view:", res.status);
+        // Post hasn't been saved to server yet, skip view tracking
+        console.log('Skipping view tracking for unsaved post:', postId);
+        return;
       }
-    } catch (error) {
-      console.error("Error tracking view:", error);
+    } else {
+      // For cycled posts or regular posts
+      originalPostId = getOriginalPostId(postId);
     }
-  }, [communityPosts, followingPosts, updatePost, API_BASE]);
+
+    const response = await fetch(`${API_BASE}/posts/${originalPostId}/view`, {
+      method: 'Post',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      
+      // Update the post in local state using the display ID
+      updatePost(postId, { views: data.views });
+    }
+  } catch (error) {
+    console.error('Error tracking post view:', error);
+  }
+};
 
   const handleDeletePost = useCallback(async (postId) => {
     const originalPostId = getOriginalPostId(postId);

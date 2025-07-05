@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
-import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaUser, FaEdit, FaTrash, FaEllipsisV, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
+import FloatingMenu from "../../../components/common/FloatingMenu";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import MediaDisplay from '../../../components/media/MediaDisplay';
 import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers } from "../../../utils/api";
 import { formatPostDate } from '../../../utils/formatDate';
 
-// Enhanced MentionInput component with full mention functionality
+// Enhanced MentionInput component with proper container expansion
 function MentionInput({ 
   value, 
   onChange, 
@@ -23,8 +24,8 @@ function MentionInput({
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStart, setMentionStart] = useState(null);
   const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
 
-  // Initialize with mention if provided
   useEffect(() => {
     if (initialMention && !value) {
       const mentionText = `@${initialMention} `;
@@ -47,12 +48,18 @@ function MentionInput({
     const mentionMatch = textUpToCaret.match(/@(\w*)$/);
 
     if (mentionMatch) {
-      setMentionQuery(mentionMatch[1]);
-      setMentionStart(caret - mentionMatch[1].length - 1);
+      const query = mentionMatch[1];
+      setMentionQuery(query);
+      setMentionStart(caret - query.length - 1);
+      
       setShowSuggestions(true);
+      
       try {
-        const users = await searchUsers(mentionMatch[1]);
-        setSuggestions(users.users || []);
+        const users = await searchUsers(query);
+        const filteredUsers = (users.users || [])
+          .filter(user => query.length === 0 || user.username.toLowerCase().includes(query.toLowerCase()))
+          .slice(0, 5);
+        setSuggestions(filteredUsers);
       } catch (err) {
         setSuggestions([]);
       }
@@ -95,8 +102,25 @@ function MentionInput({
     }
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) && 
+          inputRef.current && !inputRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+        setSuggestions([]);
+        setMentionQuery("");
+        setMentionStart(null);
+      }
+    };
+
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSuggestions]);
+
   return (
-    <div className="relative w-full max-w-full overflow-x-hidden">
+    <div className="relative w-full max-w-full">
       <form onSubmit={onSubmit} className="flex gap-2 items-center w-full max-w-full">
         <div className="flex-1 relative min-w-0 max-w-full">
           <input
@@ -110,20 +134,23 @@ function MentionInput({
             className={`w-full max-w-full min-w-0 border rounded px-2 py-1 text-sm border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${className}`}
           />
           
-          {/* Mention suggestions dropdown */}
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-50 max-h-40 overflow-y-auto max-w-full">
-              {suggestions.slice(0, 5).map((user) => (
+            <div 
+              ref={dropdownRef}
+              className="absolute left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-50 mt-10"
+              style={{ maxHeight: '200px', overflowY: 'auto' }}
+            >
+              {suggestions.map((user) => (
                 <button
                   key={user._id}
                   type="button"
                   onClick={() => handleSuggestionClick(user.username)}
-                  className="w-full max-w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                  className="w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors first:rounded-t-lg last:rounded-b-lg"
                 >
                   <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
                     <FaUser className="text-gray-600 dark:text-gray-400 text-xs" />
                   </div>
-                  <div className="flex-1 min-w-0 max-w-full flex items-center gap-1">
+                  <div className="flex-1 min-w-0 flex items-center gap-1">
                     <span className="text-sm font-medium text-gray-900 dark:text-white break-words">
                       @{user.username}
                     </span>
@@ -189,47 +216,38 @@ function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = ""
 function renderHighlightedContent(content) {
   if (!content) return "";
   
-  // Basic mention highlighting
   return content.replace(/@(\w+)/g, '<span class="text-blue-600 dark:text-blue-400 font-medium">@$1</span>');
 }
 
-// Helper function to check if content has more than 3 lines
 function hasMoreThanThreeLines(content) {
   if (!content) return false;
   const lineCount = content.split('\n').length;
   return lineCount > 3;
 }
 
-// Helper function to get the first line of content
 function getFirstLine(content) {
   if (!content) return "";
   return content.split('\n')[0];
 }
 
-// Helper function to check if content was actually edited
 function isContentEdited(item) {
-  // Method 1: Check for dedicated editedAt field (recommended backend approach)
   if (item.editedAt) {
     return true;
   }
   
-  // Method 2: Check for isEdited boolean field
   if (item.isEdited === true) {
     return true;
   }
   
-  // Method 3: Check for contentUpdatedAt field (separate from updatedAt)
   if (item.contentUpdatedAt && item.createdAt) {
     const created = new Date(item.createdAt);
     const contentUpdated = new Date(item.contentUpdatedAt);
     return (contentUpdated.getTime() - created.getTime()) > 60000;
   }
   
-  // Fallback: If none of the above, don't show edited
   return false;
 }
 
-// Component to display edit indicator
 const EditedIndicator = ({ item, size = "xs" }) => {
   if (!isContentEdited(item)) return null;
   
@@ -240,7 +258,6 @@ const EditedIndicator = ({ item, size = "xs" }) => {
   );
 };
 
-// Comment sorting functions
 function sortComments(comments, sortType) {
   const sortedComments = [...comments];
   
@@ -266,7 +283,6 @@ function sortComments(comments, sortType) {
   }
 }
 
-// Get sort label
 function getSortLabel(sortType) {
   switch (sortType) {
     case 'newest': return 'Newest first';
@@ -277,7 +293,6 @@ function getSortLabel(sortType) {
   }
 }
 
-// Floating heart animation component using Tailwind
 const FloatingHeart = ({ x, y, onAnimationEnd }) => {
   return (
     <div 
@@ -327,40 +342,32 @@ export default function ChatPost({
   const [showPostMenu, setShowPostMenu] = useState(false);
   const [showCommentMenus, setShowCommentMenus] = useState({});
   const [showReplyMenus, setShowReplyMenus] = useState({});
-  
-  // State for read more functionality
   const [showFullContent, setShowFullContent] = useState(false);
-  
-  // Pagination and sorting states
   const [commentSortType, setCommentSortType] = useState('newest');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [commentsPerPage, setCommentsPerPage] = useState(5);
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingMoreComments, setLoadingMoreComments] = useState(false);
   const [hasMoreComments, setHasMoreComments] = useState(true);
-  
-  // New state for animations
   const [floatingHearts, setFloatingHearts] = useState([]);
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [lastTap, setLastTap] = useState(0);
-  const postContainerRef = useRef(null);
-  
-  // New state for likes
   const [showLikes, setShowLikes] = useState(false);
   const [likesUsers, setLikesUsers] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
-  
+  const [hiddenReplies, setHiddenReplies] = useState({});
+  const postContainerRef = useRef(null);
   const commentsRef = useRef(null);
   const postRef = useRef(null);
   const previousContentRef = useRef(post.content);
-
+  const commentMenuRefs = useRef({});
+  const replyMenuRefs = useRef({});
   const { search } = useLocation();
 
   const liked = Array.isArray(localPost.likes) && currentUserId
     ? localPost.likes.map(String).includes(String(currentUserId))
     : false;
 
-  // Get sorted and paginated comments
   const sortedComments = sortComments(localPost.comments || [], commentSortType);
   const totalComments = sortedComments.length;
   const startIndex = 0;
@@ -368,7 +375,6 @@ export default function ChatPost({
   const displayedComments = sortedComments.slice(startIndex, endIndex);
   const hasMore = endIndex < totalComments;
 
-  // Check permissions
   const canEditDelete = (authorId) => {
     return String(authorId) === String(currentUserId);
   };
@@ -380,21 +386,26 @@ export default function ChatPost({
   useEffect(() => {
     setLocalPost(prev => ({ ...prev, ...post }));
     previousContentRef.current = post.content;
-    setShowFullContent(false); // Reset read more state when post changes
+    setShowFullContent(false);
   }, [post]);
 
   useEffect(() => {
-    if (!post || !post._id) return;
-    const node = postRef.current;
-    if (!node) return;
-
-    // Extract original post ID for tracking
-    const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
+    console.log('Setting up IntersectionObserver for post:', post._id);
     
-    // Check if we've already viewed this post in this session
+    if (!post || !post._id) {
+      console.log('No post or post._id, skipping view tracking');
+      return;
+    }
+    
+    const node = postContainerRef.current;
+    if (!node) {
+      return;
+    }
+
+    const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
     const viewKey = `viewed_post_${originalPostId}`;
     if (sessionStorage.getItem(viewKey)) {
-      return; // Already viewed in this session
+      return;
     }
 
     let hasViewed = false;
@@ -402,20 +413,21 @@ export default function ChatPost({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasViewed) {
-            // Mark as viewed in this session
             sessionStorage.setItem(viewKey, 'true');
-            onView(post._id); // Pass the display ID to the handler
+            onView(post._id);
             hasViewed = true;
             observer.disconnect();
           }
         });
       },
-      { threshold: 0.5, rootMargin: '0px 0px -10%  Weighing scales-0px' }
+      { threshold: 0.3, rootMargin: '0px 0px -20% 0px' }
     );
     
     observer.observe(node);
-    return () => observer.disconnect();
-  }, [post._id, onView]);
+    return () => {
+      observer.disconnect();
+    };
+  }, [post._id, onView, postContainerRef]);
 
   useEffect(() => {
     const params = new URLSearchParams(search);
@@ -424,19 +436,37 @@ export default function ChatPost({
     }
   }, [search]);
 
-  // Reset pagination when sort type changes
   useEffect(() => {
     setCurrentPage(1);
     setHasMoreComments(true);
   }, [commentSortType]);
 
-  // Load more comments
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const isOutsideCommentMenus = Object.values(commentMenuRefs.current).every(
+        (ref) => ref && !ref.contains(event.target)
+      );
+      const isOutsideReplyMenus = Object.values(replyMenuRefs.current).every(
+        (ref) => ref && !ref.contains(event.target)
+      );
+
+      if (isOutsideCommentMenus) {
+        setShowCommentMenus({});
+      }
+      if (isOutsideReplyMenus) {
+        setShowReplyMenus({});
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const loadMoreComments = async () => {
     if (!hasMore || loadingMoreComments) return;
     
     setLoadingMoreComments(true);
     
-    // Simulate loading delay for smooth UX
     setTimeout(() => {
       setCurrentPage(prev => prev + 1);
       setLoadingMoreComments(false);
@@ -444,111 +474,108 @@ export default function ChatPost({
     }, 500);
   };
 
-  const handleCommentSubmit = async (e) => {
-    e.preventDefault();
-    if (!comment.trim()) return;
-    setLoadingComment(true);
-    setError(null);
+ const handleCommentSubmit = async (e) => {
+  e.preventDefault();
+  if (!comment.trim()) return;
+  setLoadingComment(true);
+  setError(null);
 
-    const tempComment = {
-      _id: `temp-comment-${Date.now()}`,
-      content: comment,
-      user: currentUserId,
-      author: { username: currentUsername, verified: currentUserVerified },
-      createdAt: new Date().toISOString(),
-      replies: [],
-      likes: [],
-    };
-
-    setLocalPost(prev => ({
-      ...prev,
-      comments: [tempComment, ...(prev.comments || [])],
-    }));
-
-    try {
-      const res = await addCommentToPost(localPost._id, comment);
-      if (res && res.comment && !res.error) {
-        setLocalPost(prev => ({
-          ...prev,
-          comments: [res.comment, ...prev.comments.filter(c => !c._id.startsWith('temp-comment'))],
-        }));
-      } else {
-        if (onComment) {
-          const updatedPost = await onComment();
-          if (updatedPost) setLocalPost(updatedPost);
-        }
-      }
-    } catch (e) {
-      if (e.message && e.message.includes("Network Error")) {
-        setError("Network error: Failed to post comment");
-      }
-      if (onComment) {
-        try {
-          const updatedPost = await onComment();
-          if (updatedPost) setLocalPost(updatedPost);
-        } catch (fetchError) {}
-      }
-    } finally {
-      setLoadingComment(false);
-      setComment("");
-    }
+  const tempComment = {
+    _id: `temp-comment-${Date.now()}`,
+    content: comment,
+    user: currentUserId,
+    author: { username: currentUsername, verified: currentUserVerified },
+    createdAt: new Date().toISOString(),
+    replies: [],
+    likes: [],
   };
 
-  const handleReply = async (postId, replyText, commentId) => {
-    setLoadingReply(prev => ({ ...prev, [commentId]: true }));
-    setError(null);
+  setLocalPost(prev => ({
+    ...prev,
+    comments: [tempComment, ...(prev.comments || [])],
+  }));
 
-    const tempReply = {
-      _id: `temp-reply-${Date.now()}`,
-      content: replyText,
-      user: currentUserId,
-      author: { username: currentUsername, verified: currentUserVerified },
-      createdAt: new Date().toISOString(),
-      likes: [],
-    };
-
-    setLocalPost(prev => ({
-      ...prev,
-      comments: prev.comments.map(c =>
-        c._id === commentId
-          ? { ...c, replies: [tempReply, ...(c.replies || [])] }
-          : c
-      ),
-    }));
-
-    try {
-      if (onReply) {
-        const updatedPost = await onReply(postId, replyText, commentId);
+  try {
+    const res = await addCommentToPost(localPost._id, comment);
+    if (res && res.comment && !res.error) {
+      setLocalPost(prev => ({
+        ...prev,
+        comments: [res.comment, ...prev.comments.filter(c => !c._id.startsWith('temp-comment'))],
+      }));
+    } else {
+      if (onComment) {
+        const updatedPost = await onComment();
         if (updatedPost) setLocalPost(updatedPost);
       }
-    } catch (e) {
-      if (e.message && e.message.includes("Network Error")) {
-        setError("Network error: Failed to post reply");
-      }
-      if (onComment) {
-        try {
-          const updatedPost = await onComment();
-          if (updatedPost) setLocalPost(updatedPost);
-        } catch (fetchError) {}
-      }
-    } finally {
-      setLoadingReply(prev => ({ ...prev, [commentId]: false }));
-      setActiveReply(null); // Close reply input after submission
     }
+  } catch (e) {
+    if (e.message && e.message.includes("Network Error")) {
+      setError("Network error: Failed to post comment");
+    }
+    if (onComment) {
+      try {
+        const updatedPost = await onComment();
+        if (updatedPost) setLocalPost(updatedPost);
+      } catch (fetchError) {}
+    }
+  } finally {
+    setLoadingComment(false);
+    setComment("");
+  }
+};
+
+  const handleReply = async (postId, replyText, commentId) => {
+  setLoadingReply(prev => ({ ...prev, [commentId]: true }));
+  setError(null);
+
+  const tempReply = {
+    _id: `temp-reply-${Date.now()}`,
+    content: replyText,
+    user: currentUserId,
+    author: { username: currentUsername, verified: currentUserVerified },
+    createdAt: new Date().toISOString(),
+    likes: [],
   };
 
-  // Enhanced like handler with animation
+  setLocalPost(prev => ({
+    ...prev,
+    comments: prev.comments.map(c =>
+      c._id === commentId
+        ? { ...c, replies: [tempReply, ...(c.replies || [])] }
+        : c
+    ),
+  }));
+
+  try {
+    if (onReply) {
+      const updatedPost = await onReply(postId, replyText, commentId);
+      if (updatedPost) setLocalPost(updatedPost);
+    }
+  } catch (e) {
+    if (e.message && e.message.includes("Network Error")) {
+      setError("Network error: Failed to post reply");
+    }
+    if (onComment) {
+      try {
+        const updatedPost = await onComment();
+        if (updatedPost) setLocalPost(updatedPost);
+      } catch (fetchError) {}
+    }
+  } finally {
+    setLoadingReply(prev => ({ ...prev, [commentId]: false }));
+    setActiveReply(null);
+  }
+};
+
   const handleLike = async (e) => {
     if (e) {
       e.stopPropagation();
       e.preventDefault();
     }
     
-    // Trigger pulse animation
     setLikeAnimating(true);
     setTimeout(() => setLikeAnimating(false), 300);
     
-    // Create floating heart effect
     if (e && !liked) {
       const rect = e.currentTarget.getBoundingClientRect();
       const heartId = Date.now();
@@ -560,13 +587,11 @@ export default function ChatPost({
       
       setFloatingHearts(prev => [...prev, newHeart]);
       
-      // Remove heart after animation
       setTimeout(() => {
         setFloatingHearts(prev => prev.filter(heart => heart.id !== heartId));
       }, 1000);
     }
 
-    // Update liked state optimistically
     const newLiked = !liked;
     setLocalPost(prev => ({
       ...prev,
@@ -579,7 +604,6 @@ export default function ChatPost({
       await onLike(post._id);
     } catch (error) {
       console.error("Error in handleLike:", error);
-      // Revert on error
       setLocalPost(prev => ({
         ...prev,
         likes: post.likes
@@ -587,13 +611,11 @@ export default function ChatPost({
     }
   };
 
-  // Double-tap to like handler
   const handleDoubleTap = (e) => {
     const now = Date.now();
     const tapLength = now - lastTap;
     
     if (tapLength < 500 && tapLength > 0) {
-      // Double tap detected
       e.preventDefault();
       if (!liked) {
         handleLike(e);
@@ -603,7 +625,6 @@ export default function ChatPost({
     setLastTap(now);
   };
 
-  // Handler functions for editing
   const handleEditPost = () => {
     setEditingPost(true);
     setEditPostContent(localPost.content || '');
@@ -615,7 +636,11 @@ export default function ChatPost({
     
     try {
       await editPost(localPost._id, editPostContent);
-      setLocalPost(prev => ({ ...prev, content: editPostContent }));
+      setLocalPost(prev => ({ 
+        ...prev, 
+        content: editPostContent,
+        editedAt: new Date().toISOString()
+      }));
       setEditingPost(false);
     } catch (error) {
       console.error('Failed to edit post:', error);
@@ -639,112 +664,121 @@ export default function ChatPost({
     setShowPostMenu(false);
   };
 
-  // Comment handlers
   const handleEditComment = (commentId, content) => {
-    setEditingComment(commentId);
-    setEditCommentContent(content);
-    setShowCommentMenus({});
-  };
+  console.log('Editing comment:', commentId, content);
+  setEditingComment(commentId);
+  setEditCommentContent(content);
+  // Don't close menu here - let the onClick handler do it
+};
 
+  // Fixed handleSaveCommentEdit function
   const handleSaveCommentEdit = async (commentId) => {
-    if (!editCommentContent.trim()) return;
+  if (!editCommentContent.trim()) return;
+  
+  try {
+    const response = await editComment(localPost._id, commentId, editCommentContent);
     
-    try {
-      await editComment(localPost._id, commentId, editCommentContent);
-      setLocalPost(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => 
-          c._id === commentId ? { ...c, content: editCommentContent } : c
-        )
-      }));
+    // Check if response has error field, or if it's a successful response (has _id)
+    if (response && !response.error && response._id) {
+      // Update with the response from server which has the updated comments
+      setLocalPost(response);
       setEditingComment(null);
-    } catch (error) {
-      console.error('Failed to edit comment:', error);
+      setEditCommentContent('');
+    } else {
+      console.error('Failed to edit comment:', response?.error || 'Unknown error');
+      alert('Failed to edit comment. Please try again.');
     }
-  };
+  } catch (error) {
+    console.error('Failed to edit comment:', error);
+    alert('Failed to edit comment. Please try again.');
+  }
+};
+
+  // Fixed handleDeleteComment function
+  const handleDeleteComment = async (commentId) => {
+  if (window.confirm('Are you sure you want to delete this comment?')) {
+    try {
+      const response = await deleteComment(localPost._id, commentId);
+      
+      if (response && !response.error && response._id) {
+        setLocalPost(response);
+      } else {
+        console.error('Failed to delete comment:', response?.error || 'Unknown error');
+        alert('Failed to delete comment. Please try again.');
+      }
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+      alert('Failed to delete comment. Please try again.');
+    }
+  }
+  // Don't close menu here - let the onClick handler do it
+};
+
+  const handleEditReply = (commentId, replyId, content) => {
+  console.log('Editing reply:', commentId, replyId, content);
+  setEditingReply(`${commentId}-${replyId}`);
+  setEditReplyContent(content);
+  // Don't close menu here - let the onClick handler do it
+};
+
+  // Fixed handleSaveReplyEdit function
+  const handleSaveReplyEdit = async (commentId, replyId) => {
+  if (!editReplyContent.trim()) return;
+  
+  try {
+    const response = await editReply(localPost._id, commentId, replyId, editReplyContent);
+    
+    if (response && !response.error && response._id) {
+      // Update with the response from server which has the updated comments/replies
+      setLocalPost(response);
+      setEditingReply(null);
+      setEditReplyContent('');
+    } else {
+      console.error('Failed to edit reply:', response?.error || 'Unknown error');
+      alert('Failed to edit reply. Please try again.');
+    }
+  } catch (error) {
+    console.error('Failed to edit reply:', error);
+    alert('Failed to edit reply. Please try again.');
+  }
+};
 
   const handleCancelCommentEdit = () => {
-    setEditingComment(null);
-    setEditCommentContent('');
-  };
-
-  const handleDeleteComment = async (commentId) => {
-    if (window.confirm('Are you sure you want to delete this comment?')) {
-      try {
-        await deleteComment(localPost._id, commentId);
-        setLocalPost(prev => ({
-          ...prev,
-          comments: prev.comments.filter(c => c._id !== commentId)
-        }));
-      } catch (error) {
-        console.error('Failed to delete comment:', error);
-      }
-    }
-    setShowCommentMenus({});
-  };
-
-  // Reply handlers
-  const handleEditReply = (commentId, replyId, content) => {
-    setEditingReply(`${commentId}-${replyId}`);
-    setEditReplyContent(content);
-    setShowReplyMenus({});
-  };
-
-  const handleSaveReplyEdit = async (commentId, replyId) => {
-    if (!editReplyContent.trim()) return;
-    
-    try {
-      await editReply(localPost._id, commentId, replyId, editReplyContent);
-      setLocalPost(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => 
-          c._id === commentId 
-            ? {
-                ...c,
-                replies: c.replies.map(r => 
-                  r._id === replyId ? { ...r, content: editReplyContent } : r
-                )
-              }
-            : c
-        )
-      }));
-      setEditingReply(null);
-    } catch (error) {
-      console.error('Failed to edit reply:', error);
-    }
-  };
+  setEditingComment(null);
+  setEditCommentContent('');
+  // Don't manipulate menu state here
+};
 
   const handleCancelReplyEdit = () => {
-    setEditingReply(null);
-    setEditReplyContent('');
-  };
+  setEditingReply(null);
+  setEditReplyContent('');
+  // Don't manipulate menu state here
+};
 
   const handleDeleteReply = async (commentId, replyId) => {
-    if (window.confirm('Are you sure you want to delete this reply?')) {
-      try {
-        await deleteReply(localPost._id, commentId, replyId);
-        setLocalPost(prev => ({
-          ...prev,
-          comments: prev.comments.map(c => 
-            c._id === commentId 
-              ? { ...c, replies: c.replies.filter(r => r._id !== replyId) }
-              : c
-          )
-        }));
-      } catch (error) {
-        console.error('Failed to delete reply:', error);
+  if (window.confirm('Are you sure you want to delete this reply?')) {
+    try {
+      const response = await deleteReply(localPost._id, commentId, replyId);
+      
+      if (response && !response.error && response._id) {
+        setLocalPost(response);
+      } else {
+        console.error('Failed to delete reply:', response?.error || 'Unknown error');
+        alert('Failed to delete reply. Please try again.');
       }
+    } catch (error) {
+      console.error('Failed to delete reply:', error);
+      alert('Failed to delete reply. Please try again.');
     }
-    setShowReplyMenus({});
-  };
+  }
+  // Don't close menu here - let the onClick handler do it
+};
 
-  // Like handlers
   const handleLikeComment = async (commentId) => {
     setLoadingCommentLike(prev => ({ ...prev, [commentId]: true }));
     
     try {
       await likeComment(localPost._id, commentId);
-      // Update local state optimistically
       setLocalPost(prev => ({
         ...prev,
         comments: prev.comments.map(c => {
@@ -773,7 +807,6 @@ export default function ChatPost({
     
     try {
       await likeReply(localPost._id, commentId, replyId);
-      // Update local state optimistically
       setLocalPost(prev => ({
         ...prev,
         comments: prev.comments.map(c => {
@@ -805,10 +838,6 @@ export default function ChatPost({
     }
   };
 
-  // Add this state near the other state declarations
-  const [hiddenReplies, setHiddenReplies] = useState({}); // commentId -> boolean (true = hidden by default)
-
-  // Add toggle function
   const toggleRepliesVisibility = (commentId) => {
     setHiddenReplies(prev => ({
       ...prev,
@@ -818,7 +847,6 @@ export default function ChatPost({
 
   return (
     <>
-      {/* Floating hearts */}
       {floatingHearts.map(heart => (
         <FloatingHeart
           key={heart.id}
@@ -829,16 +857,14 @@ export default function ChatPost({
           }}
         />
       ))}
-      
-      {/* Modern post wrapper */}
-      <div 
+
+      <div
         ref={postContainerRef}
         data-post-id={post._id}
         className="w-full max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
       >
-        {/* HR and Username above media */}
         {(post.image || post.video) && (
           <>
             <hr className="border-gray-200/50 dark:border-gray-700/50" />
@@ -859,13 +885,42 @@ export default function ChatPost({
                 <span className="text-gray-400 dark:text-gray-500">•</span>
                 <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                   {formatPostDate(post.createdAt)}
+                  <EditedIndicator item={localPost} />
                 </span>
+                
+                {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
+                  <div className="ml-auto relative">
+                    <button
+                      onClick={() => setShowPostMenu(!showPostMenu)}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <FaEllipsisV />
+                    </button>
+                    {showPostMenu && (
+                      <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
+                        {canEditDelete(post.author?._id || post.author) && (
+                          <button
+                            onClick={handleEditPost}
+                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                          >
+                            <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
+                          </button>
+                        )}
+                        <button
+                          onClick={handleDeletePost}
+                          className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+                        >
+                          <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </>
         )}
 
-        {/* Media */}
         {(post.image || post.video) && (
           <div
             ref={postRef}
@@ -881,14 +936,12 @@ export default function ChatPost({
           </div>
         )}
 
-        {/* Main content wrapper */}
         <div
           className={`p-6 backdrop-blur-sm transition-all overflow-x-hidden max-w-full ${
             post.image || post.video ? "rounded-none rounded-b-2xl" : "rounded-2xl"
           }`}
           style={{ maxWidth: "100%" }}
         >
-          {/* Username and timestamp for non-media posts */}
           {!(post.image || post.video) && (
             <div className="flex items-center mb-4 gap-3">
               <Link 
@@ -911,7 +964,6 @@ export default function ChatPost({
                 <EditedIndicator item={localPost} />
               </span>
               
-              {/* Post menu */}
               {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
                 <div className="ml-auto relative">
                   <button
@@ -943,7 +995,6 @@ export default function ChatPost({
             </div>
           )}
 
-          {/* Content section */}
           <div className="mb-4">
             {editingPost ? (
               <div className="space-y-3">
@@ -1003,10 +1054,8 @@ export default function ChatPost({
             )}
           </div>
 
-          {/* Modern engagement bar */}
           <div className="flex items-center gap-6 text-base mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300">
             <div className="flex items-center gap-2">
-              {/* Like icon button */}
               <button
                 onClick={handleLike}
                 className={`transition-all duration-300 hover:scale-110 active:scale-95 ${
@@ -1023,7 +1072,6 @@ export default function ChatPost({
                 )}
               </button>
               
-              {/* Likes count button */}
               <button
                 className={`font-semibold hover:underline transition-colors ${liked ? "text-red-500" : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
                 onClick={async (e) => {
@@ -1032,7 +1080,6 @@ export default function ChatPost({
                   if (likesCount > 0) {
                     setShowLikes(!showLikes);
                     
-                    // Load likes if not already loaded and showing likes
                     if (!showLikes && likesUsers.length === 0) {
                       setLoadingLikes(true);
                       try {
@@ -1056,7 +1103,7 @@ export default function ChatPost({
 
             <button
               onClick={() => {
-                setShowLikes(false); // Close likes list first
+                setShowLikes(false);
                 setShowComments((prev) => !prev);
               }}
               className="flex items-center gap-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 active:scale-95"
@@ -1082,7 +1129,6 @@ export default function ChatPost({
             </span>
           </div>
 
-          {/* Likes section */}
           {showLikes && (
             <div className="mt-4 relative w-full max-w-full overflow-x-hidden">
               <div className="flex justify-between items-center mb-3">
@@ -1133,7 +1179,6 @@ export default function ChatPost({
             </div>
           )}
 
-          {/* Comments section - Only show if likes are NOT showing */}
           {showComments && !showLikes && (
             <div className="mt-4 relative w-full max-w-full overflow-x-hidden" ref={commentsRef}>
               <div className="flex justify-between items-center mb-3">
@@ -1142,7 +1187,6 @@ export default function ChatPost({
                     Comments ({totalComments})
                   </div>
                   
-                  {/* Sort dropdown */}
                   {totalComments > 1 && (
                     <div className="relative">
                       <button
@@ -1186,7 +1230,6 @@ export default function ChatPost({
                 </button>
               </div>
               
-              {/* Switch to comment input link - show when reply input is active */}
               {activeReply !== null && (
                 <div className="w-full mt-2 mb-3 max-w-full">
                   <span
@@ -1198,7 +1241,6 @@ export default function ChatPost({
                 </div>
               )}
               
-              {/* Comment input */}
               {activeReply === null && showCommentInput && (
                 <div className="w-full mt-2 max-w-full overflow-x-hidden">
                   <MentionInput
@@ -1212,12 +1254,11 @@ export default function ChatPost({
                 </div>
               )}
               
-              {/* Comments list */}
               <div className="w-full max-w-full overflow-x-hidden">
                 {displayedComments.map((comment) => (
                   <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
                     <div className="flex items-start gap-3 w-full max-w-full">
-                      <Link 
+                      <Link
                         to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
                         className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
                       >
@@ -1237,38 +1278,63 @@ export default function ChatPost({
                           </span>
                           <EditedIndicator item={comment} />
                           
-                          {/* Comment menu */}
                           {(canEditDelete(comment.author?._id || comment.user) || canDeleteAsPostOwner()) && (
                             <div className="relative ml-auto">
                               <button
-                                onClick={() => setShowCommentMenus(prev => ({ ...prev, [comment._id]: !prev[comment._id] }))}
+                                data-comment-menu={comment._id}
+                                ref={el => (commentMenuRefs.current[comment._id] = el)}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setShowCommentMenus(prev => ({ 
+                                    ...Object.keys(prev).reduce((acc, key) => ({ ...acc, [key]: false }), {}),
+                                    [comment._id]: !prev[comment._id] 
+                                  }));
+                                }}
                                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
                               >
                                 <FaEllipsisV size={10} />
                               </button>
-                              {showCommentMenus[comment._id] && (
-                                <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
-                                  {canEditDelete(comment.author?._id || comment.user) && (
-                                    <button
-                                      onClick={() => handleEditComment(comment._id, comment.content)}
-                                      className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                                    >
-                                      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleDeleteComment(comment._id)}
-                                    className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                                  >
-                                    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
-                                  </button>
-                                </div>
-                              )}
+                              <FloatingMenu
+  anchorRef={{ current: commentMenuRefs.current[comment._id] }}
+  open={!!showCommentMenus[comment._id]}
+  onClose={() => setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }))}
+>
+  {canEditDelete(comment.author?._id || comment.user) && (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleEditComment(comment._id, comment.content);
+        // Close menu after action
+        setTimeout(() => {
+          setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }));
+        }, 0);
+      }}
+      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+    >
+      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
+    </button>
+  )}
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleDeleteComment(comment._id);
+      // Close menu after action
+      setTimeout(() => {
+        setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }));
+      }, 0);
+    }}
+    className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+  >
+    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
+  </button>
+</FloatingMenu>
                             </div>
                           )}
                         </div>
                         
-                        {/* Comment content */}
                         {editingComment === comment._id ? (
                           <div className="space-y-2 w-full max-w-full">
                             <textarea
@@ -1299,7 +1365,6 @@ export default function ChatPost({
                           />
                         )}
                         
-                        {/* Reply button */}
                         <div className="flex items-center gap-4 text-xs">
                           <button
                             onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
@@ -1308,7 +1373,6 @@ export default function ChatPost({
                             Reply
                           </button>
                           
-                          {/* Like button for comments */}
                           <button
                             onClick={() => handleLikeComment(comment._id)}
                             disabled={loadingCommentLike[comment._id]}
@@ -1327,7 +1391,6 @@ export default function ChatPost({
                           </button>
                         </div>
                         
-                        {/* Reply input - Show when activeReply matches comment ID */}
                         {activeReply === comment._id && (
                           <div className="mt-2 w-full max-w-full overflow-x-hidden">
                             <ReplyInput
@@ -1340,10 +1403,8 @@ export default function ChatPost({
                           </div>
                         )}
                         
-                        {/* Replies section with hide/show functionality */}
                         {comment.replies && comment.replies.length > 0 && (
                           <div className="mt-2 w-full max-w-full overflow-x-hidden">
-                            {/* Show/Hide replies link */}
                             <span
                               onClick={() => toggleRepliesVisibility(comment._id)}
                               className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer transition-colors"
@@ -1351,7 +1412,6 @@ export default function ChatPost({
                               {hiddenReplies[comment._id] === false ? `hide replies (${comment.replies.length})` : `show replies (${comment.replies.length})`}
                             </span>
                             
-                            {/* Replies list - only show if not hidden */}
                             {hiddenReplies[comment._id] === false && (
                               <div className="mt-2 space-y-3 w-full max-w-full overflow-x-hidden">
                                 {comment.replies.map((reply) => (
@@ -1370,38 +1430,58 @@ export default function ChatPost({
                                         </span>
                                         <EditedIndicator item={reply} />
                                         
-                                        {/* Reply menu */}
                                         {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
                                           <div className="relative ml-auto flex-shrink-0">
                                             <button
-                                              onClick={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] }))}
+                                              ref={el => (replyMenuRefs.current[`${comment._id}-${reply._id}`] = el)}
+                                              onClick={() => setShowReplyMenus(prev => ({ 
+                                                ...prev, 
+                                                [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] 
+                                              }))}
                                               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
                                             >
                                               <FaEllipsisV size={10} />
                                             </button>
-                                            {showReplyMenus[`${comment._id}-${reply._id}`] && (
-                                              <div className="absolute right-0 top-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-40 py-1">
-                                                {canEditDelete(reply.author?._id || reply.user) && (
-                                                  <button
-                                                    onClick={() => handleEditReply(comment._id, reply._id, reply.content)}
-                                                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-xs text-gray-700 dark:text-gray-300 transition-colors"
-                                                  >
-                                                    <FaEdit size={10} /> Edit
-                                                  </button>
-                                                )}
-                                                <button
-                                                  onClick={() => handleDeleteReply(comment._id, reply._id)}
-                                                  className="flex items-center gap-2 px-3 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-xs text-red-600 dark:text-red-400 transition-colors"
-                                                >
-                                                  <FaTrash size={10} /> Delete
-                                                </button>
-                                              </div>
-                                            )}
+                                           <FloatingMenu
+  anchorRef={{ current: replyMenuRefs.current[`${comment._id}-${reply._id}`] }}
+  open={!!showReplyMenus[`${comment._id}-${reply._id}`]}
+  onClose={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }))}
+>
+  {canEditDelete(reply.author?._id || reply.user) && (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleEditReply(comment._id, reply._id, reply.content);
+        // Close menu after action
+        setTimeout(() => {
+          setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }));
+        }, 0);
+      }}
+      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+    >
+      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
+    </button>
+  )}
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleDeleteReply(comment._id, reply._id);
+      // Close menu after action
+      setTimeout(() => {
+        setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }));
+      }, 0);
+    }}
+    className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+  >
+    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
+  </button>
+</FloatingMenu>
                                           </div>
                                         )}
                                       </div>
                                       
-                                      {/* Reply content */}
                                       {editingReply === `${comment._id}-${reply._id}` ? (
                                         <div className="space-y-2 w-full max-w-full">
                                           <textarea
@@ -1432,7 +1512,6 @@ export default function ChatPost({
                                         />
                                       )}
                                       
-                                      {/* Reply actions */}
                                       <div className="flex items-center gap-4 mt-1">
                                         <button
                                           onClick={() => handleLikeReply(comment._id, reply._id)}
@@ -1462,7 +1541,7 @@ export default function ChatPost({
                     </div>
                   </div>
                 ))}
-                {/* Load more comments button */}
+                
                 {hasMore && (
                   <div className="mt-4 text-center">
                     <button
