@@ -124,7 +124,7 @@ const FloatingHeart = ({ x, y, onAnimationEnd }) => {
     <div 
       className="fixed z-50 pointer-events-none animate-ping"
       style={{ 
-        left: x - 15, 
+        left: Math.min(Math.max(x - 15, 10), window.innerWidth - 40), 
         top: y - 15,
         animationDuration: '1s',
         animationFillMode: 'forwards',
@@ -216,44 +216,59 @@ export default function ChatPost({
   }, [post]);
 
   useEffect(() => {
-    console.log('Setting up IntersectionObserver for post:', post._id);
-    
-    if (!post || !post._id) {
-      console.log('No post or post._id, skipping view tracking');
-      return;
-    }
-    
-    const node = postContainerRef.current;
-    if (!node) {
-      return;
-    }
+  console.log('Setting up IntersectionObserver for post:', post._id);
+  
+  if (!post || !post._id) {
+    console.log('No post or post._id, skipping view tracking');
+    return;
+  }
+  
+  const node = postContainerRef.current;
+  if (!node) {
+    return;
+  }
 
-    const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
-    const viewKey = `viewed_post_${originalPostId}`;
-    if (sessionStorage.getItem(viewKey)) {
-      return;
-    }
+  const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
+  const viewKey = `viewed_post_${originalPostId}`;
+  if (sessionStorage.getItem(viewKey)) {
+    return;
+  }
 
-    let hasViewed = false;
-    const observer = new window.IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !hasViewed) {
-            sessionStorage.setItem(viewKey, 'true');
-            onView(post._id);
-            hasViewed = true;
-            observer.disconnect();
-          }
-        });
-      },
-      { threshold: 0.3, rootMargin: '0px 0px -20% 0px' }
-    );
-    
-    observer.observe(node);
-    return () => {
-      observer.disconnect();
-    };
-  }, [post._id, onView, postContainerRef]);
+  let hasViewed = false;
+  let timeoutId = null;
+  
+  const observer = new window.IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !hasViewed) {
+          // Add a small delay to prevent immediate triggering when browser regains focus
+          timeoutId = setTimeout(() => {
+            if (!hasViewed && entry.target && entry.isIntersecting) {
+              sessionStorage.setItem(viewKey, 'true');
+              onView(post._id);
+              hasViewed = true;
+              observer.disconnect();
+            }
+          }, 100); // 100ms delay
+        }
+      });
+    },
+    { 
+      threshold: 0.5, // Increase threshold to 50% for more reliable detection
+      rootMargin: '0px', // Remove negative bottom margin to prevent scroll adjustments
+      // Add root to ensure we're using the correct scroll container
+      root: null // Uses the viewport as root
+    }
+  );
+  
+  observer.observe(node);
+  return () => {
+    observer.disconnect();
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  };
+}, [post._id, onView, postContainerRef]);
 
   useEffect(() => {
     const params = new URLSearchParams(search);
@@ -701,7 +716,7 @@ export default function ChatPost({
                 </div>
                 <Link
                   to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-                  className="font-bold text-gray-800 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                  className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
                 >
                   {post.author?.username || post.user}
                 </Link>
@@ -778,7 +793,7 @@ export default function ChatPost({
               </Link>
               <Link
                 to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-                className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
               >
                 {post.author?.username || post.user}
                 {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
@@ -848,7 +863,7 @@ export default function ChatPost({
                 </div>
               </div>
             ) : (
-              <div className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal w-full max-w-full">
+              <div className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words hyphens-auto w-full max-w-full overflow-wrap-anywhere">
                 {hasMoreThanThreeLines(localPost.content || '') && !showFullContent ? (
                   <>
                     <span 
@@ -1083,14 +1098,14 @@ export default function ChatPost({
               <div className="w-full max-w-full overflow-x-hidden">
                 {displayedComments.map((comment) => (
                   <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
-                    <div className="flex items-start gap-3 w-full max-w-full">
+                    <div className="flex items-start gap-3 w-full min-w-0">
                       <Link
                         to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
                         className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
                       >
                         <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
                       </Link>
-                      <div className="flex-1 min-w-0 max-w-full overflow-x-hidden">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2 mb-1">
                           <Link
                             to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
