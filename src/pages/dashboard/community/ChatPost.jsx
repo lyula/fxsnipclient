@@ -702,7 +702,7 @@ export default function ChatPost({
       <div
         ref={postContainerRef}
         data-post-id={post._id}
-        className="w-full max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
+        className="w-full max-w-[calc(100vw-1rem)] sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
       >
@@ -765,8 +765,8 @@ export default function ChatPost({
         {(post.image || post.video) && (
           <div
             ref={postRef}
-            className="overflow-hidden flex justify-center items-center"
-            style={{ maxWidth: "100%", maxHeight: "60vh" }}
+           className="overflow-hidden flex justify-center items-center w-full"
+style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
           >
             <MediaDisplay 
               imageUrl={post.image} 
@@ -895,7 +895,7 @@ export default function ChatPost({
             )}
           </div>
 
-          <div className="flex items-center gap-6 text-base mb-4 px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300">
+          <div className="flex items-center gap-3 sm:gap-6 text-base mb-4 px-2 sm:px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300 w-full max-w-full overflow-x-hidden">
             <div className="flex items-center gap-2">
               <button
                 onClick={handleLike}
