@@ -145,7 +145,8 @@ export default function ChatPost({
   currentUserVerified,
   showComments: forceShowComments = false,
   highlightedCommentId = null,
-  highlightedReplyId = null
+  highlightedReplyId = null,
+  scrollable = false // NEW PROP: only true in notification post view
 }) {
   // Keep existing state that's not comment/reply related
   const [showComments, setShowComments] = useState(forceShowComments);
@@ -475,7 +476,7 @@ export default function ChatPost({
       <div
         ref={postContainerRef}
         data-post-id={post._id}
-        className="w-full max-w-[calc(100vw-1rem)] sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out"
+        className={`w-full max-w-[calc(100vw-1rem)] sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
       >
@@ -1207,31 +1208,10 @@ export default function ChatPost({
                                             </div>
                                           </div>
                                         ) : (
-                                          <p 
-                                            className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
-                                          >
+                                          <p className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full">
                                             {renderHighlightedContent(reply.content)}
                                           </p>
                                         )}
-                                        
-                                        <div className="flex items-center gap-4 text-xs">
-                                          <button
-                                            onClick={() => replyHook.handleLikeReply(comment._id, reply._id)}
-                                            disabled={replyHook.loadingReplyLike[reply._id]}
-                                            className={`flex items-center gap-1 transition-colors ${
-                                              Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                                ? 'text-red-500'
-                                                : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                                            }`}
-                                            aria-label="Like reply"
-                                          >
-                                            {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                              ? <FaHeart /> 
-                                              : <FaRegHeart />
-                                            }
-                                            <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
-                                          </button>
-                                        </div>
                                       </div>
                                     </div>
                                   ))}
