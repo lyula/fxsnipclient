@@ -1,5 +1,5 @@
 import React from "react";
-import useUserStatus from "../../hooks/useUserStatus";
+import useUserStatus from "../hooks/useUserStatus";
 
 export default function UserStatus({ userId, token }) {
   const { online, lastSeen, typing } = useUserStatus(userId, token);
