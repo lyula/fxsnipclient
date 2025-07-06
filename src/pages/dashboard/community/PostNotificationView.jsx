@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation, Link } from "react-router-dom";
 import ChatPost from "./ChatPost";
 import { useDashboard } from "../../../context/dashboard";
+import { useAuth } from "../../../context/auth";
 import { FaArrowLeft } from "react-icons/fa";
 
 export default function PostNotificationView() {
@@ -9,6 +10,7 @@ export default function PostNotificationView() {
   const { postId } = useParams();
   const { search } = useLocation();
   const { communityPosts } = useDashboard();
+  const { user } = useAuth();
   const [post, setPost] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [openComments, setOpenComments] = React.useState(false);
@@ -68,10 +70,31 @@ export default function PostNotificationView() {
     }
   }, [highlightedCommentId, highlightedReplyId, loading]);
 
+  // Like handler for single post view
+  async function handleLike(postId) {
+    if (!user) return; // Optionally, redirect to login
+    try {
+      const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+      const res = await fetch(`${API_BASE}/posts/${postId}/like`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPost((prev) => ({ ...prev, likes: updated.likes }));
+      }
+    } catch (e) {
+      // Optionally show error
+    }
+  }
+
   // Theme-responsive wrapper for the whole page, no extra white space
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full max-w-full bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      <div className="w-full max-w-3xl mx-auto py-4 px-2 min-h-screen flex flex-col">
+      <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col px-2 min-h-0">
         {/* Top bar with back and feed link */}
         <div className="w-full flex items-center mb-4 gap-2">
           <button
@@ -97,6 +120,10 @@ export default function PostNotificationView() {
             showComments={openComments}
             highlightedCommentId={highlightedCommentId}
             highlightedReplyId={highlightedReplyId}
+            onLike={handleLike}
+            currentUserId={user?._id}
+            currentUsername={user?.username}
+            currentUserVerified={user?.verified}
           />
         ) : (
           <div className="text-center text-red-500 py-12">Post not found.</div>

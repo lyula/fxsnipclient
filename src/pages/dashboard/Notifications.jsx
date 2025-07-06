@@ -63,8 +63,15 @@ export default function NotificationsPage() {
     ) {
       let url = `/dashboard/community/post/${notification.post}`;
       const params = [];
-      if (notification.comment) params.push(`commentId=${notification.comment}`);
-      if (notification.reply) params.push(`replyId=${notification.reply}`);
+      // Always use the correct comment/reply IDs for comment/reply notifications
+      if ((notification.type === "comment" || notification.type === "mention") && notification.comment) {
+        params.push(`commentId=${notification.comment}`);
+      } else if ((notification.type === "reply" || notification.type === "like_reply") && notification.comment && notification.reply) {
+        params.push(`commentId=${notification.comment}`);
+        params.push(`replyId=${notification.reply}`);
+      } else if (notification.type === "like_comment" && notification.comment) {
+        params.push(`commentId=${notification.comment}`);
+      }
       if (params.length) url += `?${params.join("&")}`;
       navigate(url);
       return;

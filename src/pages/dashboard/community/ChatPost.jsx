@@ -428,6 +428,37 @@ export default function ChatPost({
     }
   }, [highlightedCommentId, highlightedReplyId, showComments]);
 
+  // Ensure correct comment/reply is visible and expanded for notifications
+  useEffect(() => {
+    // For comments: ensure the correct page is shown
+    if (highlightedCommentId && commentHook && localPost.comments) {
+      setShowComments(true);
+      const idx = localPost.comments.findIndex(c => String(c._id) === String(highlightedCommentId));
+      if (idx !== -1 && commentHook.commentsPerPage) {
+        const page = Math.floor(idx / commentHook.commentsPerPage);
+        if (typeof commentHook.setCurrentCommentPage === 'function') {
+          commentHook.setCurrentCommentPage(page);
+        }
+      }
+    }
+    // For replies: ensure the parent comment is expanded and the correct reply page is shown
+    if (highlightedReplyId && replyHook && localPost.comments) {
+      setShowComments(true);
+      const parentComment = localPost.comments.find(c => c.replies.some(r => String(r._id) === String(highlightedReplyId)));
+      if (parentComment && replyHook.setExpandedReplies) {
+        replyHook.setExpandedReplies(prev => ({ ...prev, [parentComment._id]: true }));
+        // Find the reply index and set the correct reply page
+        const replyIdx = parentComment.replies.findIndex(r => String(r._id) === String(highlightedReplyId));
+        if (replyIdx !== -1 && replyHook.repliesPerComment) {
+          const replyPage = Math.floor(replyIdx / replyHook.repliesPerComment) + 1;
+          if (typeof replyHook.setReplyPages === 'function') {
+            replyHook.setReplyPages(prev => ({ ...prev, [parentComment._id]: replyPage }));
+          }
+        }
+      }
+    }
+  }, [highlightedCommentId, highlightedReplyId, localPost.comments]);
+
   return (
     <>
       {floatingHearts.map(heart => (
