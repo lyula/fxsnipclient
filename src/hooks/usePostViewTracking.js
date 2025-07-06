@@ -110,41 +110,43 @@ export const usePostViewTracking = (post, onView, options = {}) => {
     const observerCallback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting && !hasViewedRef.current) {
-          // Enhanced checks to prevent unwanted triggers
+          // Only track views, NEVER trigger any scrolling or DOM manipulation
           const shouldTrackView = enableOnFocus || (
             isDocumentVisibleRef.current && 
-            !justBecameVisibleRef.current && // Don't track if user just returned to tab
-            !initialLoadRef.current // Don't track during initial page load
+            !justBecameVisibleRef.current &&
+            !initialLoadRef.current
           );
           
           if (!shouldTrackView) {
             return;
           }
 
-          // Debounce the view tracking with longer delay for safety
+          // Much longer debounce to ensure user has stopped scrolling
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
 
           timeoutRef.current = setTimeout(() => {
-            // Quadruple-check conditions before tracking
+            // Final check - only track view, don't do anything else
             if (!hasViewedRef.current && 
                 entry.target && 
                 entry.isIntersecting && 
                 !justBecameVisibleRef.current &&
                 !initialLoadRef.current &&
                 isDocumentVisibleRef.current) {
+              
+              // ONLY track the view - no scrolling, no DOM manipulation
               sessionStorage.setItem(viewKey, 'true');
-              onView(post._id);
+              onView(post._id); // This should ONLY update view count, nothing else
               hasViewedRef.current = true;
               
-              // Cleanup observer after successful view
+              // Cleanup observer
               if (observerRef.current) {
                 observerRef.current.disconnect();
                 observerRef.current = null;
               }
             }
-          }, Math.max(debounceDelay, 200)); // Minimum 200ms delay
+          }, 500); // Increased to 500ms to ensure smooth scrolling
         }
       });
     };

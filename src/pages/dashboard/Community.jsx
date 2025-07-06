@@ -57,9 +57,12 @@ export default function Community({ user }) {
   loadFreshFollowingContent
 } = useDashboard();
 
+
   // API base URL
   const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
 
+  // Add this line in Community.jsx after the useDashboard hook
+const showLoading = loadingStates.posts && communityPosts.length === 0;
   // Auth headers
   const authHeaders = {
     Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -282,7 +285,7 @@ const getOriginalPostId = (postId) => {
         
         const result = await loadInitialPosts();
         setCurrentOffset(result?.nextOffset || 20);
-        setHasMore(result?.hasMore !== false);
+        setHasMore(true); // Always enable infinite scroll for cycling content
       } catch (error) {
         console.error('Error loading initial posts:', error);
         setHasMore(false);
@@ -348,130 +351,132 @@ const getOriginalPostId = (postId) => {
     }
   };
 
-  // Enhanced scroll handler for for-you tab (existing logic)
-  useEffect(() => {
-    let ticking = false;
+  // Enhanced scroll handler for for-you tab (fixed infinite scroll)
+// Enhanced scroll handler for for-you tab (improved Load New Posts button logic)
+useEffect(() => {
+  let ticking = false;
+  let scrollTimeout;
+  
+  const handleScroll = async () => {
+    if (!containerRef.current || ticking || activeTab !== 'forYou') return;
     
-    const handleScroll = async () => {
-      if (!containerRef.current || isLoadingRef.current || ticking || activeTab !== 'forYou') return;
-      
-      ticking = true;
-      
-      requestAnimationFrame(async () => {
-        if (!containerRef.current) {
-          ticking = false;
-          return;
-        }
-        
-        const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-        const scrollBottom = scrollHeight - scrollTop - clientHeight;
-        const currentScrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
-        const scrollDelta = Math.abs(scrollTop - lastScrollTop);
-
-        if (scrollDelta > 2) {
-          setScrollDirection(currentScrollDirection);
-          setLastScrollTop(scrollTop);
-
-          if (scrollTop <= 20) {
-            setShowTabs(true);
-          } else if (currentScrollDirection === 'up' && scrollDelta > 5) {
-            setShowTabs(true);
-          } else if (currentScrollDirection === 'down' && scrollTop > 50 && scrollDelta > 10) {
-            setShowTabs(false);
-          }
-        }
-
-        // Track upward scroll distance for "Load New Posts" button
-        if (currentScrollDirection === 'up') {
-          setScrollUpDistance(prev => {
-            const newDistance = prev + scrollDelta;
-            if (newDistance > 100 && !showLoadNewButton && !isRefreshing && !isLoadingFresh) {
-              setShowLoadNewButton(true);
-              setTopScrollAttempts(prevAttempts => prevAttempts + 1);
-              if (buttonHideTimeout) {
-                clearTimeout(buttonHideTimeout);
-              }
-              const timeout = setTimeout(() => {
-                setShowLoadNewButton(false);
-                setScrollUpDistance(0);
-                setTopScrollAttempts(0);
-              }, 8000);
-              setButtonHideTimeout(timeout);
-            }
-            return newDistance;
-          });
-        } else if (currentScrollDirection === 'down') {
-          if (scrollTop > 100 && showLoadNewButton) {
-            setShowLoadNewButton(false);
-            if (buttonHideTimeout) {
-              clearTimeout(buttonHideTimeout);
-              setButtonHideTimeout(null);
-            }
-          }
-          setScrollUpDistance(0);
-          setTopScrollAttempts(0);
-        }
-
-        // Infinite scroll logic
-        if (scrollBottom < 500 && hasMore && !isLoadingRef.current) {
-          isLoadingRef.current = true;
-          setIsLoadingMore(true);
-          
-          const currentScrollHeight = scrollHeight;
-          const currentScrollTop = scrollTop;
-          
-          try {
-            const result = await loadMorePosts(currentOffset);
-            
-            if (result) {
-              if (result.hasMore === true) {
-                setHasMore(true);
-              } else if (!result.hasMore && cyclingInfo?.totalPostsInCycle > 0) {
-                console.log('End of posts reached, cycling back to start...');
-                setHasMore(true);
-                setCurrentOffset(0);
-                const cyclingResult = await loadMorePosts(0);
-                if (cyclingResult?.posts) {
-                  setCurrentOffset(cyclingResult.posts.length);
-                }
-              } else {
-                setHasMore(false);
-              }
-              
-              if (result.posts && result.posts.length > 0) {
-                setCurrentOffset(prev => prev + result.posts.length);
-                requestAnimationFrame(() => {
-                  if (containerRef.current && containerRef.current.scrollHeight > currentScrollHeight) {
-                    containerRef.current.scrollTop = currentScrollTop;
-                  }
-                });
-              }
-            } else {
-              setHasMore(false);
-            }
-          } catch (error) {
-            console.error('Error loading more posts:', error);
-          } finally {
-            setIsLoadingMore(false);
-            isLoadingRef.current = false;
-          }
-        }
-        
+    ticking = true;
+    
+    requestAnimationFrame(async () => {
+      if (!containerRef.current) {
         ticking = false;
-      });
-    };
+        return;
+      }
+      
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      const scrollBottom = scrollHeight - scrollTop - clientHeight;
+      const currentScrollDirection = scrollTop > lastScrollTop ? 'down' : 'up';
+      const scrollDelta = Math.abs(scrollTop - lastScrollTop);
 
-    const container = containerRef.current;
-    if (container && activeTab === 'forYou') {
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => {
-        container.removeEventListener('scroll', handleScroll);
-        if (buttonHideTimeout) {
-          clearTimeout(buttonHideTimeout);
+      // Only update UI elements, not scroll position
+      if (scrollDelta > 5) {
+        setScrollDirection(currentScrollDirection);
+        setLastScrollTop(scrollTop);
+
+        if (scrollTop <= 20) {
+          setShowTabs(true);
+        } else if (currentScrollDirection === 'up' && scrollDelta > 10) {
+          setShowTabs(true);
+        } else if (currentScrollDirection === 'down' && scrollTop > 50 && scrollDelta > 15) {
+          setShowTabs(false);
         }
-      };
-    }
-  }, [loadMorePosts, hasMore, cyclingInfo, lastScrollTop, showLoadNewButton, isRefreshing, isLoadingFresh, buttonHideTimeout, activeTab]);
+      }
+
+      // IMPROVED: Show button immediately when user reaches the very top
+      if (scrollTop === 0 && !showLoadNewButton && !isLoadingFresh) {
+        setShowLoadNewButton(true);
+        
+        if (buttonHideTimeout) clearTimeout(buttonHideTimeout);
+        const timeout = setTimeout(() => {
+          setShowLoadNewButton(false);
+        }, 15000); // Longer timeout when at top
+        setButtonHideTimeout(timeout);
+      }
+
+      // IMPROVED: More sensitive upward scroll detection for "Load New Posts" button
+      if (currentScrollDirection === 'up' && scrollDelta > 3) {
+        setScrollUpDistance(prev => {
+          const newDistance = prev + scrollDelta;
+          
+          // Show load button with much more sensitive conditions:
+          // 1. Any upward scroll when near top (within 200px), OR
+          // 2. Moderate upward scroll anywhere (30+ pixels total), OR
+          // 3. Small upward scroll very close to top (within 100px)
+          const shouldShowButton = 
+            (scrollTop < 200 && newDistance > 15) ||    // Very sensitive near top
+            (scrollTop < 500 && newDistance > 30) ||    // Moderate sensitivity mid-range
+            (newDistance > 50);                         // Any significant upward scroll
+          
+          if (shouldShowButton && !showLoadNewButton && !isLoadingFresh) {
+            setShowLoadNewButton(true);
+            
+            // Auto-hide after 12 seconds of no scrolling
+            if (buttonHideTimeout) clearTimeout(buttonHideTimeout);
+            const timeout = setTimeout(() => {
+              setShowLoadNewButton(false);
+              setScrollUpDistance(0);
+            }, 12000);
+            setButtonHideTimeout(timeout);
+          }
+          
+          return newDistance;
+        });
+      } else if (currentScrollDirection === 'down' && scrollDelta > 10) {
+        // Reset scroll distance and hide button when scrolling down significantly
+        setScrollUpDistance(0);
+        if (showLoadNewButton && scrollTop > 50) {
+          setShowLoadNewButton(false);
+          if (buttonHideTimeout) {
+            clearTimeout(buttonHideTimeout);
+            setButtonHideTimeout(null);
+          }
+        }
+      }
+
+      // FIXED: Load more content when user scrolls near bottom
+      if (scrollBottom < 500 && hasMore && !isLoadingRef.current && !loadingStates.posts) {
+        console.log('Loading more posts... scrollBottom:', scrollBottom, 'hasMore:', hasMore, 'currentOffset:', currentOffset);
+        isLoadingRef.current = true;
+        setIsLoadingMore(true);
+        
+        try {
+          const result = await loadMorePosts(currentOffset);
+          if (result) {
+            // Always allow more loading for cycling content
+            const newHasMore = result.hasMore !== false && 
+                             (result.posts?.length > 0 || result.cyclingInfo?.totalPostsInCycle > 0);
+            setHasMore(newHasMore);
+            setCurrentOffset(prev => prev + 20);
+            console.log('Loaded more posts, new offset:', currentOffset + 20, 'hasMore:', newHasMore);
+          }
+        } catch (error) {
+          console.error('Error loading more posts:', error);
+          // Don't stop infinite scroll on error, retry is possible
+          setHasMore(true);
+        } finally {
+          isLoadingRef.current = false;
+          setIsLoadingMore(false);
+        }
+      }
+
+      ticking = false;
+    });
+  };
+
+  const container = containerRef.current;
+  if (container && activeTab === 'forYou') {
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }
+}, [activeTab, hasMore, currentOffset, lastScrollTop, loadMorePosts, buttonHideTimeout, loadingStates.posts, showLoadNewButton, isLoadingFresh]);
 
   // Enhanced following tab scroll handler
   useEffect(() => {
@@ -750,6 +755,8 @@ const getOriginalPostId = (postId) => {
   }, [API_BASE, deletePost]);
 
   const handleLoadFreshPosts = async () => {
+    const container = containerRef.current;
+    
     setIsLoadingFresh(true);
     setShowLoadNewButton(false);
     setScrollUpDistance(0);
@@ -760,15 +767,34 @@ const getOriginalPostId = (postId) => {
     }
     
     try {
+      console.log('Loading fresh content...');
       const result = await loadFreshContent();
-      setCurrentOffset(result?.nextOffset || 20);
-      setHasMore(true);
+      console.log('Fresh content result:', result);
       
-      if (containerRef.current) {
-        containerRef.current.scrollTop = 0;
+      if (result?.hasNewContent && result?.trulyNewContentCount > 0) {
+        // Fresh posts were actually added, update offset to account for new posts
+        const newPostsCount = result.trulyNewContentCount || 0;
+        setCurrentOffset(prev => prev + newPostsCount);
+        setHasMore(true);
+        
+        // Scroll to top to show the new posts
+        if (container) {
+          container.scrollTop = 0;
+        }
+        
+        console.log('Fresh content loaded:', newPostsCount, 'truly new posts added');
+      } else {
+        // No new posts available, just scroll to top to show latest existing posts
+        if (container) {
+          container.scrollTop = 0;
+        }
+        
+        console.log('No new posts found, scrolled to top of existing content');
       }
       
-      console.log('Fresh content loaded:', result?.posts?.length || 0, 'posts');
+      // Always ensure hasMore is true to maintain cycling
+      setHasMore(true);
+      
     } catch (error) {
       console.error('Error loading fresh posts:', error);
     } finally {
@@ -776,38 +802,50 @@ const getOriginalPostId = (postId) => {
     }
   };
 
+  // Enhanced scroll preservation that prevents jumping
   const preserveScrollPosition = useCallback((callback) => {
     const container = getCurrentContainer();
     if (!container) return callback();
     
     const scrollTop = container.scrollTop;
     const scrollHeight = container.scrollHeight;
+    const isUserScrolling = Math.abs(scrollTop - lastScrollTop) > 5;
+    
+    // Don't preserve scroll if user is actively scrolling
+    if (isUserScrolling) {
+      callback();
+      return;
+    }
     
     callback();
     
+    // Only preserve scroll position if content was added above the viewport
     requestAnimationFrame(() => {
-      if (container.scrollHeight !== scrollHeight) {
-        container.scrollTop = scrollTop;
+      if (container.scrollHeight !== scrollHeight && scrollTop > 100) {
+        const heightDifference = container.scrollHeight - scrollHeight;
+        container.scrollTop = scrollTop + heightDifference;
       }
     });
-  }, [getCurrentContainer]);
+  }, [getCurrentContainer, lastScrollTop]);
 
-  const showLoading = loadingStates.posts && communityPosts.length === 0;
-
+  // Remove the problematic useEffect that was causing scroll jumping
+  // Replace it with this more controlled version:
   useEffect(() => {
     const container = getCurrentContainer();
     if (!container) return;
     
-    const currentScrollTop = container.scrollTop;
-    
-    const timeoutId = setTimeout(() => {
-      if (container && currentScrollTop > 0) {
-        container.scrollTop = currentScrollTop;
-      }
-    }, 10);
-    
-    return () => clearTimeout(timeoutId);
-  }, [communityPosts.length, followingPosts.length, getCurrentContainer]);
+    // Only manage scroll position during initial load, not during user interaction
+    if (communityPosts.length === 0 || followingPosts.length === 0) {
+      const timeoutId = setTimeout(() => {
+        if (container && container.scrollTop === 0) {
+          // Only set to top if we're already at the top
+          container.scrollTop = 0;
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [getCurrentContainer, communityPosts.length, followingPosts.length]);
 
   return (
     <div 
@@ -908,11 +946,7 @@ const getOriginalPostId = (postId) => {
             
             {!isLoadingMore && communityPosts.length > 0 && (
               <div className="p-6 text-center">
-                {isLoadingMore ? (
-                  <p className="text-gray-400 dark:text-gray-500 text-xs">
-                    Loading more content...
-                  </p>
-                ) : cyclingInfo?.isRepeatingContent ? (
+                {cyclingInfo?.isRepeatingContent ? (
                   <p className="text-blue-400 dark:text-blue-300 text-xs">
                     🔄 Cycling through posts (Round {cyclingInfo.completedCycles + 1})
                   </p>

@@ -165,9 +165,9 @@ const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, dire
       const data = await res.json();
       setCyclingInfo(data.cyclingInfo);
       
-      // STRICT RULE: Only replace posts if this is a user-initiated refresh/load fresh
-      // Do NOT replace posts on initial loads or infinite scroll
-      if ((refresh && offset === 0) || (loadFresh && offset === 0) || direction === 'fresh') {
+      // STRICT RULE: Only replace posts if this is a user-initiated refresh
+      // Do NOT replace posts on initial loads, infinite scroll, or loadFresh calls
+      if ((refresh && offset === 0) && !loadFresh && direction !== 'fresh') {
         setCommunityPosts(prev => {
           // For user-initiated refresh, preserve optimistic posts
           const optimisticPosts = prev.filter(post => post.isOptimistic);
@@ -176,6 +176,7 @@ const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, dire
           return [...optimisticPosts, ...newPosts];
         });
       }
+      // For loadFresh and direction === 'fresh', let loadFreshContent handle the prepending
       // For all other cases (initial load, infinite scroll), do NOT touch the posts array
       
       return data;
@@ -286,22 +287,21 @@ const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, dire
   }, []);
 
  // Update a specific post
-const updatePost = useCallback((postId, updatedPost) => {
-  // Update community posts - DON'T sort, preserve the current position
-  setCommunityPosts(prev => 
-    prev.map(post => 
-      post._id === postId ? updatedPost : post
-    )
-    // Remove the .sort() to preserve position in the array
-  );
-  
-  // Also update following posts if the post exists there - DON'T sort
-  setFollowingPosts(prev => 
-    prev.map(post => 
-      post._id === postId ? updatedPost : post
-    )
-    // Remove the .sort() to preserve position in the array
-  );
+const updatePost = useCallback((postId, updatedData) => {
+  // Use React.startTransition to make updates non-blocking
+  React.startTransition(() => {
+    setCommunityPosts(prev => 
+      prev.map(post => 
+        post._id === postId ? { ...post, ...updatedData } : post
+      )
+    );
+    
+    setFollowingPosts(prev => 
+      prev.map(post => 
+        post._id === postId ? { ...post, ...updatedData } : post
+      )
+    );
+  });
 }, []);
 
   // Delete a post
@@ -377,9 +377,14 @@ const updatePost = useCallback((postId, updatedPost) => {
   // Add infinite scroll functions
   const loadMorePosts = useCallback(async (currentOffset) => {
   if (loadingStates.posts) return { hasMore: true, posts: [] };
+  
+  console.log('loadMorePosts called with offset:', currentOffset);
   setLoadingStates(prev => ({ ...prev, posts: true }));
+  
   try {
     const result = await fetchCommunityPosts(false, currentOffset, 'down');
+    console.log('fetchCommunityPosts result:', result);
+    
     if (result?.cyclingInfo) {
       setCyclingInfo(result.cyclingInfo);
     }
@@ -397,6 +402,8 @@ const updatePost = useCallback((postId, updatedPost) => {
               _cycleNumber: result.cyclingInfo.completedCycles
             }))
           : result.posts.filter(post => !existingPostIds.has(post._id));
+        
+        console.log('Adding', newPosts.length, 'new posts to feed');
         if (newPosts.length > 0) {
           return [...prev, ...newPosts];
         }
@@ -404,11 +411,22 @@ const updatePost = useCallback((postId, updatedPost) => {
       });
     }
     
+    // Always return hasMore as true for cycling content or when we have posts
+    const hasMorePosts = result.hasMore === true || 
+                        (result.cyclingInfo?.totalPostsInCycle > 0) || 
+                        (result.posts && result.posts.length > 0) ||
+                        true; // Always enable infinite scroll for cycling
+    
+    console.log('loadMorePosts returning hasMore:', hasMorePosts, 'cyclingInfo:', result.cyclingInfo);
+    
     return {
       ...result,
       posts: result.posts,
-      hasMore: result.hasMore === true || (result.cyclingInfo?.totalPostsInCycle > 0)
+      hasMore: hasMorePosts
     };
+  } catch (error) {
+    console.error('Error in loadMorePosts:', error);
+    return { hasMore: false, posts: [] };
   } finally {
     setLoadingStates(prev => ({ ...prev, posts: false }));
   }
@@ -472,32 +490,98 @@ const updatePost = useCallback((postId, updatedPost) => {
     return result;
   }, [fetchCommunityPosts]);
 
-  // Enhanced loadFreshContent function to get truly fresh posts from database
+  // Enhanced loadFreshContent function that properly handles new posts
   const loadFreshContent = useCallback(async () => {
+    console.log('🔄 loadFreshContent called');
     try {
       setLoadingStates(prev => ({ ...prev, posts: true }));
       const result = await fetchCommunityPosts(false, 0, 'fresh', true);
+      console.log('📡 fetchCommunityPosts result:', result);
+      
       if (result?.cyclingInfo) {
         setCyclingInfo(result.cyclingInfo);
       }
-     if (result?.posts) {
-  const sortedFreshPosts = result.posts.sort((a, b) => 
-    new Date(b.createdAt) - new Date(a.createdAt)
-  );
-  setCommunityPosts(prev => {
-    // Preserve optimistic posts when loading fresh content
-    const optimisticPosts = prev.filter(post => post.isOptimistic);
-    return [...optimisticPosts, ...sortedFreshPosts];
-  });
-}
-      return result;
+      
+      if (result?.posts && result.posts.length > 0) {
+        const sortedFreshPosts = result.posts.sort((a, b) => 
+          new Date(b.createdAt) - new Date(a.createdAt)
+        );
+        console.log('📝 Sorted fresh posts:', sortedFreshPosts.length);
+        
+        let trulyNewPostsCount = 0;
+        
+        setCommunityPosts(prev => {
+          console.log('🔧 Current posts before update:', prev.length);
+          
+          // Preserve optimistic posts at the very top
+          const optimisticPosts = prev.filter(post => post.isOptimistic);
+          console.log('✨ Optimistic posts:', optimisticPosts.length);
+          
+          // Get existing non-optimistic posts
+          const existingPosts = prev.filter(post => !post.isOptimistic);
+          console.log('📚 Existing posts:', existingPosts.length);
+          
+          // Filter out any fresh posts that might already be in the feed
+          const existingPostIds = new Set(existingPosts.map(post => 
+            post._originalId || post._id
+          ));
+          console.log('🔍 Existing post IDs:', existingPostIds.size);
+          
+          const trulyNewPosts = sortedFreshPosts.filter(post => 
+            !existingPostIds.has(post._id)
+          );
+          console.log('🆕 Truly new posts found:', trulyNewPosts.length);
+          
+          // Store the count for the return value
+          trulyNewPostsCount = trulyNewPosts.length;
+          
+          if (trulyNewPosts.length > 0) {
+            // Prepend new posts after optimistic posts but before existing posts
+            const combinedPosts = [...optimisticPosts, ...trulyNewPosts, ...existingPosts];
+            console.log(`✅ Added ${trulyNewPosts.length} new posts to top of feed. Total posts: ${combinedPosts.length}`);
+            return combinedPosts;
+          } else {
+            // No new posts, keep existing feed unchanged
+            console.log('⏭️ No new posts found, keeping existing feed intact');
+            return prev;
+          }
+        });
+        
+        // Return info about fresh posts found
+        const returnValue = {
+          ...result,
+          freshContentCount: sortedFreshPosts.length,
+          trulyNewContentCount: trulyNewPostsCount,
+          hasNewContent: trulyNewPostsCount > 0
+        };
+        console.log('📊 Return value:', returnValue);
+        return returnValue;
+      } else {
+        // No fresh posts found, return existing state info
+        console.log('❌ No fresh posts available');
+        return {
+          posts: [],
+          hasMore: true,
+          nextOffset: 20,
+          freshContentCount: 0,
+          trulyNewContentCount: 0,
+          hasNewContent: false
+        };
+      }
     } catch (error) {
-      console.error("Error loading fresh content:", error);
-      return { posts: [], hasMore: false, nextOffset: 0, freshContentCount: 0 };
+      console.error("❌ Error loading fresh content:", error);
+      return { 
+        posts: [], 
+        hasMore: true, 
+        nextOffset: 20, 
+        freshContentCount: 0,
+        trulyNewContentCount: 0,
+        hasNewContent: false 
+      };
     } finally {
       setLoadingStates(prev => ({ ...prev, posts: false }));
     }
-  }, [fetchCommunityPosts]);
+  }, [fetchCommunityPosts, communityPosts]);
 
   // Load newer following posts (equivalent to loadNewerPosts but for following)
   const loadNewerFollowingPosts = useCallback(async (forceFresh = false) => {

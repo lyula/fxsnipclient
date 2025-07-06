@@ -8,6 +8,8 @@ import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePos
 import { formatPostDate } from '../../../utils/formatDate';
 import MentionInput from "../../../components/common/MentionInput";
 import { usePostViewTracking } from '../../../hooks/usePostViewTracking'; 
+import { useComments } from '../../../hooks/useComments';
+import { useReplies } from '../../../hooks/useReplies';
 
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
@@ -37,8 +39,6 @@ function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = ""
     </div>
   );
 }
-
-
 
 function renderHighlightedContent(content) {
   if (!content) return "";
@@ -149,40 +149,27 @@ export default function ChatPost({
   currentUsername,
   currentUserVerified
 }) {
+  // Keep existing state that's not comment/reply related
   const [showComments, setShowComments] = useState(false);
   const [activeReply, setActiveReply] = useState(null);
-  const [expandedReplies, setExpandedReplies] = useState(null);
   const [comment, setComment] = useState("");
   const [loadingComment, setLoadingComment] = useState(false);
-  const [loadingReply, setLoadingReply] = useState({});
-  const [loadingCommentLike, setLoadingCommentLike] = useState({});
-  const [loadingReplyLike, setLoadingReplyLike] = useState({});
   const [localPost, setLocalPost] = useState(post);
   const [error, setError] = useState(null);
   const [showCommentInput, setShowCommentInput] = useState(true);
   const [editingPost, setEditingPost] = useState(false);
-  const [editingComment, setEditingComment] = useState(null);
-  const [editingReply, setEditingReply] = useState(null);
   const [editPostContent, setEditPostContent] = useState("");
-  const [editCommentContent, setEditCommentContent] = useState("");
-  const [editReplyContent, setEditReplyContent] = useState("");
   const [showPostMenu, setShowPostMenu] = useState(false);
-  const [showCommentMenus, setShowCommentMenus] = useState({});
-  const [showReplyMenus, setShowReplyMenus] = useState({});
   const [showFullContent, setShowFullContent] = useState(false);
   const [commentSortType, setCommentSortType] = useState('newest');
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [commentsPerPage, setCommentsPerPage] = useState(5);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [loadingMoreComments, setLoadingMoreComments] = useState(false);
-  const [hasMoreComments, setHasMoreComments] = useState(true);
   const [floatingHearts, setFloatingHearts] = useState([]);
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [lastTap, setLastTap] = useState(0);
   const [showLikes, setShowLikes] = useState(false);
   const [likesUsers, setLikesUsers] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
-  const [hiddenReplies, setHiddenReplies] = useState({});
+  
   const postContainerRef = useRef(null);
   const commentsRef = useRef(null);
   const postRef = useRef(null);
@@ -195,12 +182,14 @@ export default function ChatPost({
     ? localPost.likes.map(String).includes(String(currentUserId))
     : false;
 
-  const sortedComments = sortComments(localPost.comments || [], commentSortType);
-  const totalComments = sortedComments.length;
-  const startIndex = 0;
-  const endIndex = currentPage * commentsPerPage;
-  const displayedComments = sortedComments.slice(startIndex, endIndex);
-  const hasMore = endIndex < totalComments;
+  const commentHook = useComments(localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified);
+  const replyHook = useReplies(localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified);
+
+  // Use hook functions and state
+  const displayedComments = commentHook.getDisplayedComments(commentSortType, sortComments);
+  const commentDisplayInfo = commentHook.getCommentDisplayInfo();
+  const totalComments = localPost.comments?.length || 0;
+  const hasMore = commentDisplayInfo.hasMoreComments;
 
   const canEditDelete = (authorId) => {
     return String(authorId) === String(currentUserId);
@@ -216,20 +205,20 @@ export default function ChatPost({
     setShowFullContent(false);
   }, [post]);
 
- // Use the new post view tracking hook
-const { attachObserver } = usePostViewTracking(post, onView, {
-  threshold: 0.5,
-  rootMargin: '0px',
-  enableOnFocus: false, // This prevents auto-scroll on browser return!
-  debounceDelay: 150
-});
+  // Use the new post view tracking hook
+  const { attachObserver } = usePostViewTracking(post, onView, {
+    threshold: 0.5,
+    rootMargin: '0px',
+    enableOnFocus: false,
+    debounceDelay: 150
+  });
 
-// Attach observer when component mounts and container is ready
-useEffect(() => {
-  if (postContainerRef.current && post._id) {
-    attachObserver(postContainerRef.current);
-  }
-}, [post._id, attachObserver]);
+  // Attach observer when component mounts and container is ready
+  useEffect(() => {
+    if (postContainerRef.current && post._id) {
+      attachObserver(postContainerRef.current);
+    }
+  }, [post._id, attachObserver]);
 
   useEffect(() => {
     const params = new URLSearchParams(search);
@@ -237,11 +226,6 @@ useEffect(() => {
       setShowComments(true);
     }
   }, [search]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-    setHasMoreComments(true);
-  }, [commentSortType]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -253,121 +237,30 @@ useEffect(() => {
       );
 
       if (isOutsideCommentMenus) {
-        setShowCommentMenus({});
+        commentHook.setShowCommentMenus({});
       }
       if (isOutsideReplyMenus) {
-        setShowReplyMenus({});
+        replyHook.setShowReplyMenus({});
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [commentHook, replyHook]);
 
-  const loadMoreComments = async () => {
-    if (!hasMore || loadingMoreComments) return;
+  // Use hook functions for comment operations
+  const handleCommentSubmit = (e) => {
+    e.preventDefault();
+    if (!comment.trim()) return;
     
-    setLoadingMoreComments(true);
-    
-    setTimeout(() => {
-      setCurrentPage(prev => prev + 1);
-      setLoadingMoreComments(false);
-      setHasMoreComments(endIndex + commentsPerPage < totalComments);
-    }, 500);
+    commentHook.handleCommentSubmit(e, comment, setComment, loadingComment, setLoadingComment, setError, onComment);
   };
 
- const handleCommentSubmit = async (e) => {
-  e.preventDefault();
-  if (!comment.trim()) return;
-  setLoadingComment(true);
-  setError(null);
-
-  const tempComment = {
-    _id: `temp-comment-${Date.now()}`,
-    content: comment,
-    user: currentUserId,
-    author: { username: currentUsername, verified: currentUserVerified },
-    createdAt: new Date().toISOString(),
-    replies: [],
-    likes: [],
-  };
-
-  setLocalPost(prev => ({
-    ...prev,
-    comments: [tempComment, ...(prev.comments || [])],
-  }));
-
-  try {
-    const res = await addCommentToPost(localPost._id, comment);
-    if (res && res.comment && !res.error) {
-      setLocalPost(prev => ({
-        ...prev,
-        comments: [res.comment, ...prev.comments.filter(c => !c._id.startsWith('temp-comment'))],
-      }));
-    } else {
-      if (onComment) {
-        const updatedPost = await onComment();
-        if (updatedPost) setLocalPost(updatedPost);
-      }
-    }
-  } catch (e) {
-    if (e.message && e.message.includes("Network Error")) {
-      setError("Network error: Failed to post comment");
-    }
-    if (onComment) {
-      try {
-        const updatedPost = await onComment();
-        if (updatedPost) setLocalPost(updatedPost);
-      } catch (fetchError) {}
-    }
-  } finally {
-    setLoadingComment(false);
-    setComment("");
-  }
-};
-
-  const handleReply = async (postId, replyText, commentId) => {
-  setLoadingReply(prev => ({ ...prev, [commentId]: true }));
-  setError(null);
-
-  const tempReply = {
-    _id: `temp-reply-${Date.now()}`,
-    content: replyText,
-    user: currentUserId,
-    author: { username: currentUsername, verified: currentUserVerified },
-    createdAt: new Date().toISOString(),
-    likes: [],
-  };
-
-  setLocalPost(prev => ({
-    ...prev,
-    comments: prev.comments.map(c =>
-      c._id === commentId
-        ? { ...c, replies: [tempReply, ...(c.replies || [])] }
-        : c
-    ),
-  }));
-
-  try {
-    if (onReply) {
-      const updatedPost = await onReply(postId, replyText, commentId);
-      if (updatedPost) setLocalPost(updatedPost);
-    }
-  } catch (e) {
-    if (e.message && e.message.includes("Network Error")) {
-      setError("Network error: Failed to post reply");
-    }
-    if (onComment) {
-      try {
-        const updatedPost = await onComment();
-        if (updatedPost) setLocalPost(updatedPost);
-      } catch (fetchError) {}
-    }
-  } finally {
-    setLoadingReply(prev => ({ ...prev, [commentId]: false }));
+  // Use hook functions for reply operations
+  const handleReply = (postId, replyText, commentId) => {
+    replyHook.handleReply(postId, replyText, commentId, onReply, onComment, setError);
     setActiveReply(null);
-  }
-};
+  };
 
   const handleLike = async (e) => {
     if (e) {
@@ -395,6 +288,8 @@ useEffect(() => {
     }
 
     const newLiked = !liked;
+    
+    // Update the likes count optimistically
     setLocalPost(prev => ({
       ...prev,
       likes: newLiked 
@@ -402,14 +297,59 @@ useEffect(() => {
         : (Array.isArray(prev.likes) ? prev.likes.filter(id => String(id) !== String(currentUserId)) : [])
     }));
 
+    // Update the likers list optimistically if it's loaded
+    if (likesUsers.length > 0) {
+      if (newLiked) {
+        // Add current user to the likers list
+        const currentUser = {
+          _id: currentUserId,
+          username: currentUsername,
+          verified: currentUserVerified
+        };
+        setLikesUsers(prev => {
+          // Don't add if already exists
+          if (prev.some(user => String(user._id) === String(currentUserId))) {
+            return prev;
+          }
+          return [currentUser, ...prev];
+        });
+      } else {
+        // Remove current user from the likers list
+        setLikesUsers(prev => prev.filter(user => String(user._id) !== String(currentUserId)));
+      }
+    }
+
     try {
       await onLike(post._id);
+      console.log('Post like API success');
     } catch (error) {
       console.error("Error in handleLike:", error);
+      // Revert the optimistic updates on error
       setLocalPost(prev => ({
         ...prev,
         likes: post.likes
       }));
+      
+      // Revert the likers list on error
+      if (likesUsers.length > 0) {
+        if (newLiked) {
+          // Remove the user we optimistically added
+          setLikesUsers(prev => prev.filter(user => String(user._id) !== String(currentUserId)));
+        } else {
+          // Add back the user we optimistically removed
+          const currentUser = {
+            _id: currentUserId,
+            username: currentUsername,
+            verified: currentUserVerified
+          };
+          setLikesUsers(prev => {
+            if (prev.some(user => String(user._id) === String(currentUserId))) {
+              return prev;
+            }
+            return [currentUser, ...prev];
+          });
+        }
+      }
     }
   };
 
@@ -464,187 +404,6 @@ useEffect(() => {
       }
     }
     setShowPostMenu(false);
-  };
-
-  const handleEditComment = (commentId, content) => {
-  console.log('handleEditComment called:', commentId, content); // Debug
-  setEditingComment(commentId);
-  setEditCommentContent(content);
-};
-
-  // Fixed handleSaveCommentEdit function
-  const handleSaveCommentEdit = async (commentId) => {
-  if (!editCommentContent.trim()) return;
-  
-  try {
-    const response = await editComment(localPost._id, commentId, editCommentContent);
-    
-    // Check if response has error field, or if it's a successful response (has _id)
-    if (response && !response.error && response._id) {
-      // Update with the response from server which has the updated comments
-      setLocalPost(response);
-      setEditingComment(null);
-      setEditCommentContent('');
-    } else {
-      console.error('Failed to edit comment:', response?.error || 'Unknown error');
-      alert('Failed to edit comment. Please try again.');
-    }
-  } catch (error) {
-    console.error('Failed to edit comment:', error);
-    alert('Failed to edit comment. Please try again.');
-  }
-};
-
-  const handleDeleteComment = async (commentId) => {
-  console.log('handleDeleteComment called:', commentId); // Debug
-  if (window.confirm('Are you sure you want to delete this comment?')) {
-    try {
-      const response = await deleteComment(localPost._id, commentId);
-      
-      if (response && !response.error && response._id) {
-        setLocalPost(response);
-        console.log('Comment deleted successfully'); // Debug
-      } else {
-        console.error('Failed to delete comment:', response?.error || 'Unknown error');
-        alert('Failed to delete comment. Please try again.');
-      }
-    } catch (error) {
-      console.error('Failed to delete comment:', error);
-      alert('Failed to delete comment. Please try again.');
-    }
-  }
-};
-
-  const handleEditReply = (commentId, replyId, content) => {
-  console.log('handleEditReply called:', commentId, replyId, content); // Debug
-  setEditingReply(`${commentId}-${replyId}`);
-  setEditReplyContent(content);
-};
-
-  // Fixed handleSaveReplyEdit function
-  const handleSaveReplyEdit = async (commentId, replyId) => {
-  if (!editReplyContent.trim()) return;
-  
-  try {
-    const response = await editReply(localPost._id, commentId, replyId, editReplyContent);
-    
-    if (response && !response.error && response._id) {
-      // Update with the response from server which has the updated comments/replies
-      setLocalPost(response);
-      setEditingReply(null);
-      setEditReplyContent('');
-    } else {
-      console.error('Failed to edit reply:', response?.error || 'Unknown error');
-      alert('Failed to edit reply. Please try again.');
-    }
-  } catch (error) {
-    console.error('Failed to edit reply:', error);
-    alert('Failed to edit reply. Please try again.');
-  }
-};
-
-  const handleCancelCommentEdit = () => {
-  setEditingComment(null);
-  setEditCommentContent('');
-  // Don't manipulate menu state here
-};
-
-  const handleCancelReplyEdit = () => {
-  setEditingReply(null);
-  setEditReplyContent('');
-  // Don't manipulate menu state here
-};
-
-  const handleDeleteReply = async (commentId, replyId) => {
-  console.log('handleDeleteReply called:', commentId, replyId); // Debug
-  if (window.confirm('Are you sure you want to delete this reply?')) {
-    try {
-      const response = await deleteReply(localPost._id, commentId, replyId);
-      
-      if (response && !response.error && response._id) {
-        setLocalPost(response);
-        console.log('Reply deleted successfully'); // Debug
-      } else {
-        console.error('Failed to delete reply:', response?.error || 'Unknown error');
-        alert('Failed to delete reply. Please try again.');
-      }
-    } catch (error) {
-      console.error('Failed to delete reply:', error);
-      alert('Failed to delete reply. Please try again.');
-    }
-  }
-  // Don't close menu here - let the onClick handler do it
-};
-
-  const handleLikeComment = async (commentId) => {
-    setLoadingCommentLike(prev => ({ ...prev, [commentId]: true }));
-    
-    try {
-      await likeComment(localPost._id, commentId);
-      setLocalPost(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => {
-          if (c._id === commentId) {
-            const currentLikes = Array.isArray(c.likes) ? c.likes : [];
-            const userLiked = currentLikes.map(String).includes(String(currentUserId));
-            return {
-              ...c,
-              likes: userLiked 
-                ? currentLikes.filter(id => String(id) !== String(currentUserId))
-                : [...currentLikes, currentUserId]
-            };
-          }
-          return c;
-        })
-      }));
-    } catch (error) {
-      console.error('Failed to like comment:', error);
-    } finally {
-      setLoadingCommentLike(prev => ({ ...prev, [commentId]: false }));
-    }
-  };
-
-  const handleLikeReply = async (commentId, replyId) => {
-    setLoadingReplyLike(prev => ({ ...prev, [replyId]: true }));
-    
-    try {
-      await likeReply(localPost._id, commentId, replyId);
-      setLocalPost(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => {
-          if (c._id === commentId) {
-            return {
-              ...c,
-              replies: c.replies.map(r => {
-                if (r._id === replyId) {
-                  const currentLikes = Array.isArray(r.likes) ? r.likes : [];
-                  const userLiked = currentLikes.map(String).includes(String(currentUserId));
-                  return {
-                    ...r,
-                    likes: userLiked 
-                      ? currentLikes.filter(id => String(id) !== String(currentUserId))
-                      : [...currentLikes, currentUserId]
-                  };
-                }
-                return r;
-              })
-            };
-          }
-          return c;
-        })
-      }));
-    } catch (error) {
-      console.error('Failed to like reply:', error);
-    } finally {
-      setLoadingReplyLike(prev => ({ ...prev, [replyId]: false }));
-    }
-  };
-
-  const toggleRepliesVisibility = (commentId) => {
-    setHiddenReplies(prev => ({
-      ...prev,
-      [commentId]: !prev[commentId]
-    }));
   };
 
   return (
@@ -726,8 +485,8 @@ useEffect(() => {
         {(post.image || post.video) && (
           <div
             ref={postRef}
-           className="overflow-hidden flex justify-center items-center w-full"
-style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
+            className="overflow-hidden flex justify-center items-center w-full"
+            style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
           >
             <MediaDisplay 
               imageUrl={post.image} 
@@ -826,7 +585,7 @@ style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
             ) : (
               <div className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words hyphens-auto w-full max-w-full overflow-wrap-anywhere">
                 {hasMoreThanThreeLines(localPost.content || '') && !showFullContent ? (
-                  <>
+                  <> 
                     <span 
                       dangerouslySetInnerHTML={{ __html: renderHighlightedContent(getFirstLine(localPost.content || '')) }}
                     />
@@ -856,6 +615,7 @@ style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
             )}
           </div>
 
+          {/* Interaction Bar */}
           <div className="flex items-center gap-3 sm:gap-6 text-base mb-4 px-2 sm:px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300 w-full max-w-full overflow-x-hidden">
             <div className="flex items-center gap-2">
               <button
@@ -909,28 +669,24 @@ style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
                 setShowComments((prev) => !prev);
               }}
               className="flex items-center gap-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 active:scale-95"
-              aria-label="Show comments"
             >
               <FaRegCommentDots className="transition-transform duration-200 hover:scale-110" />
               <span className="font-semibold">
-                {Array.isArray(localPost.comments)
-                  ? localPost.comments.reduce(
-                      (total, comment) =>
-                        total +
-                        1 +
-                        (Array.isArray(comment.replies) ? comment.replies.length : 0),
-                      0
-                    )
-                  : 0}
+                {localPost.comments?.reduce(
+                  (total, comment) =>
+                    total + 1 + (Array.isArray(comment.replies) ? comment.replies.length : 0),
+                  0
+                ) || 0}
               </span>
             </button>
 
-            <span className="flex items-center gap-2 text-gray-400 dark:text-gray-500 ml-auto">
+            <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 ml-auto">
               <FaChartBar className="transition-transform duration-200 hover:scale-110" />
               <span className="font-semibold">{localPost.views || 0}</span>
-            </span>
+            </div>
           </div>
 
+          {/* Likes Display */}
           {showLikes && (
             <div className="mt-4 relative w-full max-w-full overflow-x-hidden">
               <div className="flex justify-between items-center mb-3">
@@ -981,6 +737,7 @@ style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
             </div>
           )}
 
+          {/* Comments Section */}
           {showComments && !showLikes && (
             <div className="mt-4 relative w-full max-w-full overflow-x-hidden" ref={commentsRef}>
               <div className="flex justify-between items-center mb-3">
@@ -1008,7 +765,7 @@ style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
                                 setShowSortMenu(false);
                               }}
                               className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                                commentSortType === sortOption 
+                                commentSortType === sortOption
                                   ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
                                   : 'text-gray-700 dark:text-gray-300'
                               }`}
@@ -1056,303 +813,382 @@ style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
                 </div>
               )}
               
+              {/* Navigation controls for comments pagination - moved to top for better UX */}
+              {(commentDisplayInfo.hasPreviousComments || commentDisplayInfo.hasMoreComments) && (
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  {commentDisplayInfo.hasPreviousComments && (
+                    <button
+                      onClick={commentHook.loadPreviousComments}
+                      disabled={commentHook.loadingMoreComments}
+                      className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                    >
+                      {commentHook.loadingMoreComments ? 'Loading...' : '← Previous 10'}
+                    </button>
+                  )}
+                  
+                  {/* Show current page info */}
+                  {commentDisplayInfo.totalComments > commentHook.commentsPerPage && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Page {commentDisplayInfo.currentPage} of {Math.ceil(commentDisplayInfo.totalComments / commentHook.commentsPerPage)}
+                    </span>
+                  )}
+                  
+                  {commentDisplayInfo.hasMoreComments && (
+                    <button
+                      onClick={commentHook.loadMoreComments}
+                      disabled={commentHook.loadingMoreComments}
+                      className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg"
+                    >
+                      {commentHook.loadingMoreComments ? 'Loading...' : 'Next 10 →'}
+                    </button>
+                  )}
+                </div>
+              )}
+
               <div className="w-full max-w-full overflow-x-hidden">
-                {displayedComments.map((comment) => (
-                  <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
-                    <div className="flex items-start gap-3 w-full min-w-0">
-                      <Link
-                        to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                        className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
-                      >
-                        <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-                      </Link>
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Link
-                            to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                            className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
-                          >
-                            {comment.author.username}
-                          </Link>
-                          {comment.author.verified && <VerifiedBadge />}
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {formatPostDate(comment.createdAt)}
-                          </span>
-                          <EditedIndicator item={comment} />
-                          
-                          {(canEditDelete(comment.author?._id || comment.user) || canDeleteAsPostOwner()) && (
-                            <div className="relative ml-auto">
-                              <button
-                                data-comment-menu={comment._id}
-                                ref={el => (commentMenuRefs.current[comment._id] = el)}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setShowCommentMenus(prev => ({ 
-                                    ...Object.keys(prev).reduce((acc, key) => ({ ...acc, [key]: false }), {}),
-                                    [comment._id]: !prev[comment._id] 
-                                  }));
-                                }}
-                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
-                              >
-                                <FaEllipsisV size={10} />
-                              </button>
-                              <FloatingMenu
-  anchorRef={{ current: commentMenuRefs.current[comment._id] }}
-  open={!!showCommentMenus[comment._id]}
-  onClose={() => setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }))}
->
-  {canEditDelete(comment.author?._id || comment.user) && (
-    <button
-      onMouseDown={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Edit comment button clicked:', comment._id);
-        handleEditComment(comment._id, comment.content);
-        setShowCommentMenus({});
-      }}
-      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-    >
-      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
-    </button>
-  )}
-  <button
-    onMouseDown={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('Delete comment button clicked:', comment._id);
-      setShowCommentMenus({});
-      // Use requestAnimationFrame to ensure menu closes first
-      requestAnimationFrame(() => {
-        handleDeleteComment(comment._id);
-      });
-    }}
-    className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-  >
-    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
-  </button>
-</FloatingMenu>
-                            </div>
-                          )}
-                        </div>
-                        
-                        {editingComment === comment._id ? (
-                          <div className="space-y-2 w-full max-w-full">
-                            <textarea
-                              value={editCommentContent}
-                              onChange={e => setEditCommentContent(e.target.value)}
-                              className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                              rows="2"
-                            />
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleSaveCommentEdit(comment._id)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={handleCancelCommentEdit}
-                                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p 
-                            className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
-                            dangerouslySetInnerHTML={{ __html: renderHighlightedContent(comment.content) }}
-                          />
-                        )}
-                        
-                        <div className="flex items-center gap-4 text-xs">
-                          <button
-                            onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
-                            className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                          >
-                            Reply
-                          </button>
-                          
-                          <button
-                            onClick={() => handleLikeComment(comment._id)}
-                            disabled={loadingCommentLike[comment._id]}
-                            className={`flex items-center gap-1 transition-colors ${
-                              Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
-                                ? 'text-red-500'
-                                : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                            }`}
-                            aria-label="Like comment"
-                          >
-                            {Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
-                              ? <FaHeart /> 
-                              : <FaRegHeart />
-                            }
-                            <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
-                          </button>
-                        </div>
-                        
-                        {activeReply === comment._id && (
-                          <div className="mt-2 w-full max-w-full overflow-x-hidden">
-                            <ReplyInput
-                              onSubmit={handleReply}
-                              loading={loadingReply[comment._id]}
-                              postId={localPost._id}
-                              commentId={comment._id}
-                              replyToUsername={comment.author.username}
-                            />
-                          </div>
-                        )}
-                        
-                        {comment.replies && comment.replies.length > 0 && (
-                          <div className="mt-2 w-full max-w-full overflow-x-hidden">
-                            <span
-                              onClick={() => toggleRepliesVisibility(comment._id)}
-                              className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer transition-colors"
+                {displayedComments.map((comment) => {
+                  const replyInfo = replyHook.getReplyDisplayInfo(comment);
+                  const displayedReplies = replyHook.getDisplayedReplies(comment);
+                  
+                  return (
+                    <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
+                      <div className="flex items-start gap-3 w-full min-w-0">
+                        <Link
+                          to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
+                          className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
+                        >
+                          <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
+                        </Link>
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Link
+                              to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
+                              className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
                             >
-                              {hiddenReplies[comment._id] === false ? `hide replies (${comment.replies.length})` : `show replies (${comment.replies.length})`}
+                              {comment.author.username}
+                            </Link>
+                            {comment.author.verified && <VerifiedBadge />}
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {formatPostDate(comment.createdAt)}
                             </span>
+                            <EditedIndicator item={comment} />
                             
-                            {hiddenReplies[comment._id] === false && (
-                              <div className="mt-2 space-y-3 w-full max-w-full overflow-x-hidden">
-                                {comment.replies.map((reply) => (
-                                  <div key={reply._id} data-reply-id={reply._id} className="w-full max-w-full overflow-x-hidden">
-                                    <div className="flex-1 min-w-0 max-w-full overflow-x-hidden">
-                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                        <Link
-                                          to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                          className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
-                                        >
-                                          {reply.author.username}
-                                        </Link>
-                                        {reply.author.verified && <VerifiedBadge />}
-                                        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                                          {formatPostDate(reply.createdAt)}
-                                        </span>
-                                        <EditedIndicator item={reply} />
-                                        
-                                        {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
-                                          <div className="relative ml-auto flex-shrink-0">
-                                            <button
-                                              ref={el => (replyMenuRefs.current[`${comment._id}-${reply._id}`] = el)}
-                                              onClick={() => setShowReplyMenus(prev => ({ 
-                                                ...prev, 
-                                                [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] 
-                                              }))}
-                                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
-                                            >
-                                              <FaEllipsisV size={10} />
-                                            </button>
-                                         <FloatingMenu
-  anchorRef={{ current: replyMenuRefs.current[`${comment._id}-${reply._id}`] }}
-  open={!!showReplyMenus[`${comment._id}-${reply._id}`]}
-  onClose={() => setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }))}
->
-  {canEditDelete(reply.author?._id || reply.user) && (
-    <button
-      onMouseDown={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        console.log('Edit reply button clicked:', reply._id);
-        handleEditReply(comment._id, reply._id, reply.content);
-        setShowReplyMenus({});
-      }}
-      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-    >
-      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
-    </button>
-  )}
-  <button
-    onMouseDown={(e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('Delete reply button clicked:', reply._id);
-      setShowReplyMenus({});
-      // Use requestAnimationFrame to ensure menu closes first
-      requestAnimationFrame(() => {
-        handleDeleteReply(comment._id, reply._id);
-      });
-    }}
-    className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-  >
-    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
-  </button>
-</FloatingMenu>
-                                          </div>
-                                        )}
-                                      </div>
-                                      
-                                      {editingReply === `${comment._id}-${reply._id}` ? (
-                                        <div className="space-y-2 w-full max-w-full">
-                                          <textarea
-                                            value={editReplyContent}
-                                            onChange={e => setEditReplyContent(e.target.value)}
-                                            className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                            rows="2"
-                                          />
-                                          <div className="flex gap-2">
-                                            <button
-                                              onClick={() => handleSaveReplyEdit(comment._id, reply._id)}
-                                              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                                            >
-                                              <FaSave size={10} />
-                                            </button>
-                                            <button
-                                              onClick={handleCancelReplyEdit}
-                                              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                                            >
-                                              <FaTimes size={10} />
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <p 
-                                          className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal w-full max-w-full"
-                                          dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
-                                        />
-                                      )}
-                                      
-                                      <div className="flex items-center gap-4 mt-1">
-                                        <button
-                                          onClick={() => handleLikeReply(comment._id, reply._id)}
-                                          disabled={loadingReplyLike[reply._id]}
-                                          className={`flex items-center gap-1 transition-colors ${
-                                            Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                              ? 'text-red-500'
-                                              : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                                          }`}
-                                          aria-label="Like reply"
-                                        >
-                                          {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                            ? <FaHeart /> 
-                                            : <FaRegHeart />
-                                          }
-                                          <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
+                            {(canEditDelete(comment.author?._id || comment.user) || canDeleteAsPostOwner()) && (
+                              <div className="relative ml-auto">
+                                <button
+                                  ref={el => (commentMenuRefs.current[comment._id] = el)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    commentHook.setShowCommentMenus(prev => ({
+                                      ...Object.keys(prev).reduce((acc, key) => ({ ...acc, [key]: false }), {}),
+                                      [comment._id]: !prev[comment._id]
+                                    }));
+                                  }}
+                                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
+                                >
+                                  <FaEllipsisV size={10} />
+                                </button>
+                                <FloatingMenu
+                                  anchorRef={{ current: commentMenuRefs.current[comment._id] }}
+                                  open={!!commentHook.showCommentMenus[comment._id]}
+                                  onClose={() => commentHook.setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }))}
+                                >
+                                  {canEditDelete(comment.author?._id || comment.user) && (
+                                    <button
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        console.log('Edit comment button clicked:', comment._id);
+                                        commentHook.handleEditComment(comment._id, comment.content);
+                                        commentHook.setShowCommentMenus({});
+                                      }}
+                                      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                                    >
+                                      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
+                                    </button>
+                                  )}
+                                  <button
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      console.log('Delete comment button clicked:', comment._id);
+                                      commentHook.setShowCommentMenus({});
+                                      requestAnimationFrame(() => {
+                                        commentHook.handleDeleteComment(comment._id);
+                                      });
+                                    }}
+                                    className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+                                  >
+                                    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
+                                  </button>
+                                </FloatingMenu>
                               </div>
                             )}
                           </div>
-                        )}
+                          
+                          {commentHook.editingComment === comment._id ? (
+                            <div className="space-y-2 w-full max-w-full">
+                              <textarea
+                                value={commentHook.editCommentContent}
+                                onChange={e => commentHook.setEditCommentContent(e.target.value)}
+                                className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                rows="2"
+                              />
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => commentHook.handleSaveCommentEdit(comment._id)}
+                                  className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
+                                >
+                                  <FaSave size={10} />
+                                </button>
+                                <button
+                                  onClick={commentHook.handleCancelCommentEdit}
+                                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
+                                >
+                                  <FaTimes size={10} />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p 
+                              className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
+                              dangerouslySetInnerHTML={{ __html: renderHighlightedContent(comment.content) }}
+                            />
+                          )}
+                          
+                          <div className="flex items-center gap-4 text-xs">
+                            <button
+                              onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
+                              className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
+                            >
+                              Reply
+                            </button>
+                            
+                            <button
+                              onClick={() => commentHook.handleLikeComment(comment._id)}
+                              disabled={commentHook.loadingCommentLike[comment._id]}
+                              className={`flex items-center gap-1 transition-colors ${
+                                Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
+                                  ? 'text-red-500'
+                                  : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
+                              }`}
+                              aria-label="Like comment"
+                            >
+                              {Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
+                                ? <FaHeart /> 
+                                : <FaRegHeart />
+                              }
+                              <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
+                            </button>
+                          </div>
+                          
+                          {activeReply === comment._id && (
+                            <div className="mt-2 w-full max-w-full overflow-x-hidden">
+                              <ReplyInput
+                                onSubmit={handleReply}
+                                loading={replyHook.loadingReply[comment._id]}
+                                postId={localPost._id}
+                                commentId={comment._id}
+                                replyToUsername={comment.author.username}
+                              />
+                            </div>
+                          )}
+                          
+                          {comment.replies && comment.replies.length > 0 && (
+                            <div className="mt-2 w-full max-w-full overflow-x-hidden">
+                              {/* Reply toggle and navigation buttons */}
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span
+                                  onClick={() => replyHook.toggleReplyExpansion(comment._id)}
+                                  className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer transition-colors"
+                                >
+                                  {replyInfo.isExpanded 
+                                    ? `Hide replies (${replyInfo.totalReplies})`
+                                    : replyInfo.totalReplies > replyHook.repliesPerComment
+                                      ? `View all ${replyInfo.totalReplies} replies`
+                                      : `View ${replyInfo.totalReplies} ${replyInfo.totalReplies === 1 ? 'reply' : 'replies'}`
+                                  }
+                                </span>
+                                
+                                {/* Show current position when expanded */}
+                                {replyInfo.isExpanded && replyInfo.totalReplies > replyHook.repliesPerComment && (
+                                  <span className="text-xs text-gray-400">
+                                    (showing replies {replyInfo.startIndex + 1}-{Math.min(replyInfo.endIndex, replyInfo.totalReplies)} of {replyInfo.totalReplies})
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {/* Navigation controls when expanded */}
+                              {replyInfo.isExpanded && (replyInfo.showLoadPrevious || replyInfo.showLoadMore) && (
+                                <div className="flex items-center gap-2 mb-2">
+                                  {replyInfo.showLoadPrevious && (
+                                    <button
+                                      onClick={() => replyHook.loadPreviousReplies(comment._id)}
+                                      disabled={replyHook.loadingMoreReplies[comment._id]}
+                                      className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded"
+                                    >
+                                      {replyHook.loadingMoreReplies[comment._id] ? 'Loading...' : '← Previous'}
+                                    </button>
+                                  )}
+                                  
+                                  {replyInfo.showLoadMore && (
+                                    <button
+                                      onClick={() => replyHook.loadMoreReplies(comment._id)}
+                                      disabled={replyHook.loadingMoreReplies[comment._id]}
+                                      className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded"
+                                    >
+                                      {replyHook.loadingMoreReplies[comment._id] ? 'Loading...' : 'Next →'}
+                                    </button>
+                                  )}
+                                  
+                                  {/* Show all option */}
+                                  {replyInfo.totalReplies > replyHook.repliesPerComment && (
+                                    <button
+                                      onClick={() => {
+                                        replyHook.setExpandedReplies(prev => ({ ...prev, [comment._id]: false }));
+                                        setTimeout(() => replyHook.showAllReplies(comment._id), 100);
+                                      }}
+                                      className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded"
+                                    >
+                                      Show All
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {/* Display replies - only when explicitly expanded */}
+                              {replyInfo.isExpanded && (
+                                <div className="space-y-3 w-full max-w-full overflow-x-hidden">
+                                  {displayedReplies.map((reply, index) => (
+                                    <div 
+                                      key={reply._id} 
+                                      data-reply-id={reply._id} 
+                                      className="w-full max-w-full overflow-x-hidden transition-all duration-300 ease-in-out"
+                                    >
+                                      <div className="flex-1 min-w-0 max-w-full overflow-x-hidden">
+                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                          <Link
+                                            to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
+                                            className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
+                                          >
+                                            {reply.author.username}
+                                          </Link>
+                                          {reply.author.verified && <VerifiedBadge />}
+                                          <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                            {formatPostDate(reply.createdAt)}
+                                          </span>
+                                          <EditedIndicator item={reply} />
+                                          
+                                          {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
+                                            <div className="relative ml-auto flex-shrink-0">
+                                              <button
+                                                ref={el => (replyMenuRefs.current[`${comment._id}-${reply._id}`] = el)}
+                                                onClick={() => replyHook.setShowReplyMenus(prev => ({ 
+                                                  ...prev, 
+                                                  [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] 
+                                                }))}
+                                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
+                                              >
+                                                <FaEllipsisV size={10} />
+                                              </button>
+                                              <FloatingMenu
+                                                anchorRef={{ current: replyMenuRefs.current[`${comment._id}-${reply._id}`] }}
+                                                open={!!replyHook.showReplyMenus[`${comment._id}-${reply._id}`]}
+                                                onClose={() => replyHook.setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }))}
+                                              >
+                                                {canEditDelete(reply.author?._id || reply.user) && (
+                                                  <button
+                                                    onMouseDown={(e) => {
+                                                      e.preventDefault();
+                                                      e.stopPropagation();
+                                                      console.log('Edit reply button clicked:', reply._id);
+                                                      replyHook.handleEditReply(comment._id, reply._id, reply.content);
+                                                      replyHook.setShowReplyMenus({});
+                                                    }}
+                                                    className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                                                  >
+                                                    <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
+                                                  </button>
+                                                )}
+                                                <button
+                                                  onMouseDown={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    console.log('Delete reply button clicked:', reply._id);
+                                                    replyHook.setShowReplyMenus({});
+                                                    requestAnimationFrame(() => {
+                                                      replyHook.handleDeleteReply(comment._id, reply._id);
+                                                    });
+                                                  }}
+                                                  className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+                                                >
+                                                  <FaTrash className="text-red-500 dark:text-red-400" /> Delete
+                                                </button>
+                                              </FloatingMenu>
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        {replyHook.editingReply === `${comment._id}-${reply._id}` ? (
+                                          <div className="space-y-2 w-full max-w-full">
+                                            <textarea
+                                              value={replyHook.editReplyContent}
+                                              onChange={e => replyHook.setEditReplyContent(e.target.value)}
+                                              className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                                              rows="2"
+                                            />
+                                            <div className="flex gap-2">
+                                              <button
+                                                onClick={() => replyHook.handleSaveReplyEdit(comment._id, reply._id)}
+                                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
+                                              >
+                                                <FaSave size={10} />
+                                              </button>
+                                              <button
+                                                onClick={replyHook.handleCancelReplyEdit}
+                                                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
+                                              >
+                                                <FaTimes size={10} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <p 
+                                            className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
+                                            dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
+                                          />
+                                        )}
+                                        
+                                        <div className="flex items-center gap-4 text-xs">
+                                          <button
+                                            onClick={() => replyHook.handleLikeReply(comment._id, reply._id)}
+                                            disabled={replyHook.loadingReplyLike[reply._id]}
+                                            className={`flex items-center gap-1 transition-colors ${
+                                              Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                                                ? 'text-red-500'
+                                                : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
+                                            }`}
+                                            aria-label="Like reply"
+                                          >
+                                            {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                                              ? <FaHeart /> 
+                                              : <FaRegHeart />
+                                            }
+                                            <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-                
-                {hasMore && (
-                  <div className="mt-4 text-center">
-                    <button
-                      onClick={loadMoreComments}
-                      disabled={loadingMoreComments}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium transition-colors"
-                    >
-                      {loadingMoreComments ? 'Loading...' : 'Show more comments'}
-                    </button>
-                  </div>
-                )}
+                  );
+                })}
               </div>
             </div>
           )}
