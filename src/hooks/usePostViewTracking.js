@@ -15,6 +15,7 @@ export const usePostViewTracking = (post, onView, options = {}) => {
   const isDocumentVisibleRef = useRef(true);
   const justBecameVisibleRef = useRef(false);
   const gracePeriodTimeoutRef = useRef(null);
+  const initialLoadRef = useRef(true);
 
   useEffect(() => {
     // Track document visibility to prevent unwanted triggers on browser return
@@ -42,22 +43,53 @@ export const usePostViewTracking = (post, onView, options = {}) => {
           clearTimeout(gracePeriodTimeoutRef.current);
         }
         
-        // Set a grace period to prevent immediate view tracking
+        // Disconnect observer immediately to prevent any immediate triggers
+        if (observerRef.current) {
+          observerRef.current.disconnect();
+        }
+        
+        // Set a longer grace period to prevent immediate view tracking
         gracePeriodTimeoutRef.current = setTimeout(() => {
           justBecameVisibleRef.current = false;
-        }, 2000); // 2 second grace period after returning to tab
+          // Don't automatically reconnect observer - let it reconnect naturally
+        }, 3000); // Increased to 3 seconds
+      }
+    };
+
+    const handleFocus = () => {
+      // Additional protection on window focus
+      if (!enableOnFocus) {
+        justBecameVisibleRef.current = true;
+        if (observerRef.current) {
+          observerRef.current.disconnect();
+        }
+        
+        if (gracePeriodTimeoutRef.current) {
+          clearTimeout(gracePeriodTimeoutRef.current);
+        }
+        
+        gracePeriodTimeoutRef.current = setTimeout(() => {
+          justBecameVisibleRef.current = false;
+        }, 3000);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    
+    // Set initial load protection
+    setTimeout(() => {
+      initialLoadRef.current = false;
+    }, 1000);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
       if (gracePeriodTimeoutRef.current) {
         clearTimeout(gracePeriodTimeoutRef.current);
       }
     };
-  }, []);
+  }, [enableOnFocus]);
 
   useEffect(() => {
     if (!post || !post._id || !onView) {
@@ -81,24 +113,27 @@ export const usePostViewTracking = (post, onView, options = {}) => {
           // Enhanced checks to prevent unwanted triggers
           const shouldTrackView = enableOnFocus || (
             isDocumentVisibleRef.current && 
-            !justBecameVisibleRef.current // Don't track if user just returned to tab
+            !justBecameVisibleRef.current && // Don't track if user just returned to tab
+            !initialLoadRef.current // Don't track during initial page load
           );
           
           if (!shouldTrackView) {
             return;
           }
 
-          // Debounce the view tracking
+          // Debounce the view tracking with longer delay for safety
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
 
           timeoutRef.current = setTimeout(() => {
-            // Triple-check conditions before tracking
+            // Quadruple-check conditions before tracking
             if (!hasViewedRef.current && 
                 entry.target && 
                 entry.isIntersecting && 
-                !justBecameVisibleRef.current) {
+                !justBecameVisibleRef.current &&
+                !initialLoadRef.current &&
+                isDocumentVisibleRef.current) {
               sessionStorage.setItem(viewKey, 'true');
               onView(post._id);
               hasViewedRef.current = true;
@@ -109,10 +144,15 @@ export const usePostViewTracking = (post, onView, options = {}) => {
                 observerRef.current = null;
               }
             }
-          }, debounceDelay);
+          }, Math.max(debounceDelay, 200)); // Minimum 200ms delay
         }
       });
     };
+
+    // Don't create observer if we're in grace period
+    if (justBecameVisibleRef.current || initialLoadRef.current) {
+      return;
+    }
 
     // Create observer with configurable options
     observerRef.current = new IntersectionObserver(observerCallback, {
@@ -134,8 +174,11 @@ export const usePostViewTracking = (post, onView, options = {}) => {
   // Return function to attach to DOM element
   const attachObserver = (element) => {
     if (element && observerRef.current && !hasViewedRef.current) {
-      // Additional check to prevent immediate attachment after tab return
-      if (justBecameVisibleRef.current && !enableOnFocus) {
+      // Additional checks to prevent immediate attachment
+      if (justBecameVisibleRef.current || initialLoadRef.current) {
+        return;
+      }
+      if (!enableOnFocus && !isDocumentVisibleRef.current) {
         return;
       }
       observerRef.current.observe(element);

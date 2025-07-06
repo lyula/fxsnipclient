@@ -256,14 +256,31 @@ const getOriginalPostId = (postId) => {
 
   // Initial load - truly one-time only
   const hasEverLoaded = useRef(false);
+  const initializationKey = useRef(Math.random().toString(36));
 
   useEffect(() => {
+    // Use a unique key to prevent duplicate loads even in StrictMode
+    const currentKey = initializationKey.current;
+    
     if (hasEverLoaded.current) return;
     hasEverLoaded.current = true;
 
+    // Store the key in sessionStorage to prevent duplicates across remounts
+    const storageKey = 'community_init_key';
+    const storedKey = sessionStorage.getItem(storageKey);
+    
+    if (storedKey === currentKey) {
+      return; // Already initialized with this key
+    }
+    
+    sessionStorage.setItem(storageKey, currentKey);
+
     const doInitialLoad = async () => {
       try {
-        const result = await loadInitialPosts(); // Use the new function
+        // Small delay to ensure single execution
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const result = await loadInitialPosts();
         setCurrentOffset(result?.nextOffset || 20);
         setHasMore(result?.hasMore !== false);
       } catch (error) {

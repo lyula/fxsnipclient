@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
 import { 
   getConversations, 
   getNotifications, 
@@ -48,6 +48,9 @@ export function DashboardProvider({ children }) {
   const [pollingInterval, setPollingInterval] = useState(null);
   const [lastConversationFetch, setLastConversationFetch] = useState(0);
   const [lastNotificationFetch, setLastNotificationFetch] = useState(0);
+
+  // Ref to track initial load execution
+  const initialLoadExecuted = useRef(false);
 
   // Format relative time
   const formatRelativeTime = useCallback((timestamp) => {
@@ -282,7 +285,6 @@ const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, dire
     setCommunityPosts(prev => [post, ...prev]);
   }, []);
 
-  // Update a specific post
  // Update a specific post
 const updatePost = useCallback((postId, updatedPost) => {
   // Update community posts - DON'T sort, preserve the current position
@@ -310,6 +312,20 @@ const updatePost = useCallback((postId, updatedPost) => {
 
   // Load initial posts only when the array is empty
   const loadInitialPosts = useCallback(async () => {
+    // Multiple layers of protection
+    if (initialLoadExecuted.current) {
+      console.log('Initial load: skipping duplicate execution (ref)');
+      return { posts: communityPosts, hasMore: true, nextOffset: 20 };
+    }
+    
+    // Check if posts already exist - if so, don't load
+    if (communityPosts.length > 0) {
+      console.log('Initial load: skipping because posts already exist (' + communityPosts.length + ')');
+      return { posts: communityPosts, hasMore: true, nextOffset: 20 };
+    }
+    
+    initialLoadExecuted.current = true;
+    
     try {
       setLoadingStates(prev => ({ ...prev, posts: true }));
       const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -337,14 +353,14 @@ const updatePost = useCallback((postId, updatedPost) => {
         const data = await res.json();
         setCyclingInfo(data.cyclingInfo);
         
-        // ONLY set posts if the array is completely empty
+        // ONLY set posts if the array is STILL empty (double-check)
         setCommunityPosts(prev => {
           if (prev.length === 0) {
             console.log('Initial load: setting', data.posts?.length || 0, 'posts');
             return data.posts || [];
           }
-          console.log('Initial load: skipping because posts already exist');
-          return prev; // Don't overwrite existing posts
+          console.log('Initial load: skipping because posts were added during fetch');
+          return prev;
         });
         
         return data;
@@ -356,7 +372,7 @@ const updatePost = useCallback((postId, updatedPost) => {
     } finally {
       setLoadingStates(prev => ({ ...prev, posts: false }));
     }
-  }, []);
+  }, [communityPosts.length]); // Add communityPosts.length as dependency
 
   // Add infinite scroll functions
   const loadMorePosts = useCallback(async (currentOffset) => {
