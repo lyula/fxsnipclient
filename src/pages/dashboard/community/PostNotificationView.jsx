@@ -81,13 +81,13 @@ export default function PostNotificationView() {
           >
             <FaArrowLeft className="text-lg text-blue-700 dark:text-blue-200" />
           </button>
-          <a
-            href="/dashboard/community"
+          <Link
+            to="/dashboard/community"
             className="ml-auto font-semibold text-base"
             style={{ color: '#a99d6b', textDecoration: 'underline', background: 'none', padding: 0 }}
           >
             Proceed to posts feed
-          </a>
+          </Link>
         </div>
         {loading ? (
           <div className="text-center text-gray-500 dark:text-gray-400 py-12">Loading post...</div>
