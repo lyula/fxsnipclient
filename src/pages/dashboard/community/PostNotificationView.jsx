@@ -107,7 +107,7 @@ export default function PostNotificationView() {
           <Link
             to="/dashboard/community"
             className="ml-auto font-semibold text-base"
-            style={{ color: '#a99d6b', textDecoration: 'underline', background: 'none', padding: 0 }}
+            style={{ color: '#a99d6b', textDecoration: 'none', background: 'none', padding: 0 }}
           >
             Proceed to posts feed
           </Link>
