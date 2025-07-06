@@ -918,7 +918,7 @@ const Inbox = () => {
       {/* Sidebar - Conversation List */}
       <div className={`${
         selectedUser && shouldShowChat ? 'hidden lg:flex' : 'flex'
-      } flex-col w-full lg:w-80 xl:w-96 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}>
+      } flex-col w-full max-w-full lg:w-80 xl:w-96 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Messages</h1>
@@ -946,7 +946,7 @@ const Inbox = () => {
           
           {/* Search Results */}
           {search && searchResults.length > 0 && (
-            <div className="absolute top-full left-4 right-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-10 hide-scrollbar">
+            <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto z-10 hide-scrollbar">
               {searchResults.map((user) => (
                 <div
                   key={user._id}
