@@ -23,6 +23,7 @@ import { useAuth } from "../context/auth";
 import VerifiedBadge from "../components/VerifiedBadge";
 import Notifications from "./dashboard/Notifications";
 import { useDashboard } from "../context/dashboard";
+import PostNotificationView from "./dashboard/community/PostNotificationView";
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
@@ -596,6 +597,7 @@ export default function Dashboard() {
               <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                 <Routes>
                   <Route path="community/user/:username" element={<UserProfile />} />
+                  <Route path="community/post/:postId" element={<PostNotificationView />} />
                   <Route path="community/*" element={<Community user={user} />} />
                 </Routes>
               </div>

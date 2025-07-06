@@ -19,6 +19,7 @@ import Dashboard from "./pages/Dashboard";
 import Terms from "./pages/Terms";
 import UserProfile from "./pages/dashboard/community/UserProfile";
 import MobileUserProfile from "./pages/dashboard/community/MobileUserProfile";
+import PostNotificationView from "./pages/dashboard/community/PostNotificationView";
 import { useTheme } from "./hooks/useTheme";
 import { DashboardProvider } from "./context/dashboard";
 
@@ -63,7 +64,7 @@ function App() {
         <DesktopPWALayout>
           {/* Desktop PWA Title Bar */}
           <DesktopPWATitleBar />
-          
+          <DashboardProvider>
           <div className="app-content">
             <Routes>
           <Route path="/terms" element={<Terms />} />
@@ -77,13 +78,12 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
+          {/* Single post notification view route */}
+          <Route path="/dashboard/community/post/:postId" element={<PostNotificationView />} />
+
           <Route
             path="/dashboard/*"
-            element={
-              <DashboardProvider>
-                <Dashboard />
-              </DashboardProvider>
-            }
+            element={<Dashboard />}
           />
 
           <Route element={<PrivateLayout />}>
@@ -96,7 +96,7 @@ function App() {
           </Route>
         </Routes>
         </div>
-
+        </DashboardProvider>
         {/* PWA Components */}
         <PWAUpdateNotification />
         <PWAInstallPrompt />

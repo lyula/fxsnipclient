@@ -3,6 +3,7 @@ import { FaSmile, FaPoll, FaImage, FaVideo, FaTimes, FaEllipsisV } from "react-i
 import { searchUsers } from "../../../utils/api";
 import { uploadToCloudinary } from "../../../utils/cloudinaryUpload";
 import FloatingMenu from "../../../components/common/FloatingMenu"; 
+import { renderHighlightedContent } from "../../../utils/renderHighlight.jsx";
 
 export default function CreatePostBox({ onPost, onClose }) {
   const [content, setContent] = useState("");
@@ -274,15 +275,6 @@ export default function CreatePostBox({ onPost, onClose }) {
     }
     cleanupPreview();
   };
-
-  function renderHighlightedContent(content) {
-    const parts = content.split(/(@\w+)/g);
-    return parts.map((part, i) =>
-      /^@\w+$/.test(part)
-        ? <span key={i} className="text-blue-600">{part}</span>
-        : <span key={i}>{part}</span>
-    );
-  }
 
   // Check if we can submit (content exists and no upload in progress)
   const canSubmit = content.trim() && !isUploading;

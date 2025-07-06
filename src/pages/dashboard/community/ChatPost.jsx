@@ -10,6 +10,7 @@ import MentionInput from "../../../components/common/MentionInput";
 import { usePostViewTracking } from '../../../hooks/usePostViewTracking'; 
 import { useComments } from '../../../hooks/useComments';
 import { useReplies } from '../../../hooks/useReplies';
+import { renderHighlightedContent } from '../../../utils/renderHighlight.jsx';
 
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
@@ -38,12 +39,6 @@ function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = ""
       />
     </div>
   );
-}
-
-function renderHighlightedContent(content) {
-  if (!content) return "";
-  
-  return content.replace(/@(\w+)/g, '<span class="text-blue-600 dark:text-blue-400 font-medium">@$1</span>');
 }
 
 function hasMoreThanThreeLines(content) {
@@ -147,10 +142,13 @@ export default function ChatPost({
   onDelete,
   currentUserId,
   currentUsername,
-  currentUserVerified
+  currentUserVerified,
+  showComments: forceShowComments = false,
+  highlightedCommentId = null,
+  highlightedReplyId = null
 }) {
   // Keep existing state that's not comment/reply related
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(forceShowComments);
   const [activeReply, setActiveReply] = useState(null);
   const [comment, setComment] = useState("");
   const [loadingComment, setLoadingComment] = useState(false);
@@ -406,6 +404,30 @@ export default function ChatPost({
     setShowPostMenu(false);
   };
 
+  useEffect(() => {
+    if (typeof forceShowComments === 'boolean') setShowComments(forceShowComments);
+  }, [forceShowComments]);
+
+  // Scroll to highlighted comment/reply if provided
+  useEffect(() => {
+    if (highlightedCommentId) {
+      const el = document.querySelector(`[data-comment-id='${highlightedCommentId}']`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-blue-400");
+        setTimeout(() => el.classList.remove("ring-2", "ring-blue-400"), 2000);
+      }
+    }
+    if (highlightedReplyId) {
+      const el = document.querySelector(`[data-reply-id='${highlightedReplyId}']`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-blue-400");
+        setTimeout(() => el.classList.remove("ring-2", "ring-blue-400"), 2000);
+      }
+    }
+  }, [highlightedCommentId, highlightedReplyId, showComments]);
+
   return (
     <>
       {floatingHearts.map(heart => (
@@ -586,9 +608,9 @@ export default function ChatPost({
               <div className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words hyphens-auto w-full max-w-full overflow-wrap-anywhere">
                 {hasMoreThanThreeLines(localPost.content || '') && !showFullContent ? (
                   <> 
-                    <span 
-                      dangerouslySetInnerHTML={{ __html: renderHighlightedContent(getFirstLine(localPost.content || '')) }}
-                    />
+                    <span>
+                      {renderHighlightedContent(getFirstLine(localPost.content || ''))}
+                    </span>
                     <button
                       onClick={() => setShowFullContent(true)}
                       className="ml-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium transition-colors cursor-pointer"
@@ -598,9 +620,9 @@ export default function ChatPost({
                   </>
                 ) : (
                   <>
-                    <span 
-                      dangerouslySetInnerHTML={{ __html: renderHighlightedContent(localPost.content || '') }}
-                    />
+                    <span>
+                      {renderHighlightedContent(localPost.content || '')}
+                    </span>
                     {hasMoreThanThreeLines(localPost.content || '') && showFullContent && (
                       <button
                         onClick={() => setShowFullContent(false)}
@@ -952,8 +974,9 @@ export default function ChatPost({
                           ) : (
                             <p 
                               className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
-                              dangerouslySetInnerHTML={{ __html: renderHighlightedContent(comment.content) }}
-                            />
+                            >
+                              {renderHighlightedContent(comment.content)}
+                            </p>
                           )}
                           
                           <div className="flex items-center gap-4 text-xs">
@@ -1155,8 +1178,9 @@ export default function ChatPost({
                                         ) : (
                                           <p 
                                             className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
-                                            dangerouslySetInnerHTML={{ __html: renderHighlightedContent(reply.content) }}
-                                          />
+                                          >
+                                            {renderHighlightedContent(reply.content)}
+                                          </p>
                                         )}
                                         
                                         <div className="flex items-center gap-4 text-xs">

@@ -56,21 +56,20 @@ export default function NotificationsPage() {
   }));
 
   const handleNotificationClick = (notification) => {
-    // Mark notification as read
-    markNotificationAsRead(notification._id);
-    
-    if (notification.type === 'mention') {
-      let url = `/dashboard/community?postId=${notification.post}`;
-      
-      if (notification.reply) {
-        url += `&commentId=${notification.comment}&replyId=${notification.reply}`;
-      } else if (notification.comment) {
-        url += `&commentId=${notification.comment}`;
-      }
-      
+    // Route to the new single post view for all post-related notifications
+    if (
+      ["mention", "like_post", "like_comment", "like_reply", "comment", "reply"].includes(notification.type) &&
+      notification.post
+    ) {
+      let url = `/dashboard/community/post/${notification.post}`;
+      const params = [];
+      if (notification.comment) params.push(`commentId=${notification.comment}`);
+      if (notification.reply) params.push(`replyId=${notification.reply}`);
+      if (params.length) url += `?${params.join("&")}`;
       navigate(url);
+      return;
     }
-    // Handle other notification types...
+    // Fallback: handle other notification types as before
   };
 
   return (
@@ -112,24 +111,21 @@ export default function NotificationsPage() {
                         <>
                           <span
                             className="font-bold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline cursor-pointer"
-                            onClick={() =>
+                            onClick={e => {
+                              e.stopPropagation();
                               navigate(`/dashboard/community/user/${encodeURIComponent(n.from.username)}`)
-                            }
+                            }}
                             title={`View ${n.from.username}'s profile`}
                           >
                             {n.from.username}
                             {n.from.verified && <VerifiedBadge />}
                           </span>
-                          {/* Handle different notification types */}
+                          {/* Only render the action/message, not the username again */}
                           {n.type === "follow" ? (
                             <span> followed you</span>
                           ) : n.type === "like_post" && n.post ? (
                             <Link
-                              to={`/dashboard/community?postId=${n.post}${
-                                n.commentUserId
-                                  ? `&commentUserId=${n.commentUserId}`
-                                  : ""
-                              }`}
+                              to={`/dashboard/community/post/${n.post}`}
                               className="hover:text-[#a99d6b] transition-colors"
                               style={{ textDecoration: "none" }}
                               title="Go to post"
@@ -138,11 +134,7 @@ export default function NotificationsPage() {
                             </Link>
                           ) : n.type === "like_comment" && n.post ? (
                             <Link
-                              to={`/dashboard/community?postId=${n.post}${
-                                n.commentUserId
-                                  ? `&commentUserId=${n.commentUserId}`
-                                  : ""
-                              }`}
+                              to={`/dashboard/community/post/${n.post}${n.comment ? `?commentId=${n.comment}` : ""}`}
                               className="hover:text-[#a99d6b] transition-colors"
                               style={{ textDecoration: "none" }}
                               title="Go to post"
@@ -151,11 +143,7 @@ export default function NotificationsPage() {
                             </Link>
                           ) : n.type === "like_reply" && n.post ? (
                             <Link
-                              to={`/dashboard/community?postId=${n.post}${
-                                n.commentUserId
-                                  ? `&commentUserId=${n.commentUserId}`
-                                  : ""
-                              }`}
+                              to={`/dashboard/community/post/${n.post}${n.comment && n.reply ? `?commentId=${n.comment}&replyId=${n.reply}` : n.comment ? `?commentId=${n.comment}` : n.reply ? `?replyId=${n.reply}` : ""}`}
                               className="hover:text-[#a99d6b] transition-colors"
                               style={{ textDecoration: "none" }}
                               title="Go to post"
@@ -164,11 +152,7 @@ export default function NotificationsPage() {
                             </Link>
                           ) : n.type === "comment" && n.post ? (
                             <Link
-                              to={`/dashboard/community?postId=${n.post}${
-                                n.commentUserId
-                                  ? `&commentUserId=${n.commentUserId}`
-                                  : ""
-                              }`}
+                              to={`/dashboard/community/post/${n.post}${n.comment ? `?commentId=${n.comment}` : ""}`}
                               className="hover:text-[#a99d6b] transition-colors"
                               style={{ textDecoration: "none" }}
                               title="Go to post"
@@ -177,16 +161,21 @@ export default function NotificationsPage() {
                             </Link>
                           ) : n.type === "reply" && n.post ? (
                             <Link
-                              to={`/dashboard/community?postId=${n.post}${
-                                n.commentUserId
-                                  ? `&commentUserId=${n.commentUserId}`
-                                  : ""
-                              }`}
+                              to={`/dashboard/community/post/${n.post}${n.comment && n.reply ? `?commentId=${n.comment}&replyId=${n.reply}` : n.comment ? `?commentId=${n.comment}` : n.reply ? `?replyId=${n.reply}` : ""}`}
                               className="hover:text-[#a99d6b] transition-colors"
                               style={{ textDecoration: "none" }}
                               title="Go to post"
                             >
                               {" replied to your comment"}
+                            </Link>
+                          ) : n.type === "mention" && n.post ? (
+                            <Link
+                              to={`/dashboard/community/post/${n.post}${n.comment ? `?commentId=${n.comment}` : ""}`}
+                              className="hover:text-[#a99d6b] transition-colors"
+                              style={{ textDecoration: "none" }}
+                              title="Go to post"
+                            >
+                              mentioned you in a comment.
                             </Link>
                           ) : (
                             <span> {n.message || n.text || "performed an action"}</span>
@@ -197,7 +186,6 @@ export default function NotificationsPage() {
                       )}
                     </span>
                   </div>
-                  
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs text-gray-400">
                       {formatRelativeTime(new Date(n.createdAt).getTime())}
