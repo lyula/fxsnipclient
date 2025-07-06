@@ -13,17 +13,39 @@ export const usePostViewTracking = (post, onView, options = {}) => {
   const timeoutRef = useRef(null);
   const hasViewedRef = useRef(false);
   const isDocumentVisibleRef = useRef(true);
+  const justBecameVisibleRef = useRef(false);
+  const gracePeriodTimeoutRef = useRef(null);
 
   useEffect(() => {
     // Track document visibility to prevent unwanted triggers on browser return
     const handleVisibilityChange = () => {
+      const wasHidden = !isDocumentVisibleRef.current;
       isDocumentVisibleRef.current = !document.hidden;
+      
       if (document.hidden) {
         // Clear any pending view tracking when tab becomes hidden
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
           timeoutRef.current = null;
         }
+        if (gracePeriodTimeoutRef.current) {
+          clearTimeout(gracePeriodTimeoutRef.current);
+          gracePeriodTimeoutRef.current = null;
+        }
+        justBecameVisibleRef.current = false;
+      } else if (wasHidden) {
+        // User just returned to the tab - set grace period
+        justBecameVisibleRef.current = true;
+        
+        // Clear any existing grace period timeout
+        if (gracePeriodTimeoutRef.current) {
+          clearTimeout(gracePeriodTimeoutRef.current);
+        }
+        
+        // Set a grace period to prevent immediate view tracking
+        gracePeriodTimeoutRef.current = setTimeout(() => {
+          justBecameVisibleRef.current = false;
+        }, 2000); // 2 second grace period after returning to tab
       }
     };
 
@@ -31,6 +53,9 @@ export const usePostViewTracking = (post, onView, options = {}) => {
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (gracePeriodTimeoutRef.current) {
+        clearTimeout(gracePeriodTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -53,8 +78,11 @@ export const usePostViewTracking = (post, onView, options = {}) => {
     const observerCallback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting && !hasViewedRef.current) {
-          // Additional checks to prevent unwanted triggers
-          const shouldTrackView = enableOnFocus || isDocumentVisibleRef.current;
+          // Enhanced checks to prevent unwanted triggers
+          const shouldTrackView = enableOnFocus || (
+            isDocumentVisibleRef.current && 
+            !justBecameVisibleRef.current // Don't track if user just returned to tab
+          );
           
           if (!shouldTrackView) {
             return;
@@ -66,8 +94,11 @@ export const usePostViewTracking = (post, onView, options = {}) => {
           }
 
           timeoutRef.current = setTimeout(() => {
-            // Double-check conditions before tracking
-            if (!hasViewedRef.current && entry.target && entry.isIntersecting) {
+            // Triple-check conditions before tracking
+            if (!hasViewedRef.current && 
+                entry.target && 
+                entry.isIntersecting && 
+                !justBecameVisibleRef.current) {
               sessionStorage.setItem(viewKey, 'true');
               onView(post._id);
               hasViewedRef.current = true;
@@ -103,6 +134,10 @@ export const usePostViewTracking = (post, onView, options = {}) => {
   // Return function to attach to DOM element
   const attachObserver = (element) => {
     if (element && observerRef.current && !hasViewedRef.current) {
+      // Additional check to prevent immediate attachment after tab return
+      if (justBecameVisibleRef.current && !enableOnFocus) {
+        return;
+      }
       observerRef.current.observe(element);
     }
   };
