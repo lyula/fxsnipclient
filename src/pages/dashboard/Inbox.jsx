@@ -5,6 +5,7 @@ import VerifiedBadge from "../../components/VerifiedBadge";
 import { getConversation, sendMessage } from "../../utils/api";
 import { jwtDecode } from "jwt-decode";
 import { debounce } from "lodash";
+import useConversationsStatus from "../../hooks/useConversationsStatus";
 
 const Inbox = () => {
   // Context and navigation
@@ -157,6 +158,9 @@ const Inbox = () => {
   // Message caching to prevent unnecessary reloads
   const [messagesCache, setMessagesCache] = useState(new Map());
   const [lastMessageTimestamps, setLastMessageTimestamps] = useState(new Map());
+
+  // Conversation status (online/typing)
+  const { statusMap, emitTyping, emitStopTyping } = useConversationsStatus(conversations, myUserId, token);
 
   // Optimized message fetching with caching and anti-flickering
   const fetchMessages = useCallback(async (conversationId, forceRefresh = false) => {
@@ -993,40 +997,47 @@ const Inbox = () => {
               <p className="text-gray-500 dark:text-gray-400 text-sm">Start a conversation to see it here</p>
             </div>
           ) : (
-            conversations.map((user) => (
-              <button
-                key={user._id}
-                className={`w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-150 ${
-                  selectedUser?._id === user._id ? 'bg-gray-50 dark:bg-gray-800' : ''
-                }`}
-                onClick={() => handleConversationSelect(user)}
-              >
-                <div className="relative mr-3">
-                  {user.unreadCount > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center z-10">
-                      {user.unreadCount > 9 ? '9+' : user.unreadCount}
-                    </div>
-                  )}
-                  <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center">
-                      <span className={`font-medium truncate ${user.unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white'}`}>
-                        {user.username}
+            conversations.map((user) => {
+              const status = statusMap[user._id] || {};
+              return (
+                <button
+                  key={user._id}
+                  className={`w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-150 ${
+                    selectedUser?._id === user._id ? 'bg-gray-50 dark:bg-gray-800' : ''
+                  }`}
+                  onClick={() => handleConversationSelect(user)}
+                >
+                  <div className="relative mr-3">
+                    {/* Online dot */}
+                    {status.online && (
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full z-20"></span>
+                    )}
+                    {user.unreadCount > 0 && (
+                      <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center z-10">
+                        {user.unreadCount > 9 ? '9+' : user.unreadCount}
+                      </div>
+                    )}
+                    <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center">
+                        <span className={`font-medium truncate ${user.unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white'}`}>
+                          {user.username}
+                        </span>
+                        {user.verified && <VerifiedBadge />}
+                      </div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                        {user.lastTime}
                       </span>
-                      {user.verified && <VerifiedBadge />}
                     </div>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                      {user.lastTime}
-                    </span>
+                    <div className={`text-sm truncate ${user.unreadCount > 0 ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                      {status.typing ? <span className="italic text-blue-600 dark:text-blue-400">Typing...</span> : truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
+                    </div>
                   </div>
-                  <div className={`text-sm truncate ${user.unreadCount > 0 ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
-                  </div>
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </div>
@@ -1278,7 +1289,20 @@ const Inbox = () => {
                     ref={inputRef}
                     type="text"
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(e) => {
+                      setInput(e.target.value);
+                      if (selectedUser && e.target.value) {
+                        emitTyping(selectedUser._id);
+                      } else if (selectedUser) {
+                        emitStopTyping(selectedUser._id);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (selectedUser) emitStopTyping(selectedUser._id);
+                    }}
+                    onFocus={() => {
+                      if (selectedUser && input) emitTyping(selectedUser._id);
+                    }}
                     placeholder="Message..."
                     className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border-0 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                     disabled={isSending}
