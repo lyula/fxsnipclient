@@ -93,7 +93,7 @@ export default function PostNotificationView() {
 
   // Theme-responsive wrapper for the whole page, no extra white space
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full max-w-full bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div className="absolute inset-0 flex flex-col min-h-0 h-full overflow-hidden w-full max-w-full bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col px-2 min-h-0">
         {/* Top bar with back and feed link */}
         <div className="w-full flex items-center mb-4 gap-2">
