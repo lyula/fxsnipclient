@@ -920,7 +920,8 @@ const Inbox = () => {
     socket.emit("joinChat", { userId: myUserId, otherUserId: selectedUser._id });
     // Listen for new messages
     const handleNewMessage = (msg) => {
-      if (msg && msg.from === selectedUser._id) {
+      // Accept messages where you are sender or receiver
+      if (msg && ((msg.from === selectedUser._id && msg.to === myUserId) || (msg.from === myUserId && msg.to === selectedUser._id))) {
         setMessages((prev) => [...prev, msg]);
         setMessagesCache((prev) => {
           const cached = prev.get(selectedUser._id) || [];
@@ -1105,7 +1106,7 @@ const Inbox = () => {
                 <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
                 {selectedUser.verified && <VerifiedBadge />}
               </button>
-              {/* UserStatus below username */}
+              {/* UserStatus below username, left-aligned */}
               <UserStatus userId={selectedUser._id} token={token} />
             </div>
             {/* Chat Actions */}
@@ -1120,7 +1121,7 @@ const Inbox = () => {
 
           {/* UserStatus above input, WhatsApp style */}
           <div className="w-full px-4 pt-2 pb-0 bg-white dark:bg-gray-900">
-            <UserStatus userId={selectedUser._id} token={token} />
+            <UserStatus userId={selectedUser._id} token={token} showTypingDots={true} />
           </div>
 
           {/* Messages Container */}
