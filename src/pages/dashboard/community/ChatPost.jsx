@@ -6,7 +6,8 @@ import VerifiedBadge from "../../../components/VerifiedBadge";
 import MediaDisplay from '../../../components/media/MediaDisplay';
 import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers } from "../../../utils/api";
 import { formatPostDate } from '../../../utils/formatDate';
-import MentionInput from "../../../components/common/MentionInput"; 
+import MentionInput from "../../../components/common/MentionInput";
+import { usePostViewTracking } from '../../../hooks/usePostViewTracking'; 
 
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
@@ -215,60 +216,20 @@ export default function ChatPost({
     setShowFullContent(false);
   }, [post]);
 
-  useEffect(() => {
-  console.log('Setting up IntersectionObserver for post:', post._id);
-  
-  if (!post || !post._id) {
-    console.log('No post or post._id, skipping view tracking');
-    return;
-  }
-  
-  const node = postContainerRef.current;
-  if (!node) {
-    return;
-  }
+ // Use the new post view tracking hook
+const { attachObserver } = usePostViewTracking(post, onView, {
+  threshold: 0.5,
+  rootMargin: '0px',
+  enableOnFocus: false, // This prevents auto-scroll on browser return!
+  debounceDelay: 150
+});
 
-  const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
-  const viewKey = `viewed_post_${originalPostId}`;
-  if (sessionStorage.getItem(viewKey)) {
-    return;
+// Attach observer when component mounts and container is ready
+useEffect(() => {
+  if (postContainerRef.current && post._id) {
+    attachObserver(postContainerRef.current);
   }
-
-  let hasViewed = false;
-  let timeoutId = null;
-  
-  const observer = new window.IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && !hasViewed) {
-          // Add a small delay to prevent immediate triggering when browser regains focus
-          timeoutId = setTimeout(() => {
-            if (!hasViewed && entry.target && entry.isIntersecting) {
-              sessionStorage.setItem(viewKey, 'true');
-              onView(post._id);
-              hasViewed = true;
-              observer.disconnect();
-            }
-          }, 100); // 100ms delay
-        }
-      });
-    },
-    { 
-      threshold: 0.5, // Increase threshold to 50% for more reliable detection
-      rootMargin: '0px', // Remove negative bottom margin to prevent scroll adjustments
-      // Add root to ensure we're using the correct scroll container
-      root: null // Uses the viewport as root
-    }
-  );
-  
-  observer.observe(node);
-  return () => {
-    observer.disconnect();
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  };
-}, [post._id, onView, postContainerRef]);
+}, [post._id, attachObserver]);
 
   useEffect(() => {
     const params = new URLSearchParams(search);

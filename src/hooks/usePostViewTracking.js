@@ -1,0 +1,118 @@
+// hooks/usePostViewTracking.js
+import { useEffect, useRef } from 'react';
+
+export const usePostViewTracking = (post, onView, options = {}) => {
+  const {
+    threshold = 0.5,
+    rootMargin = '0px',
+    enableOnFocus = false, // Key flag to prevent auto-scroll issues
+    debounceDelay = 100
+  } = options;
+
+  const observerRef = useRef(null);
+  const timeoutRef = useRef(null);
+  const hasViewedRef = useRef(false);
+  const isDocumentVisibleRef = useRef(true);
+
+  useEffect(() => {
+    // Track document visibility to prevent unwanted triggers on browser return
+    const handleVisibilityChange = () => {
+      isDocumentVisibleRef.current = !document.hidden;
+      if (document.hidden) {
+        // Clear any pending view tracking when tab becomes hidden
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!post || !post._id || !onView) {
+      return;
+    }
+
+    const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
+    const viewKey = `viewed_post_${originalPostId}`;
+    
+    // Check if already viewed
+    if (sessionStorage.getItem(viewKey)) {
+      return;
+    }
+
+    // Reset viewed state when post changes
+    hasViewedRef.current = false;
+
+    const observerCallback = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !hasViewedRef.current) {
+          // Additional checks to prevent unwanted triggers
+          const shouldTrackView = enableOnFocus || isDocumentVisibleRef.current;
+          
+          if (!shouldTrackView) {
+            return;
+          }
+
+          // Debounce the view tracking
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+
+          timeoutRef.current = setTimeout(() => {
+            // Double-check conditions before tracking
+            if (!hasViewedRef.current && entry.target && entry.isIntersecting) {
+              sessionStorage.setItem(viewKey, 'true');
+              onView(post._id);
+              hasViewedRef.current = true;
+              
+              // Cleanup observer after successful view
+              if (observerRef.current) {
+                observerRef.current.disconnect();
+                observerRef.current = null;
+              }
+            }
+          }, debounceDelay);
+        }
+      });
+    };
+
+    // Create observer with configurable options
+    observerRef.current = new IntersectionObserver(observerCallback, {
+      threshold,
+      rootMargin,
+      root: null // Use viewport as root
+    });
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [post._id, onView, threshold, rootMargin, enableOnFocus, debounceDelay]);
+
+  // Return function to attach to DOM element
+  const attachObserver = (element) => {
+    if (element && observerRef.current && !hasViewedRef.current) {
+      observerRef.current.observe(element);
+    }
+  };
+
+  // Return function to detach observer
+  const detachObserver = () => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+  };
+
+  return { attachObserver, detachObserver, hasViewed: hasViewedRef.current };
+};
