@@ -6,7 +6,6 @@ import VerifiedBadge from "../../../components/VerifiedBadge";
 import ChatPost from "./ChatPost";
 import { useAuth } from "../../../context/auth";
 import { hashId } from "../../../utils/hash";
-import UserStatus from "../../../hooks/useUserStatus";
 
 // Profile cache to avoid refetching same data
 const profileCache = new Map();
@@ -463,7 +462,6 @@ export default function UserProfile() {
                 {profile.verified && <VerifiedBadge />}
               </span>
             </div>
-            <UserStatus userId={profile._id} token={localStorage.getItem("token")} />
           </div>
           <div className="flex gap-8">
             <div
