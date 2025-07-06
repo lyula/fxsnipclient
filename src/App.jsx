@@ -3,7 +3,11 @@ import React, { useEffect, useState } from "react";
 import PublicLayout from "./components/layout/PublicLayout";
 import PrivateLayout from "./components/layout/PrivateLayout";
 import PWARouteGuard from "./components/PWARouteGuard";
-import PWAUpdateNotification from "./components/PWAUpdateNotification"; // NEW
+import PWAUpdateNotification from "./components/PWAUpdateNotification";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
+import DesktopPWATitleBar from "./components/DesktopPWATitleBar";
+import DesktopPWALayout from "./components/DesktopPWALayout";
+import DesktopPWANotifications from "./components/DesktopPWANotifications";
 import Landing from "./pages/Landing";
 import About from "./pages/About";
 import News from "./pages/News";
@@ -56,7 +60,12 @@ function App() {
   return (
     <Router>
       <PWARouteGuard>
-        <Routes>
+        <DesktopPWALayout>
+          {/* Desktop PWA Title Bar */}
+          <DesktopPWATitleBar />
+          
+          <div className="app-content">
+            <Routes>
           <Route path="/terms" element={<Terms />} />
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Landing />} />
@@ -86,9 +95,13 @@ function App() {
             />
           </Route>
         </Routes>
+        </div>
 
-        {/* PWA Update Notification */}
+        {/* PWA Components */}
         <PWAUpdateNotification />
+        <PWAInstallPrompt />
+        <DesktopPWANotifications />
+        </DesktopPWALayout>
       </PWARouteGuard>
     </Router>
   );

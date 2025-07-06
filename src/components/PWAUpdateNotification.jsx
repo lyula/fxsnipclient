@@ -33,7 +33,7 @@ export default function PWAUpdateNotification() {
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                 {isStandalone 
-                  ? 'A new version of FXsnip is ready to install with the latest features and improvements.'
+                  ? 'A new version of Journalyze is ready to install with the latest features and improvements.'
                   : 'A new version is available. Update now to get the latest features.'
                 }
               </p>
