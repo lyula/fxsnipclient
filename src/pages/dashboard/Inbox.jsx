@@ -8,6 +8,7 @@ import { debounce } from "lodash";
 import useConversationsStatus from "../../hooks/useConversationsStatus";
 import UserStatus from "../../components/UserStatus";
 import { io } from "socket.io-client";
+import useUserStatus from "../hooks/useUserStatus";
 
 const Inbox = () => {
   // Context and navigation
@@ -948,6 +949,8 @@ const Inbox = () => {
     );
   }
 
+  const recipientStatus = selectedUser ? useUserStatus(selectedUser._id, token) : {};
+
   return (
     <div className={`h-full flex bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out ${
       selectedUser && shouldShowChat ? 'fixed inset-0 lg:relative lg:inset-auto' : ''
@@ -1119,10 +1122,14 @@ const Inbox = () => {
             </div>
           </div>
 
-          {/* UserStatus above input, WhatsApp style */}
-          <div className="w-full px-4 pt-2 pb-0 bg-white dark:bg-gray-900">
-            <UserStatus userId={selectedUser._id} token={token} showTypingDots={true} />
-          </div>
+          {/* Typing dots above input, left-aligned */}
+          {recipientStatus && recipientStatus.typing && (
+  <div className="flex items-center pl-4 pb-1">
+    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce mr-1" style={{ animationDelay: '0ms' }}></span>
+    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce mr-1" style={{ animationDelay: '150ms' }}></span>
+    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+  </div>
+)}
 
           {/* Messages Container */}
           <div
