@@ -6,6 +6,8 @@ import { getConversation, sendMessage } from "../../utils/api";
 import { jwtDecode } from "jwt-decode";
 import { debounce } from "lodash";
 import useConversationsStatus from "../../hooks/useConversationsStatus";
+import UserStatus from "../../components/UserStatus";
+import { io } from "socket.io-client";
 
 const Inbox = () => {
   // Context and navigation
@@ -38,6 +40,7 @@ const Inbox = () => {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const fetchTimeoutRef = useRef(null);
+  const socketRef = useRef(null);
   
   // Get user ID from token
   const token = localStorage.getItem("token");
@@ -903,6 +906,35 @@ const Inbox = () => {
     }
   }, [selectedUser?._id, lastFetchedUser]);
 
+  // --- Real-time message receiving logic ---
+  useEffect(() => {
+    if (!token || !selectedUser?._id) return;
+    if (!socketRef.current) {
+      socketRef.current = io(import.meta.env.VITE_SOCKET_URL, {
+        auth: { token },
+        transports: ["websocket"],
+      });
+    }
+    const socket = socketRef.current;
+    // Join the chat room for this user
+    socket.emit("joinChat", { userId: myUserId, otherUserId: selectedUser._id });
+    // Listen for new messages
+    const handleNewMessage = (msg) => {
+      if (msg && msg.from === selectedUser._id) {
+        setMessages((prev) => [...prev, msg]);
+        setMessagesCache((prev) => {
+          const cached = prev.get(selectedUser._id) || [];
+          return new Map(prev).set(selectedUser._id, [...cached, msg]);
+        });
+      }
+    };
+    socket.on("newMessage", handleNewMessage);
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+      socket.emit("leaveChat", { userId: myUserId, otherUserId: selectedUser._id });
+    };
+  }, [token, selectedUser?._id, myUserId]);
+
   // Loading state with better UX
   if (!conversations.length && !selectedUser) {
     return (
@@ -1058,7 +1090,6 @@ const Inbox = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            
             {/* Clickable avatar */}
             <Link 
               to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`}
@@ -1066,8 +1097,7 @@ const Inbox = () => {
             >
               <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
             </Link>
-            
-            <div className="flex-1">
+            <div className="flex-1 flex flex-col">
               <button
                 className="flex items-center hover:underline"
                 onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
@@ -1075,8 +1105,9 @@ const Inbox = () => {
                 <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
                 {selectedUser.verified && <VerifiedBadge />}
               </button>
+              {/* UserStatus below username */}
+              <UserStatus userId={selectedUser._id} token={token} />
             </div>
-
             {/* Chat Actions */}
             <div className="flex items-center space-x-2">
               <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
@@ -1085,6 +1116,11 @@ const Inbox = () => {
                 </svg>
               </button>
             </div>
+          </div>
+
+          {/* UserStatus above input, WhatsApp style */}
+          <div className="w-full px-4 pt-2 pb-0 bg-white dark:bg-gray-900">
+            <UserStatus userId={selectedUser._id} token={token} />
           </div>
 
           {/* Messages Container */}
