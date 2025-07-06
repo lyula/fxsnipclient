@@ -418,7 +418,7 @@ const Inbox = () => {
       }
     } catch (error) {
       console.error("Retry error:", error);
-      setMessages(prev => prev.map(msg => 
+      setMessages(prev => prev.map(msg =>
         msg._id === message._id ? { ...msg, failed: true, isOptimistic: false } : msg
       ));
     } finally {
@@ -981,7 +981,7 @@ const Inbox = () => {
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="w-full h-full overflow-y-auto hide-scrollbar">
           {conversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
