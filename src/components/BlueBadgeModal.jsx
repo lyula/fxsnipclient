@@ -29,6 +29,7 @@ const paymentLogos = {
 
 const USD_TO_KES = 130; // Example conversion rate, update as needed
 const TEST_KES_AMOUNT = 50; // For testing, set to 50 KES
+const TEST_USD_AMOUNT = 0.5; // For testing, set to 0.5 USD
 
 const inputClass =
   "text-center text-xl font-semibold border-2 border-[#a99d6b] rounded-lg px-4 py-3 w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-[#a99d6b] bg-gray-50 dark:bg-gray-800 text-[#1E3A8A] dark:text-[#a99d6b] placeholder:text-[#a99d6b] dark:placeholder:text-[#a99d6b]";
@@ -66,7 +67,7 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
           <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (USD)</label>
           <input
             type="text"
-            value={billingType === 'annual' ? '$80' : '$8'}
+            value={method === 'mpesa' ? `$${TEST_USD_AMOUNT}` : (billingType === 'annual' ? '$80' : '$8')}
             readOnly
             className={inputClass}
             style={{ letterSpacing: '2px' }}
@@ -76,7 +77,7 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
           <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (KES)</label>
           <input
             type="text"
-            value={billingType === 'annual' ? `KES ${80 * USD_TO_KES}` : `KES ${8 * USD_TO_KES}`}
+            value={method === 'mpesa' ? `KES ${TEST_KES_AMOUNT}` : (billingType === 'annual' ? `KES ${80 * USD_TO_KES}` : `KES ${8 * USD_TO_KES}`)}
             readOnly
             className={inputClass}
             style={{ letterSpacing: '2px' }}
