@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getProfile, updateProfile } from "../../utils/api";
+import { getProfile, updateProfile, getLatestBadgePayment } from "../../utils/api";
 import { useAuth } from "../../context/auth";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import BlueBadgeModal from "../../components/BlueBadgeModal";
@@ -15,6 +15,7 @@ export default function Profile() {
   const [following, setFollowing] = useState([]);
   const [countsLoading, setCountsLoading] = useState(true);
   const [showBlueBadgeModal, setShowBlueBadgeModal] = useState(false);
+  const [badgeExpiry, setBadgeExpiry] = useState(null);
 
   // API base URL
   const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -59,8 +60,17 @@ export default function Profile() {
         if (data && data.username) {
           setUser(data);
           setForm({ username: data.username, email: data.email });
-          // Fetch follower counts after getting user data
           fetchFollowerCounts(data.username);
+          // Fetch badge expiry if verified
+          if (data.verified) {
+            getLatestBadgePayment().then((payment) => {
+              if (payment && payment.periodEnd) {
+                setBadgeExpiry(payment.periodEnd);
+              }
+            });
+          } else {
+            setBadgeExpiry(null);
+          }
         } else {
           setMessage(data.message || "Failed to load profile.");
         }
@@ -270,6 +280,18 @@ export default function Profile() {
           </>
         )}
       </div>
+      {/* Blue badge expiry info */}
+      {user.verified && badgeExpiry && (
+        <div className="mt-4 flex flex-col items-center">
+          <button
+            className="bg-green-100 text-green-700 font-semibold px-4 py-2 rounded-lg cursor-default border border-green-300 text-center w-full"
+            style={{ pointerEvents: 'none' }}
+            readOnly
+          >
+            Your blue badge expires on {new Date(badgeExpiry).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+          </button>
+        </div>
+      )}
       {message && (
         <div className="mt-4 text-green-600 text-center font-semibold">
           {message}

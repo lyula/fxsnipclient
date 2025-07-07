@@ -164,7 +164,7 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const BlueBadgeModal = ({ open, onClose, userId }) => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, refreshUser } = useAuth();
   // State variables
   const [step, setStep] = useState(1); // 1: info, 2: payment methods, 3: payment fields, 4: waiting, 5: result
   const [selectedMethod, setSelectedMethod] = useState(null);
@@ -189,10 +189,12 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
     setPolling(false);
   };
 
-
   //forcing redeplyoment
-  // Wrap onClose to reset modal state
+  // Wrap onClose to reset modal state and refresh user if payment was successful
   const handleClose = () => {
+    if (paymentStatus === 'success' && typeof refreshUser === 'function') {
+      refreshUser();
+    }
     resetModal();
     if (onClose) onClose();
   };
@@ -246,7 +248,8 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
             body: JSON.stringify({
               phone_number: paymentDetails.mpesaNumber,
               amount: TEST_KES_AMOUNT, // Always use 10 KES for testing
-              customer_name: currentUser?.username || 'Customer'
+              customer_name: currentUser?.username || 'Customer',
+              billingType // Pass billingType to backend
             })
           });
           const data = await res.json();
@@ -404,7 +407,17 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
             <div className="flex flex-col items-center justify-center py-8">
               {paymentStatus === 'success' ? (
                 <>
-                  <div className="text-3xl mb-4 text-green-600 font-bold">Payment Successful!</div>
+                  <div className="flex flex-col items-center mb-4">
+                    <div className="flex items-center justify-center mb-2">
+                      <span className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
+                        <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 12l3 3 5-5" />
+                        </svg>
+                      </span>
+                    </div>
+                    <div className="text-3xl text-green-600 font-bold">Payment Successful!</div>
+                  </div>
                   <div className="mb-2 text-gray-700 dark:text-gray-200">Your badge will be activated shortly.</div>
                   <button className="mt-6 px-6 py-2 rounded bg-[#a99d6b] text-white font-semibold" onClick={handleClose}>Close</button>
                 </>
