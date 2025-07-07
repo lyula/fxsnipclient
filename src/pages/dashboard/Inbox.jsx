@@ -8,7 +8,7 @@ import { debounce } from "lodash";
 import useConversationsStatus from "../../hooks/useConversationsStatus";
 import UserStatus from "../../components/UserStatus";
 import { io } from "socket.io-client";
-import useUserStatus from "../hooks/useUserStatus";
+import useUserStatus from "../../hooks/useUserStatus";
 
 const Inbox = () => {
   // Context and navigation
@@ -907,6 +907,20 @@ const Inbox = () => {
     }
   }, [selectedUser?._id, lastFetchedUser]);
 
+  // --- Robust scroll-to-bottom with MutationObserver ---
+  useEffect(() => {
+    if (!messagesContainerRef.current) return;
+    // Scroll to bottom immediately
+    debouncedScrollToBottom(true);
+
+    // Set up MutationObserver to scroll when new messages are rendered
+    const observer = new MutationObserver(() => {
+      debouncedScrollToBottom(true);
+    });
+    observer.observe(messagesContainerRef.current, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [selectedUser?._id, messagesFetched, messages.length, debouncedScrollToBottom]);
+
   // --- Real-time message receiving logic ---
   useEffect(() => {
     if (!token || !selectedUser?._id) return;
@@ -921,11 +935,20 @@ const Inbox = () => {
     socket.emit("joinChat", { userId: myUserId, otherUserId: selectedUser._id });
     // Listen for new messages
     const handleNewMessage = (msg) => {
-      // Accept messages where you are sender or receiver
-      if (msg && ((msg.from === selectedUser._id && msg.to === myUserId) || (msg.from === myUserId && msg.to === selectedUser._id))) {
-        setMessages((prev) => [...prev, msg]);
+      // Accept messages where you are sender or receiver for this conversation
+      if (
+        msg &&
+        ((msg.from === selectedUser._id && msg.to === myUserId) ||
+        (msg.from === myUserId && msg.to === selectedUser._id))
+      ) {
+        setMessages((prev) => {
+          // Prevent duplicate messages
+          if (prev.some((m) => m._id === msg._id)) return prev;
+          return [...prev, msg];
+        });
         setMessagesCache((prev) => {
           const cached = prev.get(selectedUser._id) || [];
+          if (cached.some((m) => m._id === msg._id)) return prev;
           return new Map(prev).set(selectedUser._id, [...cached, msg]);
         });
       }
@@ -935,7 +958,10 @@ const Inbox = () => {
       socket.off("newMessage", handleNewMessage);
       socket.emit("leaveChat", { userId: myUserId, otherUserId: selectedUser._id });
     };
-  }, [token, selectedUser?._id, myUserId]);
+  }, [token, selectedUser?._id, myUserId, setMessagesCache]);
+
+  // Always call useUserStatus unconditionally and BEFORE any return statement
+  const recipientStatus = useUserStatus(selectedUser?._id, token);
 
   // Loading state with better UX
   if (!conversations.length && !selectedUser) {
@@ -948,8 +974,6 @@ const Inbox = () => {
       </div>
     );
   }
-
-  const recipientStatus = selectedUser ? useUserStatus(selectedUser._id, token) : {};
 
   return (
     <div className={`h-full flex bg-white dark:bg-gray-900 transition-all duration-300 ease-in-out ${
@@ -1122,15 +1146,6 @@ const Inbox = () => {
             </div>
           </div>
 
-          {/* Typing dots above input, left-aligned */}
-          {recipientStatus && recipientStatus.typing && (
-  <div className="flex items-center pl-4 pb-1">
-    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce mr-1" style={{ animationDelay: '0ms' }}></span>
-    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce mr-1" style={{ animationDelay: '150ms' }}></span>
-    <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-  </div>
-)}
-
           {/* Messages Container */}
           <div
             ref={messagesContainerRef}
@@ -1297,7 +1312,15 @@ const Inbox = () => {
               )))}
           </div>
 
-          {/* Message Input */}
+          {/* Typing dots above input, left-aligned, color #a99d6b */}
+          {recipientStatus && recipientStatus.typing && (
+            <div className="flex items-center pl-4 pb-1">
+              <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1" style={{ background: '#a99d6b', animationDelay: '0ms' }}></span>
+              <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1" style={{ background: '#a99d6b', animationDelay: '150ms' }}></span>
+              <span className="inline-block w-2 h-2 rounded-full animate-bounce" style={{ background: '#a99d6b', animationDelay: '300ms' }}></span>
+            </div>
+          )}
+
           <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
             <form onSubmit={handleSendMessage} className="p-4">
               <div className="flex items-end space-x-3">
