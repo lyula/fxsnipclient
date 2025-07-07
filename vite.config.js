@@ -4,6 +4,15 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://fxsnipserver.onrender.com',
+        changeOrigin: true,
+        secure: false // Set to true if your backend has a valid SSL cert
+      }
+    }
+  },
   plugins: [
     react(),
     VitePWA({
@@ -42,7 +51,7 @@ export default defineConfig({
             urlPattern: /\.(?:js|css)$/,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'static-resources',
+              cacheName: 'static-resources'
             }
           }
         ]

@@ -20,9 +20,25 @@ function formatLastSeen(date) {
   if (!date) return "";
   const d = new Date(date);
   const now = new Date();
-  const diff = Math.floor((now - d) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
-  return d.toLocaleString();
+
+  // Helper to zero out time for date comparison
+  function stripTime(dt) {
+    return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+  }
+
+  const today = stripTime(now);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  const lastSeenDay = stripTime(d);
+
+  if (lastSeenDay.getTime() === today.getTime()) {
+    // Today: show local 24hr time
+    return `today at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+  } else if (lastSeenDay.getTime() === yesterday.getTime()) {
+    // Yesterday
+    return `yesterday at ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+  } else {
+    // Before yesterday: show human-readable date
+    return d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  }
 }
