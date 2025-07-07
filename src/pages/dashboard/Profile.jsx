@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { getProfile, updateProfile } from "../../utils/api";
 import { useAuth } from "../../context/auth";
 import VerifiedBadge from "../../components/VerifiedBadge";
+import BlueBadgeModal from "../../components/BlueBadgeModal";
 
 export default function Profile() {
   const { refreshUser } = useAuth();
@@ -13,6 +14,7 @@ export default function Profile() {
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [countsLoading, setCountsLoading] = useState(true);
+  const [showBlueBadgeModal, setShowBlueBadgeModal] = useState(false);
 
   // API base URL
   const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -235,7 +237,7 @@ export default function Profile() {
           )}
         </div>
       </div>
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex gap-3 flex-col sm:flex-row">
         {editMode ? (
           <>
             <button
@@ -252,12 +254,20 @@ export default function Profile() {
             </button>
           </>
         ) : (
-          <button
-            onClick={handleEdit}
-            className="bg-[#a99d6b] text-white px-4 py-2 rounded font-semibold hover:bg-[#8c845c] transition w-full"
-          >
-            Edit Profile
-          </button>
+          <>
+            <button
+              onClick={handleEdit}
+              className="bg-[#a99d6b] text-white px-4 py-2 rounded font-semibold hover:bg-[#8c845c] transition w-full"
+            >
+              Edit Profile
+            </button>
+            <button
+              onClick={() => setShowBlueBadgeModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded font-semibold hover:bg-blue-700 transition w-full mt-2"
+            >
+              Get Blue Badge
+            </button>
+          </>
         )}
       </div>
       {message && (
@@ -265,6 +275,7 @@ export default function Profile() {
           {message}
         </div>
       )}
+      <BlueBadgeModal open={showBlueBadgeModal} onClose={() => setShowBlueBadgeModal(false)} />
     </div>
   );
 }
