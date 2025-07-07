@@ -28,6 +28,7 @@ const paymentLogos = {
 };
 
 const USD_TO_KES = 130; // Example conversion rate, update as needed
+const TEST_KES_AMOUNT = 50; // For testing, set to 50 KES
 
 const inputClass =
   "text-center text-xl font-semibold border-2 border-[#a99d6b] rounded-lg px-4 py-3 w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-[#a99d6b] bg-gray-50 dark:bg-gray-800 text-[#1E3A8A] dark:text-[#a99d6b] placeholder:text-[#a99d6b] dark:placeholder:text-[#a99d6b]";
@@ -243,7 +244,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
             },
             body: JSON.stringify({
               phone_number: paymentDetails.mpesaNumber,
-              amount: billingType === 'annual' ? 80 * USD_TO_KES : 8 * USD_TO_KES,
+              amount: TEST_KES_AMOUNT, // Always use 10 KES for testing
               customer_name: currentUser?.username || 'Customer'
             })
           });
