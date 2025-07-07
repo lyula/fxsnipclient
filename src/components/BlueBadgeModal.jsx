@@ -157,21 +157,51 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
   );
 };
 
-const BlueBadgeModal = ({ open, onClose }) => {
+const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/api\/auth$/, '') || '';
+
+const BlueBadgeModal = ({ open, onClose, userId }) => {
   const [step, setStep] = useState(1); // 1: info, 2: payment methods, 3: payment fields
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState({});
   const [billingType, setBillingType] = useState('monthly');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   if (!open) return null;
 
-  const handleProceed = () => {
+  const handleProceed = async () => {
     if (step === 1) setStep(2);
     else if (step === 2 && selectedMethod) setStep(3);
     else if (step === 3) {
-      // Here you would handle payment submission
-      alert('Payment submitted!');
-      onClose();
+      if (selectedMethod === 'mpesa') {
+        setLoading(true);
+        setError(null);
+        try {
+          const res = await fetch(`${API_BASE}/api/badge-payments/initiate-stk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              phone_number: paymentDetails.mpesaNumber,
+              amount: billingType === 'annual' ? 80 * USD_TO_KES : 8 * USD_TO_KES,
+              customer_name: paymentDetails.customerName || ''
+            })
+          });
+          const data = await res.json();
+          if (res.ok && data.CheckoutRequestID) {
+            alert('STK Push sent! Please check your phone to complete payment.');
+            onClose();
+          } else {
+            setError(data.error || 'Failed to initiate payment.');
+          }
+        } catch (err) {
+          setError('Network error. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        alert('Only M-Pesa (PayHero) is supported for now.');
+      }
     }
   };
 
@@ -296,6 +326,8 @@ const BlueBadgeModal = ({ open, onClose }) => {
               </div>
             </form>
           )}
+          {loading && <div className="text-center text-[#a99d6b] font-semibold py-4">Processing payment, please wait...</div>}
+          {error && <div className="text-center text-red-600 font-semibold py-4">{error}</div>}
         </div>
       </div>
     </div>
