@@ -27,6 +27,9 @@ const paymentLogos = {
 
 const USD_TO_KES = 130; // Example conversion rate, update as needed
 
+const inputClass =
+  "text-center text-xl font-semibold border-2 border-[#a99d6b] rounded-lg px-4 py-3 w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-[#a99d6b] bg-gray-50 dark:bg-gray-800 text-[#1E3A8A] dark:text-[#a99d6b] placeholder:text-[#a99d6b] dark:placeholder:text-[#a99d6b]";
+
 const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
   // Add billing options and amount fields for all methods
   return (
@@ -57,99 +60,99 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
       </div>
       <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-center">
         <div className="flex flex-col items-center w-full max-w-xs">
-          <label className="text-xs text-[#a99d6b] font-semibold">Amount (USD)</label>
+          <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (USD)</label>
           <input
             type="text"
             value={billingType === 'annual' ? '$80' : '$8'}
             readOnly
-            className="text-center font-bold border-2 border-[#a99d6b] rounded-lg px-4 py-3 w-full bg-gray-50 text-xl text-[#1E3A8A]"
+            className={inputClass}
             style={{ letterSpacing: '2px' }}
           />
         </div>
         <div className="flex flex-col items-center w-full max-w-xs">
-          <label className="text-xs text-[#a99d6b] font-semibold">Amount (KES)</label>
+          <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (KES)</label>
           <input
             type="text"
             value={billingType === 'annual' ? `KES ${80 * USD_TO_KES}` : `KES ${8 * USD_TO_KES}`}
             readOnly
-            className="text-center font-bold border-2 border-[#a99d6b] rounded-lg px-4 py-3 w-full bg-gray-50 text-xl text-[#1E3A8A]"
+            className={inputClass}
             style={{ letterSpacing: '2px' }}
           />
         </div>
       </div>
       {/* Payment fields based on method */}
-      {(() => {
-        switch (method) {
-          case 'paypal':
-            return (
-              <input
-                type="email"
-                name="paypalEmail"
-                placeholder="PayPal Email"
-                className="input"
-                onChange={onChange}
-                required
-              />
-            );
-          case 'stripe':
-            return (
-              <input
-                type="text"
-                name="stripeToken"
-                placeholder="Stripe Token"
-                className="input"
-                onChange={onChange}
-                required
-              />
-            );
-          case 'visa':
-          case 'mastercard':
-            return (
-              <>
+      <div className="flex flex-col items-center justify-center w-full gap-2">
+        {(() => {
+          switch (method) {
+            case 'paypal':
+              return (
                 <input
-                  type="text"
-                  name="cardNumber"
-                  placeholder="Card Number"
-                  className="input"
+                  type="email"
+                  name="paypalEmail"
+                  placeholder="PayPal Email"
+                  className={inputClass}
                   onChange={onChange}
                   required
                 />
+              );
+            case 'stripe':
+              return (
                 <input
                   type="text"
-                  name="expiry"
-                  placeholder="MM/YY"
-                  className="input"
+                  name="stripeToken"
+                  placeholder="Stripe Token"
+                  className={inputClass}
                   onChange={onChange}
                   required
                 />
-                <input
-                  type="text"
-                  name="cvc"
-                  placeholder="CVC"
-                  className="input"
-                  onChange={onChange}
-                  required
-                />
-              </>
-            );
-          case 'mpesa':
-            return (
-              <div className="flex flex-col items-center justify-center w-full">
+              );
+            case 'visa':
+            case 'mastercard':
+              return (
+                <>
+                  <input
+                    type="text"
+                    name="cardNumber"
+                    placeholder="Card Number"
+                    className={inputClass}
+                    onChange={onChange}
+                    required
+                  />
+                  <input
+                    type="text"
+                    name="expiry"
+                    placeholder="MM/YY"
+                    className={inputClass}
+                    onChange={onChange}
+                    required
+                  />
+                  <input
+                    type="text"
+                    name="cvc"
+                    placeholder="CVC"
+                    className={inputClass}
+                    onChange={onChange}
+                    required
+                  />
+                </>
+              );
+            case 'mpesa':
+              return (
                 <input
                   type="text"
                   name="mpesaNumber"
                   placeholder="M-Pesa Phone Number"
-                  className="text-center text-xl font-semibold border-2 border-[#a99d6b] rounded-lg px-4 py-3 w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-[#a99d6b] bg-gray-50"
+                  className={inputClass}
                   onChange={onChange}
                   required
                   style={{ letterSpacing: '2px' }}
                 />
-              </div>
-            );
-          default:
-            return null;
-        }
-      })()}
+              );
+            default:
+              return null;
+          }
+        })()}
+      </div>
     </>
   );
 };
@@ -219,7 +222,7 @@ const BlueBadgeModal = ({ open, onClose }) => {
           )}
           {step === 2 && (
             <>
-              <h2 className="text-lg font-semibold mb-4 text-center">Choose Payment Method</h2>
+              <h2 className="text-lg font-semibold mb-4 text-center text-[#1E3A8A] dark:text-[#a99d6b]">Choose Payment Method</h2>
               <div className="grid gap-3 mb-6">
                 {PAYMENT_METHODS.map((m) => (
                   <button
@@ -282,7 +285,7 @@ const BlueBadgeModal = ({ open, onClose }) => {
                       }
                       style={{ maxWidth: selectedMethod === 'stripe' ? 120 : 60 }}
                     />
-                    <h2 className="text-lg font-semibold">Enter {PAYMENT_METHODS.find(m => m.key === selectedMethod)?.label} Details</h2>
+                    <h2 className="text-lg font-semibold text-[#1E3A8A] dark:text-[#a99d6b]">Enter {PAYMENT_METHODS.find(m => m.key === selectedMethod)?.label} Details</h2>
                   </div>
                 )}
               </div>
