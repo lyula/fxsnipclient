@@ -187,6 +187,8 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
     setPolling(false);
   };
 
+
+  //forcing redeplyoment
   // Wrap onClose to reset modal state
   const handleClose = () => {
     resetModal();
