@@ -19,7 +19,15 @@ export default function useUserStatus(targetUserId, token) {
     socketRef.current = socket;
 
     // Use API base URL from env or default to empty string (relative)
-    const API_BASE = import.meta.env.VITE_API_URL || "";
+    let API_BASE = import.meta.env.VITE_API_URL || "";
+    if (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
+
+    // For last seen, always use the root domain + /api/user/last-seen/:userId
+    // Extract root domain from API_BASE
+    let lastSeenBase = API_BASE;
+    // Remove /api or /api/auth or /api/anything from the end
+    lastSeenBase = lastSeenBase.replace(/\/api(\/auth)?$/, "");
+    const lastSeenPath = "/api/user/last-seen/";
 
     // Listen for online/offline events
     socket.on("user-online", ({ userId }) => {
@@ -40,9 +48,9 @@ export default function useUserStatus(targetUserId, token) {
     // Fetch lastSeen from API on offline
     socket.on("user-offline", async ({ userId }) => {
       if (userId === targetUserId) {
-        // Fetch lastSeen from API
+        // Fetch lastSeen from API (always use correct path)
         try {
-          const res = await fetch(`${API_BASE}/api/user/last-seen/${userId}`);
+          const res = await fetch(`${lastSeenBase}${lastSeenPath}${userId}`);
           const data = await res.json();
           setLastSeen(data.lastSeen);
         } catch {}
@@ -52,7 +60,7 @@ export default function useUserStatus(targetUserId, token) {
     // Initial fetch for lastSeen
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/user/last-seen/${targetUserId}`);
+        const res = await fetch(`${lastSeenBase}${lastSeenPath}${targetUserId}`);
         const data = await res.json();
         setLastSeen(data.lastSeen);
       } catch {}
