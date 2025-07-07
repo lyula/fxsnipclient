@@ -18,6 +18,9 @@ export default function useUserStatus(targetUserId, token) {
     });
     socketRef.current = socket;
 
+    // Use API base URL from env or default to empty string (relative)
+    const API_BASE = import.meta.env.VITE_API_URL || "";
+
     // Listen for online/offline events
     socket.on("user-online", ({ userId }) => {
       if (userId === targetUserId) setOnline(true);
@@ -39,7 +42,7 @@ export default function useUserStatus(targetUserId, token) {
       if (userId === targetUserId) {
         // Fetch lastSeen from API
         try {
-          const res = await fetch(`/api/user/last-seen/${userId}`);
+          const res = await fetch(`${API_BASE}/api/user/last-seen/${userId}`);
           const data = await res.json();
           setLastSeen(data.lastSeen);
         } catch {}
@@ -49,7 +52,7 @@ export default function useUserStatus(targetUserId, token) {
     // Initial fetch for lastSeen
     (async () => {
       try {
-        const res = await fetch(`/api/user/last-seen/${targetUserId}`);
+        const res = await fetch(`${API_BASE}/api/user/last-seen/${targetUserId}`);
         const data = await res.json();
         setLastSeen(data.lastSeen);
       } catch {}
