@@ -271,12 +271,15 @@ export default function Profile() {
             >
               Edit Profile
             </button>
-            <button
-              onClick={() => setShowBlueBadgeModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded font-semibold hover:bg-blue-700 transition w-full mt-2"
-            >
-              Get Blue Badge
-            </button>
+            {/* Only show Get Blue Badge if not verified or no expiry */}
+            {!(user.verified && badgeExpiry) && (
+              <button
+                onClick={() => setShowBlueBadgeModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded font-semibold hover:bg-blue-700 transition w-full mt-2"
+              >
+                Get Blue Badge
+              </button>
+            )}
           </>
         )}
       </div>
