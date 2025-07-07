@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import VerifiedBadge from './VerifiedBadge';
+import { fetchWithAuth } from '../utils/api';
 
 const ADVANTAGES = [
   'Increased post visibility in the Vibe section',
@@ -167,6 +168,9 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Get JWT from localStorage (or update this if you use a different auth storage)
+  const token = localStorage.getItem('token');
+
   if (!open) return null;
 
   const handleProceed = async () => {
@@ -177,11 +181,12 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
         setLoading(true);
         setError(null);
         try {
-          const res = await fetch(`${API_BASE}/api/badge-payments/initiate-stk`, {
+          const res = await fetchWithAuth(`${API_BASE}/api/badge-payments/initiate-stk`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
-              userId,
               phone_number: paymentDetails.mpesaNumber,
               amount: billingType === 'annual' ? 80 * USD_TO_KES : 8 * USD_TO_KES,
               customer_name: paymentDetails.customerName || ''
@@ -189,7 +194,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
           });
           const data = await res.json();
           if (res.ok && data.CheckoutRequestID) {
-            alert('STK Push sent! Please check your phone to complete payment.');
+            alert('STK Push sent! Please check your phone to complete the transaction.');
             onClose();
           } else {
             setError(data.error || 'Failed to initiate payment.');

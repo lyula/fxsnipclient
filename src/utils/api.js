@@ -320,3 +320,18 @@ export async function getPostLikes(postId, limit = 100) {
   });
   return res.json();
 }
+
+// Helper to always add Authorization header to fetch
+export function fetchWithAuth(url, options = {}) {
+  const token = localStorage.getItem("token");
+  const headers = {
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+  return fetch(url, {
+    ...options,
+    headers,
+    mode: 'cors', // ensure CORS
+    // do NOT set credentials: 'include' for JWT in header
+  });
+}

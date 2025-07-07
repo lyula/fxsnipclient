@@ -37,7 +37,7 @@ export default function UserProfile() {
   const authHeaders = useMemo(() => {
     const token = localStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : {};
-  }, []);
+  }, [localStorage.getItem("token")]); // depend on token for reactivity
 
   const cacheKey = `profile_${username}`;
 
@@ -61,24 +61,29 @@ export default function UserProfile() {
   // Profile view tracking
   const trackProfileView = (profileId) => {
     if (!profileId || !currentUser) return;
-    
     const viewKey = `profile_${profileId}_${currentUser._id || currentUser.id}`;
-    
-    // Use localStorage to track viewed profiles
     const viewedProfiles = JSON.parse(localStorage.getItem("viewedProfiles") || "[]");
-    
-    // Only track if not already viewed and not viewing own profile
     if (!viewedProfiles.includes(viewKey) && String(currentUser._id || currentUser.id) !== String(profileId)) {
       viewedProfiles.push(viewKey);
       localStorage.setItem("viewedProfiles", JSON.stringify(viewedProfiles));
-      
-      // Call API in background
-      fetch(`${API_BASE}/user/view/${profileId}`, {
-        method: "POST",
-        headers: authHeaders,
-      }).catch(() => {}); // Ignore errors
+      fetchWithAuth(`${API_BASE}/user/view/${profileId}`, { method: "POST" }).catch(() => {});
     }
   };
+
+  // Helper to always add Authorization header to fetch
+  const fetchWithAuth = useCallback((url, options = {}) => {
+    const token = localStorage.getItem("token");
+    const headers = {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+    return fetch(url, {
+      ...options,
+      headers,
+      mode: 'cors', // ensure CORS
+      // do NOT set credentials: 'include' for JWT in header
+    });
+  }, []);
 
   // Fetch profile and counts
   const fetchProfileAndCounts = useCallback(async () => {
@@ -99,13 +104,9 @@ export default function UserProfile() {
     try {
       // Execute all API calls in parallel for better performance
       const [profileRes, followersRes, followingRes] = await Promise.all([
-        fetch(`${API_BASE}/user/public/${encodeURIComponent(username)}`, {
-          headers: authHeaders,
-        }),
+        fetchWithAuth(`${API_BASE}/user/public/${encodeURIComponent(username)}`),
         fetch(`${API_BASE}/user/followers/${encodeURIComponent(username)}`),
-        fetch(`${API_BASE}/user/following/${encodeURIComponent(username)}`, {
-          headers: authHeaders,
-        })
+        fetchWithAuth(`${API_BASE}/user/following/${encodeURIComponent(username)}`)
       ]);
 
       // Process responses
@@ -151,7 +152,7 @@ export default function UserProfile() {
       setLoading(false);
       setButtonLoading(false);
     }
-  }, [username, API_BASE, authHeaders, getCachedProfile, setCachedProfile]);
+  }, [username, API_BASE, fetchWithAuth, getCachedProfile, setCachedProfile]);
 
   // Fetch posts for this user with abort controller
   const fetchPosts = useCallback(async (profileId, signal) => {
@@ -237,16 +238,7 @@ export default function UserProfile() {
 
     try {
       const url = `${API_BASE}/posts/${originalPostId}/like`;
-      console.log('Making request to:', url);
-      console.log('With headers:', authHeaders);
-      
-      const response = await fetch(url, {
-        method: "POST",
-        headers: authHeaders,
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
+      const response = await fetchWithAuth(url, { method: "POST" });
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -282,17 +274,14 @@ export default function UserProfile() {
         )
       );
     }
-  }, [API_BASE, authHeaders, currentUser, posts]);
+  }, [API_BASE, fetchWithAuth, currentUser, posts]);
 
   // Comment handler
   const handleComment = useCallback(async (postId, content) => {
     try {
-      const res = await fetch(`${API_BASE}/posts/${postId}/comment`, {
+      const res = await fetchWithAuth(`${API_BASE}/posts/${postId}/comment`, {
         method: "POST",
-        headers: {
-          ...authHeaders,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
       if (res.ok) {
@@ -304,7 +293,7 @@ export default function UserProfile() {
     } catch (error) {
       console.error("Error adding comment:", error);
     }
-  }, [API_BASE, authHeaders]);
+  }, [API_BASE, fetchWithAuth]);
 
   // Follow handler
   const handleFollow = useCallback(async () => {
@@ -321,10 +310,7 @@ export default function UserProfile() {
     }));
 
     try {
-      const response = await fetch(`${API_BASE}/user/follow/${profile._id}`, {
-        method: "POST",
-        headers: authHeaders,
-      });
+      const response = await fetchWithAuth(`${API_BASE}/user/follow/${profile._id}`, { method: "POST" });
 
       if (!response.ok) {
         setIsFollowing(false);
@@ -348,7 +334,7 @@ export default function UserProfile() {
     } finally {
       setFollowLoading(false);
     }
-  }, [profile, API_BASE, authHeaders, currentUser, cacheKey]);
+  }, [profile, API_BASE, fetchWithAuth, currentUser, cacheKey]);
 
   // Unfollow handler
   const handleUnfollow = useCallback(async () => {
@@ -364,10 +350,7 @@ export default function UserProfile() {
     }));
 
     try {
-      const response = await fetch(`${API_BASE}/user/unfollow/${profile._id}`, {
-        method: "POST",
-        headers: authHeaders,
-      });
+      const response = await fetchWithAuth(`${API_BASE}/user/unfollow/${profile._id}`, { method: "POST" });
 
       if (!response.ok) {
         setIsFollowing(true);
@@ -392,7 +375,7 @@ export default function UserProfile() {
     } finally {
       setFollowLoading(false);
     }
-  }, [profile, API_BASE, authHeaders, currentUser, cacheKey]);
+  }, [profile, API_BASE, fetchWithAuth, currentUser, cacheKey]);
 
   const handleMessage = useCallback(() => {
     navigate(`/dashboard/inbox?chat=${encodeURIComponent(profile.username)}`);
@@ -410,15 +393,12 @@ export default function UserProfile() {
     const originalPostId = postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
     
     try {
-      await fetch(`${API_BASE}/posts/${originalPostId}/view`, {
-        method: "POST",
-        headers: authHeaders,
-      });
+      await fetchWithAuth(`${API_BASE}/posts/${originalPostId}/view`, { method: "POST" });
     } catch (error) {
       console.error("Error tracking view:", error);
       // Ignore view tracking errors silently
     }
-  }, [API_BASE, authHeaders]);
+  }, [API_BASE, fetchWithAuth]);
 
   // Delete post handler
   const handleDeletePost = useCallback(async (postId) => {
