@@ -1,8 +1,8 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/auth";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 // Register
 export async function registerUser(data) {
-  const res = await fetch(`${BASE_URL}/register`, {
+  const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -12,7 +12,7 @@ export async function registerUser(data) {
 
 // Login
 export async function loginUser(data) {
-  const res = await fetch(`${BASE_URL}/login`, {
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -27,7 +27,7 @@ export async function loginUser(data) {
 
 // Get Profile
 export async function getProfile() {
-  const res = await fetch(`${BASE_URL.replace("/auth", "")}/user/profile`, {
+  const res = await fetch(`${API_BASE}/user/profile`, {
     headers: {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
     },
@@ -37,7 +37,7 @@ export async function getProfile() {
 
 // Update Profile
 export async function updateProfile(data) {
-  const res = await fetch(`${BASE_URL.replace("/auth", "")}/user/profile`, {
+  const res = await fetch(`${API_BASE}/user/profile`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -51,7 +51,6 @@ export async function updateProfile(data) {
 // Follow a user
 export async function followUser(userId) {
   if (!userId) throw new Error("User ID is required");
-  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
   const res = await fetch(`${API_BASE}/user/follow/${userId}`, {
     method: "POST",
     headers: {
@@ -65,7 +64,6 @@ export async function followUser(userId) {
 // Unfollow a user
 export async function unfollowUser(userId) {
   if (!userId) throw new Error("User ID is required");
-  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
   const res = await fetch(`${API_BASE}/user/unfollow/${userId}`, {
     method: "POST",
     headers: {
@@ -79,7 +77,7 @@ export async function unfollowUser(userId) {
 // Search users by username or email
 export async function searchUsers(query) {
   const res = await fetch(
-    `${BASE_URL.replace("/auth", "")}/user/search?q=${encodeURIComponent(query)}`,
+    `${API_BASE}/user/search?q=${encodeURIComponent(query)}`,
     {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -88,9 +86,6 @@ export async function searchUsers(query) {
   );
   return res.json();
 }
-
-// Use the same API_BASE for all post/comment endpoints
-const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
 
 // Send a message
 export async function sendMessage(to, text) {
@@ -127,7 +122,6 @@ export async function getConversations() {
 
 // Get notifications
 export async function getNotifications() {
-  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
   const res = await fetch(`${API_BASE}/user/notifications`, {
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
@@ -136,7 +130,6 @@ export async function getNotifications() {
 
 // Get unread notification count
 export async function getUnreadNotificationCount() {
-  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
   const res = await fetch(`${API_BASE}/user/notifications/unread-count`, {
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
@@ -145,7 +138,6 @@ export async function getUnreadNotificationCount() {
 
 // Mark all notifications as read
 export async function markNotificationsRead() {
-  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
   const res = await fetch(`${API_BASE}/user/notifications/mark-read`, {
     method: "POST",
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -304,7 +296,6 @@ export async function addReplyToComment(postId, commentId, content) {
 
 // Get unread conversation count
 export async function getUnreadConversationCount() {
-  const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
   const res = await fetch(`${API_BASE}/message/unread-count`, {
     headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
   });
@@ -318,6 +309,13 @@ export async function getPostLikes(postId, limit = 100) {
       Authorization: `Bearer ${localStorage.getItem("token")}`,
     },
   });
+  return res.json();
+}
+
+// Get latest badge payment for current user
+export async function getLatestBadgePayment() {
+  const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const res = await fetchWithAuth(`${API_BASE}/badge-payments/latest`);
   return res.json();
 }
 

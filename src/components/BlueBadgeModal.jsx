@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import VerifiedBadge from './VerifiedBadge';
 import { fetchWithAuth } from '../utils/api';
+import { useAuth } from '../context/auth';
 
 const ADVANTAGES = [
   'Increased post visibility in the Vibe section',
@@ -158,20 +159,72 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
   );
 };
 
-const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/api\/auth$/, '') || '';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const BlueBadgeModal = ({ open, onClose, userId }) => {
-  const [step, setStep] = useState(1); // 1: info, 2: payment methods, 3: payment fields
+  const { user: currentUser } = useAuth();
+  // State variables
+  const [step, setStep] = useState(1); // 1: info, 2: payment methods, 3: payment fields, 4: waiting, 5: result
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState({});
   const [billingType, setBillingType] = useState('monthly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState(null); // 'success' | 'failed' | null
+  const [statusMessage, setStatusMessage] = useState('');
+  const [polling, setPolling] = useState(false);
 
-  // Get JWT from localStorage (or update this if you use a different auth storage)
-  const token = localStorage.getItem('token');
+  // Reset modal state to initial values
+  const resetModal = () => {
+    setStep(1);
+    setSelectedMethod(null);
+    setPaymentDetails({});
+    setBillingType('monthly');
+    setLoading(false);
+    setError(null);
+    setPaymentStatus(null);
+    setStatusMessage('');
+    setPolling(false);
+  };
+
+  // Wrap onClose to reset modal state
+  const handleClose = () => {
+    resetModal();
+    if (onClose) onClose();
+  };
 
   if (!open) return null;
+
+  const pollPaymentStatus = async () => {
+    setPolling(true);
+    let attempts = 0;
+    const maxAttempts = 20; // ~1 minute
+    while (attempts < maxAttempts) {
+      await new Promise(r => setTimeout(r, 3000));
+      const res = await fetchWithAuth(`${API_BASE}/badge-payments/latest`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'completed') {
+          setPaymentStatus('success');
+          setStatusMessage('Payment successful!');
+          setStep(5);
+          setPolling(false);
+          return;
+        } else if (data.status === 'failed') {
+          setPaymentStatus('failed');
+          setStatusMessage(data.methodDetails?.ResultDesc || 'Payment failed or cancelled.');
+          setStep(5);
+          setPolling(false);
+          return;
+        }
+      }
+      attempts++;
+    }
+    setPaymentStatus('failed');
+    setStatusMessage('Payment timed out.');
+    setStep(5);
+    setPolling(false);
+  };
 
   const handleProceed = async () => {
     if (step === 1) setStep(2);
@@ -181,7 +234,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
         setLoading(true);
         setError(null);
         try {
-          const res = await fetchWithAuth(`${API_BASE}/api/badge-payments/initiate-stk`, {
+          const res = await fetchWithAuth(`${API_BASE}/badge-payments/initiate-stk`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -189,18 +242,22 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
             body: JSON.stringify({
               phone_number: paymentDetails.mpesaNumber,
               amount: billingType === 'annual' ? 80 * USD_TO_KES : 8 * USD_TO_KES,
-              customer_name: paymentDetails.customerName || ''
+              customer_name: currentUser?.username || 'Customer'
             })
           });
           const data = await res.json();
           if (res.ok && data.CheckoutRequestID) {
-            alert('STK Push sent! Please check your phone to complete the transaction.');
-            onClose();
+            setStep(4); // Go to waiting page
+            setTimeout(pollPaymentStatus, 1000); // Start polling after 1s
           } else {
             setError(data.error || 'Failed to initiate payment.');
           }
         } catch (err) {
           setError('Network error. Please try again.');
+          setTimeout(() => {
+            setError(null);
+            setPaymentDetails({});
+          }, 3000);
         } finally {
           setLoading(false);
         }
@@ -235,7 +292,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
           </div>
           <button
             className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 text-2xl font-bold"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
           >
             ×
@@ -250,7 +307,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
                 ))}
               </ul>
               <div className="flex gap-3 justify-end">
-                <button className="rounded-lg px-4 py-2 font-semibold bg-red-600 text-white hover:bg-red-700 transition" onClick={onClose}>Cancel</button>
+                <button className="rounded-lg px-4 py-2 font-semibold bg-red-600 text-white hover:bg-red-700 transition" onClick={handleClose}>Cancel</button>
                 <button className="rounded-lg px-4 py-2 font-semibold" style={{ background: '#a99d6b', color: 'white' }} onClick={handleProceed}>Proceed to Pay</button>
               </div>
             </>
@@ -330,6 +387,31 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
                 <button type="submit" className="rounded-lg px-4 py-2 font-semibold" style={{ background: '#a99d6b', color: 'white' }}>Proceed to Pay</button>
               </div>
             </form>
+          )}
+          {step === 4 && (
+            <div className="flex flex-col items-center justify-center py-8">
+              <div className="text-2xl mb-4 text-[#a99d6b] font-bold">Waiting for Payment...</div>
+              <div className="mb-2 text-gray-700 dark:text-gray-200">Please complete the payment on your phone.</div>
+              <div className="mb-2 text-gray-500 dark:text-gray-400 text-sm">Do not close this window.</div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#a99d6b] my-6"></div>
+            </div>
+          )}
+          {step === 5 && (
+            <div className="flex flex-col items-center justify-center py-8">
+              {paymentStatus === 'success' ? (
+                <>
+                  <div className="text-3xl mb-4 text-green-600 font-bold">Payment Successful!</div>
+                  <div className="mb-2 text-gray-700 dark:text-gray-200">Your badge will be activated shortly.</div>
+                  <button className="mt-6 px-6 py-2 rounded bg-[#a99d6b] text-white font-semibold" onClick={handleClose}>Close</button>
+                </>
+              ) : (
+                <>
+                  <div className="text-3xl mb-4 text-red-600 font-bold">Payment Failed</div>
+                  <div className="mb-2 text-gray-700 dark:text-gray-200">{statusMessage}</div>
+                  <button className="mt-6 px-6 py-2 rounded bg-[#a99d6b] text-white font-semibold" onClick={handleClose}>Close</button>
+                </>
+              )}
+            </div>
           )}
           {loading && <div className="text-center text-[#a99d6b] font-semibold py-4">Processing payment, please wait...</div>}
           {error && <div className="text-center text-red-600 font-semibold py-4">{error}</div>}
