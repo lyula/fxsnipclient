@@ -55,20 +55,19 @@ const Inbox = () => {
     }
   }
 
-  // Auto-scroll to bottom with debouncing
-  const scrollToBottom = useCallback((smooth = false) => {
+  // Auto-scroll to bottom instantly (no animation)
+  const scrollToBottom = useCallback(() => {
     if (messagesContainerRef.current) {
-      const scrollOptions = {
+      messagesContainerRef.current.scrollTo({
         top: messagesContainerRef.current.scrollHeight,
-        behavior: smooth ? "smooth" : "auto"
-      };
-      messagesContainerRef.current.scrollTo(scrollOptions);
+        behavior: "auto"
+      });
     }
   }, []);
 
   // Debounced scroll to prevent excessive calls
   const debouncedScrollToBottom = useCallback(
-    debounce((smooth = false) => scrollToBottom(smooth), 100),
+    debounce(() => scrollToBottom(), 100),
     [scrollToBottom]
   );
 
@@ -182,7 +181,7 @@ const Inbox = () => {
       
       // Scroll to bottom with cached messages
       setTimeout(() => {
-        debouncedScrollToBottom(false);
+        debouncedScrollToBottom();
       }, 100);
       
       // Optionally check for new messages in background
@@ -238,7 +237,7 @@ const Inbox = () => {
       
       // Delayed scroll to ensure DOM is updated
       fetchTimeoutRef.current = setTimeout(() => {
-        debouncedScrollToBottom(false);
+        debouncedScrollToBottom();
       }, 150);
       
     } catch (error) {
@@ -277,7 +276,7 @@ const Inbox = () => {
           
           // Scroll to bottom smoothly for new messages
           setTimeout(() => {
-            debouncedScrollToBottom(true);
+            debouncedScrollToBottom();
           }, 100);
         }
       }
@@ -334,7 +333,7 @@ const Inbox = () => {
     setIsSending(true);
 
     // Auto scroll to bottom
-    setTimeout(() => debouncedScrollToBottom(true), 50);
+    setTimeout(() => debouncedScrollToBottom(), 50);
 
     // Debounced conversation update to prevent excessive re-renders
     const updateConv = debounce((id, updates) => {
@@ -911,11 +910,11 @@ const Inbox = () => {
   useEffect(() => {
     if (!messagesContainerRef.current) return;
     // Scroll to bottom immediately
-    debouncedScrollToBottom(true);
+    debouncedScrollToBottom();
 
     // Set up MutationObserver to scroll when new messages are rendered
     const observer = new MutationObserver(() => {
-      debouncedScrollToBottom(true);
+      debouncedScrollToBottom();
     });
     observer.observe(messagesContainerRef.current, { childList: true, subtree: true });
     return () => observer.disconnect();
