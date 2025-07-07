@@ -97,10 +97,15 @@ export const usePostViewTracking = (post, onView, options = {}) => {
     }
 
     const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
-    const viewKey = `viewed_post_${originalPostId}`;
-    
-    // Check if already viewed
-    if (sessionStorage.getItem(viewKey)) {
+    // Use localStorage and a single array for viewed posts
+    const viewedPostsKey = 'viewedPosts';
+    let viewedPosts = [];
+    try {
+      viewedPosts = JSON.parse(localStorage.getItem(viewedPostsKey) || '[]');
+    } catch {
+      viewedPosts = [];
+    }
+    if (viewedPosts.includes(originalPostId)) {
       return;
     }
 
@@ -110,43 +115,43 @@ export const usePostViewTracking = (post, onView, options = {}) => {
     const observerCallback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting && !hasViewedRef.current) {
-          // Only track views, NEVER trigger any scrolling or DOM manipulation
           const shouldTrackView = enableOnFocus || (
             isDocumentVisibleRef.current && 
             !justBecameVisibleRef.current &&
             !initialLoadRef.current
           );
-          
           if (!shouldTrackView) {
             return;
           }
-
-          // Much longer debounce to ensure user has stopped scrolling
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
-
           timeoutRef.current = setTimeout(() => {
-            // Final check - only track view, don't do anything else
             if (!hasViewedRef.current && 
                 entry.target && 
                 entry.isIntersecting && 
                 !justBecameVisibleRef.current &&
                 !initialLoadRef.current &&
                 isDocumentVisibleRef.current) {
-              
-              // ONLY track the view - no scrolling, no DOM manipulation
-              sessionStorage.setItem(viewKey, 'true');
-              onView(post._id); // This should ONLY update view count, nothing else
+              // Add to localStorage array
+              let viewedPosts = [];
+              try {
+                viewedPosts = JSON.parse(localStorage.getItem(viewedPostsKey) || '[]');
+              } catch {
+                viewedPosts = [];
+              }
+              if (!viewedPosts.includes(originalPostId)) {
+                viewedPosts.push(originalPostId);
+                localStorage.setItem(viewedPostsKey, JSON.stringify(viewedPosts));
+                onView(post._id);
+              }
               hasViewedRef.current = true;
-              
-              // Cleanup observer
               if (observerRef.current) {
                 observerRef.current.disconnect();
                 observerRef.current = null;
               }
             }
-          }, 500); // Increased to 500ms to ensure smooth scrolling
+          }, 500);
         }
       });
     };
