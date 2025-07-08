@@ -632,7 +632,7 @@ export default function Dashboard() {
               </div>
             ) : location.pathname.startsWith("/dashboard/inbox") ? (
               // Always use the same layout for inbox, regardless of chat param
-              <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 hide-scrollbar w-full max-w-7xl mx-auto">
+              <div className="flex-1 min-h-0 min-w-0 w-full h-full p-0 m-0 overflow-hidden">
                 <Routes>
                   <Route path="inbox" element={<Inbox />} />
                 </Routes>

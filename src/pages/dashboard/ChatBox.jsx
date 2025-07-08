@@ -503,9 +503,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
           className="emoji-picker-minimalist"
         />
       </div>
-      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full">
+      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full w-full max-w-full !w-full !max-w-full">
         {/* Chat Header */}
-        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full">
           {/* Back button for mobile */}
           <button
             className="lg:hidden mr-3 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -535,7 +535,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         </div>
 
         {/* Messages Container */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain !w-full !max-w-none !px-0 py-4 space-y-4 hide-scrollbar">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain w-full max-w-full !w-full !max-w-full !px-0 py-4 space-y-4 hide-scrollbar">
           {/* Error and empty states */}
           {error ? (
             <div className="flex items-center justify-center h-full">
@@ -574,7 +574,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                       const showAvatar = !isOwn && message.isFirst;
                       const showTime = message.isLast;
                       return (
-                        <div key={message._id} data-message-id={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'}`}>
+                        <div key={message._id} data-message-id={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'} w-full`}>
                           {/* Avatar */}
                           {showAvatar && (
                             <Link to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`} className="hover:opacity-80 transition-opacity">
@@ -583,7 +583,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                           )}
                           {!isOwn && !showAvatar && <div className="w-8" />}
                           {/* Message Bubble */}
-                          <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
+                          <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'} ${isOwn ? 'mr-2 sm:mr-4' : 'ml-2 sm:ml-4'}`}>
                             <div className={`px-4 py-2 rounded-2xl text-sm break-words ${isOwn ? message.failed ? 'bg-red-500 text-white' : message.isOptimistic ? 'bg-blue-400 text-white opacity-80' : 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} ${isOwn ? message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-br-md' : message.isLast ? 'rounded-tr-md' : 'rounded-r-md' : message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-bl-md' : message.isLast ? 'rounded-tl-md' : 'rounded-l-md'}`}>
                               {/* Message Text with Context-Aware Clickable Links */}
                               <div className="mb-1">
@@ -609,7 +609,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                               )}
                             </div>
                             {/* Message status below bubble */}
-                            <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${isOwn ? 'justify-end' : 'justify-start'} ${isOwn ? 'mr-2 sm:mr-4' : 'ml-2 sm:ml-4'}`}>
                               {isOwn && !message.failed && (
                                 <span>
                                   {message.isOptimistic ? (
@@ -641,7 +641,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
           </div>
         )}
         {/* Input area */}
-        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full">
           <form onSubmit={handleSendMessage} className="p-4">
             <div className="flex items-end space-x-3 relative">
               {/* Media button (modern gallery icon) */}
