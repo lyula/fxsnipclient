@@ -80,13 +80,13 @@ const Inbox = () => {
   return (
     <div className="w-full h-full bg-white dark:bg-gray-900 flex flex-col lg:flex-row lg:relative lg:overflow-hidden">
       {/* Conversation List Panel */}
-      <div className="w-full lg:w-1/3 h-full min-h-0 overflow-auto">
+      <div className="w-full lg:w-1/3 h-full min-h-0 overflow-auto hide-desktop-scrollbar">
         <div className="h-full w-full">
           <ConversationList selectedUser={selectedUser} onSelect={handleSelectUser} />
         </div>
       </div>
       {/* ChatBox Panel */}
-      <div className="w-full lg:w-2/3 h-full min-h-0 overflow-auto">
+      <div className="w-full lg:w-2/3 h-full min-h-0 overflow-auto hide-desktop-scrollbar">
         <div className="h-full w-full flex flex-col">
           <ChatBox selectedUser={selectedUser} onBack={handleBack} myUserId={myUserId} token={token} />
         </div>
