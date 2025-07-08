@@ -535,7 +535,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         </div>
 
         {/* Messages Container */}
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 space-y-4 hide-scrollbar">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain !w-full !max-w-none !px-0 py-4 space-y-4 hide-scrollbar">
           {/* Error and empty states */}
           {error ? (
             <div className="flex items-center justify-center h-full">
@@ -600,7 +600,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                                 })()}
                               </div>
                               {/* Exact Time inside bubble */}
-                              <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>{formatExactTime(message.createdAt)}</div>
+                              <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                {formatExactTime(message.createdAt)}
+                              </div>
                               {/* Retry button for failed messages */}
                               {message.failed && (
                                 <button onClick={() => handleRetryMessage(message)} className="block mt-2 text-xs underline hover:no-underline" disabled={isSending}>Tap to retry</button>

@@ -87,3 +87,15 @@
 .emoji-picker-minimalist .epr-body {
   padding-bottom: 0 !important;
 }
+/* Hide vertical scrollbar between conversation list and chatbox on desktop */
+@media (min-width: 1024px) {
+  .hide-desktop-scrollbar {
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE and Edge */
+  }
+  .hide-desktop-scrollbar::-webkit-scrollbar {
+    width: 0 !important;
+    background: transparent !important;
+    display: none !important;
+  }
+}

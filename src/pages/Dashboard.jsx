@@ -186,9 +186,12 @@ export default function Dashboard() {
   const DashboardMain = (
     <div className="w-full max-w-7xl mx-auto">
       {/* Greeting and username */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-[#a99d6b] dark:text-[#a99d6b]">
-          {getGreeting()}, {user?.username}
+      <div className="mb-4 flex flex-col w-full">
+        <h2
+          className="text-lg sm:text-xl md:text-2xl font-bold text-[#a99d6b] dark:text-[#a99d6b] leading-tight mb-1 sm:mb-2 text-left w-full"
+          style={{lineHeight:1.2}}
+        >
+          {getGreeting()}, <span className="break-all">{user?.username}</span>
         </h2>
       </div>
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-2 mb-12">

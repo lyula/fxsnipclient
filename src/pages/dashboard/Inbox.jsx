@@ -10,6 +10,14 @@ const Inbox = () => {
   const [searchParams] = useSearchParams();
   const { conversations } = useDashboard();
 
+  // Responsive state
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 1024);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // Get user ID from token
   const token = localStorage.getItem("token");
   let myUserId = "";
@@ -51,40 +59,35 @@ const Inbox = () => {
     navigate("/dashboard/inbox");
   };
 
+  // On mobile: show only one panel at a time
+  if (isMobile) {
+    if (selectedUser) {
+      return (
+        <div className="w-full h-full bg-white dark:bg-gray-900 flex flex-col">
+          <ChatBox selectedUser={selectedUser} onBack={handleBack} myUserId={myUserId} token={token} />
+        </div>
+      );
+    } else {
+      return (
+        <div className="w-full h-full bg-white dark:bg-gray-900 flex flex-col">
+          <ConversationList selectedUser={selectedUser} onSelect={handleSelectUser} />
+        </div>
+      );
+    }
+  }
+
+  // On desktop: show both panels
   return (
-    // Use flex-col on mobile, flex-row on desktop
     <div className="w-full h-full bg-white dark:bg-gray-900 flex flex-col lg:flex-row lg:relative lg:overflow-hidden">
       {/* Conversation List Panel */}
-      <div
-        className={
-          `absolute inset-0 z-10 ${selectedUser ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'} lg:static lg:opacity-100 lg:pointer-events-auto lg:relative lg:z-10 lg:flex-[1_1_0%] lg:h-full`
-        }
-        style={{
-          width: '100%',
-          maxWidth: '100%',
-          height: '100%',
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
-        {/* Hide scrollbar only on mobile */}
-        <div className="h-full w-full overflow-y-auto hide-scrollbar lg:overflow-y-auto lg:!scrollbar lg:!hide-scrollbar-none">
+      <div className="w-full lg:w-1/3 h-full min-h-0 overflow-auto">
+        <div className="h-full w-full">
           <ConversationList selectedUser={selectedUser} onSelect={handleSelectUser} />
         </div>
       </div>
       {/* ChatBox Panel */}
-      <div
-        className={
-          `absolute inset-0 z-20 ${selectedUser ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'} lg:static lg:opacity-100 lg:pointer-events-auto lg:relative lg:z-20 lg:flex-[2_2_0%] lg:h-full`
-        }
-        style={{
-          width: '100%',
-          maxWidth: '100%',
-          height: '100%',
-        }}
-      >
-        {/* On desktop, always show ChatBox, but only show content if selectedUser */}
-        <div className="h-full w-full">
+      <div className="w-full lg:w-2/3 h-full min-h-0 overflow-auto">
+        <div className="h-full w-full flex flex-col">
           <ChatBox selectedUser={selectedUser} onBack={handleBack} myUserId={myUserId} token={token} />
         </div>
       </div>
