@@ -129,6 +129,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     // eslint-disable-next-line
   }, [selectedUser, currentWeekStart]);
 
+  // Ref to track if we are prepending messages (loading older)
+  const isPrependingRef = useRef(false);
+  const anchorMessageIdRef = useRef(null);
+
   // Infinite scroll: load previous week when scrolled to top
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -137,13 +141,33 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     const handleScroll = () => {
       if (container.scrollTop < 50 && hasMore && !loading) {
         loading = true;
+        // Mark that we are prepending and capture anchor message id
+        isPrependingRef.current = true;
+        // Find the first visible message's id
+        const firstVisible = container.querySelector('[data-message-id]');
+        anchorMessageIdRef.current = firstVisible ? firstVisible.getAttribute('data-message-id') : null;
         setWeekIndex((prev) => prev + 1);
-        setTimeout(() => { loading = false; }, 1000); // Prevent rapid triggers
+        // loading will be reset after scroll adjustment
       }
     };
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [hasMore, selectedUser && selectedUser._id]);
+  }, [hasMore, selectedUser && selectedUser._id, messages.length]);
+
+  // Adjust scroll after prepending messages
+  useEffect(() => {
+    if (isPrependingRef.current && messagesContainerRef.current) {
+      const anchorId = anchorMessageIdRef.current;
+      if (anchorId) {
+        const anchorNode = messagesContainerRef.current.querySelector(`[data-message-id="${anchorId}"]`);
+        if (anchorNode) {
+          anchorNode.scrollIntoView({ block: 'start' });
+        }
+      }
+      isPrependingRef.current = false;
+      anchorMessageIdRef.current = null;
+    }
+  }, [messages]);
 
   // Reset weekIndex when user changes
   useEffect(() => {
@@ -401,7 +425,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   if (!selectedUser || !selectedUser._id) return null;
 
   return (
-    <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out">
+    <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full">
       {/* Chat Header */}
       <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         {/* Back button for mobile */}
@@ -433,7 +457,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       </div>
 
       {/* Messages Container */}
-      <div ref={messagesContainerRef} className="h-full overflow-y-auto px-4 py-4 space-y-4 hide-scrollbar">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 space-y-4 hide-scrollbar">
         {/* Error and empty states */}
         {error ? (
           <div className="flex items-center justify-center h-full">
@@ -472,7 +496,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                     const showAvatar = !isOwn && message.isFirst;
                     const showTime = message.isLast;
                     return (
-                      <div key={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'}`}>
+                      <div key={message._id} data-message-id={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'}`}>
                         {/* Avatar */}
                         {showAvatar && (
                           <Link to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`} className="hover:opacity-80 transition-opacity">
