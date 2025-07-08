@@ -96,6 +96,12 @@ export default function PaymentDetails() {
               {payment.status}
             </span>
           </div>
+          {!isSuccess && payment.rawResponse?.ResultDesc && (
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-gray-700 dark:text-gray-200">Reason:</span>
+              <span className="font-mono text-xs text-red-700 dark:text-red-300">{payment.rawResponse.ResultDesc}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-200">Phone Number:</span>
             <span className="font-mono text-xs text-gray-900 dark:text-gray-100">
