@@ -32,7 +32,7 @@ import Stats from "./dashboard/Stats";
 import Community from "./dashboard/Community";
 import Signals from "./dashboard/Signals";
 import Inbox from "./dashboard/Inbox";
-import Subscriptions from "./dashboard/Subscriptions";
+import Payments from "./dashboard/Payments";
 
 // Add this mapping at the top of your file
 const DASHBOARD_LABELS = {
@@ -42,7 +42,7 @@ const DASHBOARD_LABELS = {
   "/dashboard/community": "Vibe",
   "/dashboard/signals": "Signal Rooms",
   "/dashboard/inbox": "Inbox",
-  "/dashboard/subscriptions": "Subscriptions",
+  "/dashboard/payments": "Payments",
 };
 
 export default function Dashboard() {
@@ -458,12 +458,12 @@ export default function Dashboard() {
             </span>
           </Link>
           <Link
-            to="/dashboard/subscriptions"
+            to="/dashboard/payments"
             onClick={() => {
               if (window.innerWidth < 768) setSidebarOpen(false);
             }}
             className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
-              ${isActive("/dashboard/subscriptions") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              ${isActive("/dashboard/payments") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
               hover:bg-blue-50 dark:hover:bg-gray-800 transition
               ${sidebarCollapsed ? "justify-center md:px-2" : ""}
               w-full md:w-auto
@@ -610,7 +610,7 @@ export default function Dashboard() {
                   <Route path="signals" element={<Signals />} />
                   <Route path="journal" element={<Journal />} />
                   <Route path="stats" element={<Stats />} />
-                  <Route path="subscriptions" element={<Subscriptions />} />
+                  <Route path="payments" element={<Payments />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="notifications" element={<Notifications />} />
                 </Routes>

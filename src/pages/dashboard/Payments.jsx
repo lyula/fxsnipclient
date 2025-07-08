@@ -1,0 +1,154 @@
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+
+const API_URL = import.meta.env.VITE_API_URL || "";
+
+export default function Payments() {
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
+
+  // Pagination logic
+  const totalPages = Math.ceil(payments.length / recordsPerPage);
+  const paginatedPayments = payments.slice(
+    (currentPage - 1) * recordsPerPage,
+    currentPage * recordsPerPage
+  );
+
+  useEffect(() => {
+    async function fetchPayments() {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${API_URL}/badge-payments/my`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          withCredentials: true
+        });
+        // Defensive: always set as array
+        let data = res.data;
+        if (!Array.isArray(data)) {
+          if (data == null) data = [];
+          else data = [data];
+        }
+        setPayments(data);
+      } catch (err) {
+        setError("Failed to fetch payments");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchPayments();
+  }, []);
+
+  return (
+    <div className="w-full max-w-3xl mx-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Payments</h2>
+          <button
+            className="px-4 py-2 rounded font-semibold shadow transition focus:outline-none focus:ring-2"
+            style={{ backgroundColor: '#a99d6b', color: '#fff' }}
+            type="button"
+          >
+            Run Ad
+          </button>
+        </div>
+        {loading ? (
+          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+        ) : error ? (
+          <div className="text-red-500">{error}</div>
+        ) : payments.length === 0 ? (
+          <div className="text-gray-500 dark:text-gray-400">No payments found.</div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              {paginatedPayments.map((payment, idx) => {
+                const isSuccess = payment.status === "success" || payment.status === "completed";
+                return (
+                  <div
+                    key={payment._id || payment.id || idx}
+                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 flex flex-col gap-2 transition-colors duration-200`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">M-Pesa Code:</span>
+                      <span className="font-mono text-sm text-gray-900 dark:text-gray-100">{payment.mpesaCode || payment.code || "-"}</span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">Amount:</span>
+                      <span className={`font-bold text-lg ${
+                        isSuccess
+                          ? "text-green-600 dark:text-green-400"
+                          : "text-red-600 dark:text-red-400"
+                      }`}>
+                        {isSuccess ? (payment.currency || "KES") : "KES"} {payment.amount}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">Date:</span>
+                      <span className="font-mono text-xs text-gray-600 dark:text-gray-300">
+                        {payment.createdAt
+                          ? new Date(payment.createdAt).toLocaleString(undefined, {
+                              year: "numeric",
+                              month: "short",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                              timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                            })
+                          : "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">Reason:</span>
+                      <span className="text-gray-900 dark:text-gray-100">
+                        {payment.type === "verified_badge"
+                          ? "Blue Badge subscription"
+                          : payment.type
+                            ? `${payment.type.charAt(0).toUpperCase() + payment.type.slice(1)} badge subscription`
+                            : "-"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">Status:</span>
+                      <span className={`uppercase font-bold ${
+                        isSuccess
+                          ? "text-green-700 dark:text-green-300"
+                          : "text-red-700 dark:text-red-300"
+                      }`}>
+                        {payment.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Pagination Controls */}
+            <div className="flex justify-center items-center gap-2 mt-6">
+              <button
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
+              <span className="text-gray-700 dark:text-gray-200">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

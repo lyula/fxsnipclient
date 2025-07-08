@@ -311,13 +311,11 @@ export default function Profile() {
       {/* Blue badge expiry info */}
       {user.verified && badgeExpiry && (
         <div className="mt-4 flex flex-col items-center">
-          <button
-            className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 font-semibold px-4 py-2 rounded-lg cursor-default border border-green-300 dark:border-green-700 text-center w-full transition-colors duration-300"
-            style={{ pointerEvents: 'none' }}
-            readOnly
-          >
-            Your blue badge expires on {new Date(badgeExpiry).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
-          </button>
+          <div className="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 flex flex-col items-center transition-colors duration-200">
+            <span className="text-gray-800 dark:text-gray-100 font-semibold text-center">
+              Your blue badge expires on {new Date(badgeExpiry).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
+          </div>
         </div>
       )}
       {message && (
