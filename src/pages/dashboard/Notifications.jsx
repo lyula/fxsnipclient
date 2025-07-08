@@ -56,6 +56,11 @@ export default function NotificationsPage() {
   }));
 
   const handleNotificationClick = (notification) => {
+    // Payment notification: go to payment details
+    if (notification.type === "badge_payment" && notification.payment) {
+      navigate(`/dashboard/payment/${notification.payment}`);
+      return;
+    }
     // Route to the new single post view for all post-related notifications
     if (
       ["mention", "like_post", "like_comment", "like_reply", "comment", "reply"].includes(notification.type) &&
@@ -110,11 +115,15 @@ export default function NotificationsPage() {
                   !n.read ? "bg-blue-50 dark:bg-blue-900/20" : ""
                 }`}
                 onClick={() => handleNotificationClick(n)}
+                style={{ cursor: n.type === "badge_payment" && n.payment ? "pointer" : undefined }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <span className="text-gray-900 dark:text-white text-sm">
-                      {n.from ? (
+                      {/* Payment notification message */}
+                      {n.type === "badge_payment" ? (
+                        <span className="font-semibold text-black dark:text-[#a99d6b]">{n.message}</span>
+                      ) : n.from ? (
                         <>
                           <span
                             className="font-bold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline cursor-pointer"

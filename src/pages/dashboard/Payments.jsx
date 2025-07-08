@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -9,6 +10,7 @@ export default function Payments() {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
+  const navigate = useNavigate();
 
   // Pagination logic
   const totalPages = Math.ceil(payments.length / recordsPerPage);
@@ -49,7 +51,7 @@ export default function Payments() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Payments</h2>
           <button
-            className="px-4 py-2 rounded font-semibold shadow transition focus:outline-none focus:ring-2"
+            className="px-3 py-1.5 rounded font-semibold shadow transition focus:outline-none focus:ring-2 text-sm"
             style={{ backgroundColor: '#a99d6b', color: '#fff' }}
             type="button"
           >
@@ -70,12 +72,9 @@ export default function Payments() {
                 return (
                   <div
                     key={payment._id || payment.id || idx}
-                    className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 flex flex-col gap-2 transition-colors duration-200`}
+                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 flex flex-col gap-2 transition-colors duration-200 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => navigate(`/dashboard/payment/${payment._id || payment.id || idx}`)}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-gray-700 dark:text-gray-200">M-Pesa Code:</span>
-                      <span className="font-mono text-sm text-gray-900 dark:text-gray-100">{payment.mpesaCode || payment.code || "-"}</span>
-                    </div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold text-gray-700 dark:text-gray-200">Amount:</span>
                       <span className={`font-bold text-lg ${
@@ -100,16 +99,6 @@ export default function Payments() {
                               timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
                             })
                           : "-"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-gray-700 dark:text-gray-200">Reason:</span>
-                      <span className="text-gray-900 dark:text-gray-100">
-                        {payment.type === "verified_badge"
-                          ? "Blue Badge subscription"
-                          : payment.type
-                            ? `${payment.type.charAt(0).toUpperCase() + payment.type.slice(1)} badge subscription`
-                            : "-"}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">

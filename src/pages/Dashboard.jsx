@@ -25,6 +25,7 @@ import VerifiedBadge from "../components/VerifiedBadge";
 import Notifications from "./dashboard/Notifications";
 import { useDashboard } from "../context/dashboard";
 import PostNotificationView from "./dashboard/community/PostNotificationView";
+import PaymentDetails from "./dashboard/PaymentDetails";
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
@@ -611,6 +612,7 @@ export default function Dashboard() {
                   <Route path="journal" element={<Journal />} />
                   <Route path="stats" element={<Stats />} />
                   <Route path="payments" element={<Payments />} />
+                  <Route path="payment/:id" element={<PaymentDetails />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="notifications" element={<Notifications />} />
                 </Routes>
