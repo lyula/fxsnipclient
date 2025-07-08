@@ -96,6 +96,18 @@ export default function PaymentDetails() {
               {payment.status}
             </span>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-gray-700 dark:text-gray-200">Phone Number:</span>
+            <span className="font-mono text-xs text-gray-900 dark:text-gray-100">
+              {payment.rawResponse?.Phone || payment.methodDetails?.MpesaReceiptNumber || "-"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-gray-700 dark:text-gray-200">Reference:</span>
+            <span className="font-mono text-xs text-gray-900 dark:text-gray-100">
+              {payment.rawResponse?.ExternalReference || payment.rawResponse?.external_reference || "-"}
+            </span>
+          </div>
         </div>
       </div>
     </div>
