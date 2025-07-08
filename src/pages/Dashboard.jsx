@@ -1,6 +1,7 @@
 import { Link, useNavigate, useLocation, Routes, Route } from "react-router-dom";
 import {
   FaBook,
+  FaBookOpen,
   FaChartBar,
   FaUsers,
   FaSignOutAlt,
@@ -190,54 +191,54 @@ export default function Dashboard() {
       </div>
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-2 mb-12">
         {/* Recent Activity */}
-        <div className="bg-[#232c3b] dark:bg-gray-800 rounded-2xl shadow p-6 flex flex-col min-w-0 h-full">
-          <h2 className="font-extrabold text-2xl text-white mb-6">Recent Activity</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 flex flex-col min-w-0 h-full">
+          <h2 className="font-extrabold text-2xl text-[#1E3A8A] dark:text-[#a99d6b] mb-6">Recent Activity</h2>
           <div className="flex flex-col gap-4">
-            <div className="bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
-              <FaBook className="text-[#a99d6b] text-2xl" />
+            <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
+              <FaBookOpen className="text-[#a99d6b] text-2xl" />
               <div>
-                <div className="font-semibold text-white">Reviewed journal entry</div>
-                <div className="text-gray-400 text-xs">10 minutes ago</div>
+                <div className="font-semibold text-[#a99d6b] dark:text-[#a99d6b]">Reviewed journal entry</div>
+                <div className="text-black dark:text-gray-300 text-xs">10 minutes ago</div>
               </div>
             </div>
-            <div className="bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
+            <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
               <FaChartBar className="text-[#a99d6b] text-2xl" />
               <div>
-                <div className="font-semibold text-white">Analyzed trading statistics</div>
-                <div className="text-gray-400 text-xs">30 minutes ago</div>
+                <div className="font-semibold text-[#a99d6b] dark:text-[#a99d6b]">Analyzed trading statistics</div>
+                <div className="text-black dark:text-gray-300 text-xs">30 minutes ago</div>
               </div>
             </div>
-            <div className="bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
+            <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-4 flex items-center gap-4">
               <FaBullhorn className="text-[#a99d6b] text-2xl" />
               <div>
-                <div className="font-semibold text-white">Received new trading signal</div>
-                <div className="text-gray-400 text-xs">1 hour ago</div>
+                <div className="font-semibold text-[#a99d6b] dark:text-[#a99d6b]">Received new trading signal</div>
+                <div className="text-black dark:text-gray-300 text-xs">1 hour ago</div>
               </div>
             </div>
           </div>
         </div>
         {/* Performance Overview */}
-        <div className="bg-[#232c3b] dark:bg-gray-800 rounded-2xl shadow p-6 flex flex-col min-w-0 h-full">
-          <h2 className="font-extrabold text-2xl text-white mb-6">Performance Overview</h2>
-          <div className="bg-[#2e3a4e] rounded-lg p-8 flex items-center justify-center text-white text-lg mb-6" style={{ minHeight: 120 }}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow p-6 flex flex-col min-w-0 h-full">
+          <h2 className="font-extrabold text-2xl text-[#1E3A8A] dark:text-[#a99d6b] mb-6">Performance Overview</h2>
+          <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-8 flex items-center justify-center text-[#1E3A8A] dark:text-[#a99d6b] text-lg mb-6" style={{ minHeight: 120 }}>
             Performance Chart
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
-              <span className="text-2xl font-bold text-[#a99d6b]">+12.5%</span>
-              <span className="text-gray-400 text-xs mt-1">Monthly Return</span>
+            <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#1E3A8A] dark:text-[#a99d6b]">+12.5%</span>
+              <span className="text-[#a99d6b] dark:text-gray-300 text-xs mt-1">Monthly Return</span>
             </div>
-            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
-              <span className="text-2xl font-bold text-[#a99d6b]">1.35</span>
-              <span className="text-gray-400 text-xs mt-1">Sharpe Ratio</span>
+            <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#1E3A8A] dark:text-[#a99d6b]">1.35</span>
+              <span className="text-[#a99d6b] dark:text-gray-300 text-xs mt-1">Sharpe Ratio</span>
             </div>
-            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
-              <span className="text-2xl font-bold text-[#a99d6b]">8</span>
-              <span className="text-gray-400 text-xs mt-1">Winning Trades</span>
+            <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#1E3A8A] dark:text-[#a99d6b]">8</span>
+              <span className="text-[#a99d6b] dark:text-gray-300 text-xs mt-1">Winning Trades</span>
             </div>
-            <div className="bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
-              <span className="text-2xl font-bold text-[#a99d6b]">2</span>
-              <span className="text-gray-400 text-xs mt-1">Losing Trades</span>
+            <div className="bg-[#f7f6f2] dark:bg-[#2e3a4e] rounded-lg p-4 flex flex-col items-center">
+              <span className="text-2xl font-bold text-[#1E3A8A] dark:text-[#a99d6b]">2</span>
+              <span className="text-[#a99d6b] dark:text-gray-300 text-xs mt-1">Losing Trades</span>
             </div>
           </div>
         </div>
@@ -358,7 +359,7 @@ export default function Dashboard() {
               w-full md:w-auto
             `}
           >
-            <FaBook className="text-lg" />
+            <FaBookOpen className="text-lg" />
             <span className={
               "truncate " +
               (sidebarCollapsed
@@ -475,7 +476,7 @@ export default function Dashboard() {
                 ? "hidden md:inline-block md:opacity-0 md:w-0 md:visible"
                 : "inline-block")
             }>
-              Subscriptions
+              Payments
             </span>
           </Link>
         </nav>
