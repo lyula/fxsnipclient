@@ -146,7 +146,8 @@ export default function Login() {
             Register
           </Link>
         </div>
-        {/* Show the "Use Mobile App" button only on mobile devices, not standalone, and install is available */}
+        {/* Remove the install app button from login page */}
+        {/*
         {isMobile && !isStandalone && deferredPrompt && (
           <button
             className="mt-4 w-full bg-blue-600 text-white py-2 rounded"
@@ -155,6 +156,7 @@ export default function Login() {
             Use Mobile App
           </button>
         )}
+        */}
       </div>
     </section>
   );

@@ -1,0 +1,88 @@
+.emoji-picker-minimalist-wrapper {
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.10), 0 1.5px 4px 0 rgba(0,0,0,0.04);
+  border-radius: 16px;
+  background: var(--ep-bg, #fff);
+  border: 1px solid #e5e7eb;
+  padding: 0;
+  overflow: hidden;
+}
+.emoji-picker-minimalist {
+  --ep-bg: #fff;
+  --ep-border: #e5e7eb;
+  --ep-search-bg: #f9fafb;
+  --ep-search-border: #e5e7eb;
+  --ep-category-label: #6b7280;
+  --ep-emoji-size: 28px;
+  --ep-emoji-padding: 6px;
+  --ep-emoji-radius: 8px;
+  --ep-emoji-hover-bg: #f3f4f6;
+  --ep-scrollbar: #e5e7eb;
+  background: var(--ep-bg);
+  border: none;
+  font-family: inherit;
+  box-shadow: none;
+}
+.emoji-picker-minimalist .epr-search-container {
+  background: var(--ep-search-bg);
+  border-radius: 8px;
+  border: 1px solid var(--ep-search-border);
+  margin: 12px 12px 8px 12px;
+  padding: 0 8px;
+}
+.emoji-picker-minimalist .epr-search {
+  background: transparent;
+  border: none;
+  font-size: 15px;
+  color: #222;
+  padding: 8px 0;
+}
+.emoji-picker-minimalist .epr-category-label {
+  color: var(--ep-category-label);
+  font-size: 13px;
+  font-weight: 500;
+  margin: 8px 0 4px 12px;
+}
+.emoji-picker-minimalist .epr-emoji {
+  font-size: var(--ep-emoji-size);
+  padding: var(--ep-emoji-padding);
+  border-radius: var(--ep-emoji-radius);
+  transition: background 0.15s;
+}
+.emoji-picker-minimalist .epr-emoji:hover {
+  background: var(--ep-emoji-hover-bg);
+}
+.emoji-picker-minimalist .epr-emoji-category-list {
+  padding: 0 8px 8px 8px;
+}
+.emoji-picker-minimalist .epr-scrollbar {
+  display: none !important;
+}
+/* Hide native scrollbars for all emoji picker scrollable areas */
+.emoji-picker-minimalist *::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+.emoji-picker-minimalist * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.emoji-picker-minimalist .epr-preview, .emoji-picker-minimalist .epr-skin-tones, .emoji-picker-minimalist .epr-anchors {
+  display: none !important;
+}
+/* Dark mode */
+:root.dark .emoji-picker-minimalist-wrapper, .dark .emoji-picker-minimalist-wrapper {
+  --ep-bg: #18181b;
+  --ep-border: #27272a;
+  --ep-search-bg: #23232a;
+  --ep-search-border: #27272a;
+  --ep-category-label: #a1a1aa;
+  --ep-emoji-hover-bg: #23232a;
+  --ep-scrollbar: #27272a;
+  background: var(--ep-bg);
+  border-color: var(--ep-border);
+}
+.emoji-picker-minimalist .epr-body {
+  padding-bottom: 0 !important;
+}

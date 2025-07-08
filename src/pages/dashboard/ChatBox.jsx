@@ -8,6 +8,8 @@ import { useDashboard } from "../../context/dashboard";
 import { Link } from "react-router-dom";
 import { startOfWeek, subWeeks, format } from "date-fns";
 import VerifiedBadge from "../../components/VerifiedBadge";
+import EmojiPicker from 'emoji-picker-react';
+import './emoji-picker-minimalist.css'; // Add this import for custom minimalist styles
 
 const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const { updateConversation } = useDashboard();
@@ -34,6 +36,29 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [hasMore, setHasMore] = useState(true);
   // Weekly pagination state
   const [weekIndex, setWeekIndex] = useState(0);
+  const emojiPickerRef = useRef(null); // always at top
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  // Always render the hidden EmojiPicker for caching (display:none)
+  // Remove emojiCacheReady state entirely, always assume ready
+
+  // Cache conversation messages in memory for the session
+  const [conversationCache, setConversationCache] = useState(new Map());
+
+  // Click-away to close emoji picker
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    function handleClickOutside(event) {
+      if (
+        emojiPickerRef.current &&
+        !emojiPickerRef.current.contains(event.target) &&
+        !event.target.closest('.emoji-picker-trigger')
+      ) {
+        setShowEmojiPicker(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmojiPicker]);
 
   // Fetch conversation messages when selectedUser changes
   useEffect(() => {
@@ -41,15 +66,37 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     setMessages([]); // Clear messages immediately on user change
     setMessagesFetched(false);
     setError(null);
-    fetchMessages(selectedUser._id);
+    // Check cache first
+    const cached = conversationCache.get(selectedUser._id);
+    if (cached) {
+      setMessages(cached);
+      setMessagesFetched(true);
+    } else {
+      fetchMessages(selectedUser._id);
+    }
   }, [selectedUser]);
 
-  // Scroll to bottom when messages change
+  // When messages are fetched, cache them for the session
+  useEffect(() => {
+    if (!selectedUser || !selectedUser._id) return;
+    if (messagesFetched && messages.length > 0) {
+      setConversationCache(prev => {
+        const newCache = new Map(prev);
+        newCache.set(selectedUser._id, messages);
+        return newCache;
+      });
+    }
+  }, [messagesFetched, messages, selectedUser]);
+
+  // Scroll to bottom when messages change or when a conversation is opened
   useEffect(() => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      // Use setTimeout to ensure DOM is updated before scrolling
+      setTimeout(() => {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }, 0);
     }
-  }, [messages]);
+  }, [selectedUser && selectedUser._id, messages.length]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -424,189 +471,275 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // Only render if a user is selected
   if (!selectedUser || !selectedUser._id) return null;
 
-  return (
-    <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full">
-      {/* Chat Header */}
-      <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        {/* Back button for mobile */}
-        <button
-          className="lg:hidden mr-3 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          onClick={onBack}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        {/* Clickable avatar */}
-        <Link 
-          to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`}
-          className="hover:opacity-80 transition-opacity mr-3"
-        >
-          <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
-        </Link>
-        <div className="flex-1 flex flex-col">
-          <button
-            className="flex items-center hover:underline"
-            onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
-          >
-            <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
-            {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
-          </button>
-          <UserStatus userId={selectedUser._id} token={localStorage.getItem("token") || ""} />
-        </div>
-      </div>
+  // Insert emoji at cursor position
+  const handleEmojiClick = (emojiData, event) => {
+    const emoji = emojiData.emoji;
+    const inputElem = inputRef.current;
+    if (!inputElem) return;
+    const start = inputElem.selectionStart;
+    const end = inputElem.selectionEnd;
+    const newValue = input.slice(0, start) + emoji + input.slice(end);
+    setInput(newValue);
+    setTimeout(() => {
+      inputElem.focus();
+      inputElem.setSelectionRange(start + emoji.length, start + emoji.length);
+    }, 0);
+  };
 
-      {/* Messages Container */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 space-y-4 hide-scrollbar">
-        {/* Error and empty states */}
-        {error ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <p className="text-red-500 mb-2">{error}</p>
-              <button onClick={() => fetchMessages(selectedUser && selectedUser._id, currentWeekStart)} className="text-blue-500 hover:underline">Try again</button>
-            </div>
+  return (
+    <>
+      {/* Hidden EmojiPicker for caching emoji data (always rendered, never conditional) */}
+      <div style={{ display: 'none' }}>
+        <EmojiPicker
+          onEmojiClick={() => {}}
+          theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+          searchDisabled={false}
+          skinTonesDisabled={true}
+          previewConfig={{ showPreview: false }}
+          height={320}
+          width={320}
+          lazyLoadEmojis={false}
+          emojiStyle="native"
+          className="emoji-picker-minimalist"
+        />
+      </div>
+      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full">
+        {/* Chat Header */}
+        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          {/* Back button for mobile */}
+          <button
+            className="lg:hidden mr-3 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            onClick={onBack}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          {/* Clickable avatar */}
+          <Link 
+            to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`}
+            className="hover:opacity-80 transition-opacity mr-3"
+          >
+            <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
+          </Link>
+          <div className="flex-1 flex flex-col">
+            <button
+              className="flex items-center hover:underline"
+              onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
+            >
+              <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
+              {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
+            </button>
+            <UserStatus userId={selectedUser._id} token={localStorage.getItem("token") || ""} />
           </div>
-        ) : messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+        </div>
+
+        {/* Messages Container */}
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 space-y-4 hide-scrollbar">
+          {/* Error and empty states */}
+          {error ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <p className="text-red-500 mb-2">{error}</p>
+                <button onClick={() => fetchMessages(selectedUser && selectedUser._id, currentWeekStart)} className="text-blue-500 hover:underline">Try again</button>
               </div>
-              <p className="text-gray-500 dark:text-gray-400">No messages yet. Say hello!</p>
             </div>
-          </div>
-        ) : (
-          groupedMessages.map((dateGroup, dateIndex) => (
-            <div key={dateGroup.timestamp} className="space-y-4">
-              {/* Date Separator */}
-              <div className="flex items-center justify-center my-2 select-none">
-                <hr className="flex-grow border-t border-gray-300 dark:border-gray-600 mx-2" />
-                <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full shadow-sm">
-                  {getChatDateLabel(dateGroup.timestamp)}
-                </span>
-                <hr className="flex-grow border-t border-gray-300 dark:border-gray-600 mx-2" />
+          ) : messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 dark:text-gray-400">No messages yet. Say hello!</p>
               </div>
-              {/* Messages for this date */}
-              {dateGroup.messages.map((group, groupIndex) => (
-                <div key={`${dateGroup.timestamp}-${groupIndex}`} className="space-y-1">
-                  {group.map((message, messageIndex) => {
-                    const isOwn = message.from === myUserId;
-                    const showAvatar = !isOwn && message.isFirst;
-                    const showTime = message.isLast;
-                    return (
-                      <div key={message._id} data-message-id={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'}`}>
-                        {/* Avatar */}
-                        {showAvatar && (
-                          <Link to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`} className="hover:opacity-80 transition-opacity">
-                            <img src={selectedUser.avatar} alt={selectedUser.username} className="w-6 h-6 rounded-full mr-2 mt-auto cursor-pointer" />
-                          </Link>
-                        )}
-                        {!isOwn && !showAvatar && <div className="w-8" />}
-                        {/* Message Bubble */}
-                        <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
-                          <div className={`px-4 py-2 rounded-2xl text-sm break-words ${isOwn ? message.failed ? 'bg-red-500 text-white' : message.isOptimistic ? 'bg-blue-400 text-white opacity-80' : 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} ${isOwn ? message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-br-md' : message.isLast ? 'rounded-tr-md' : 'rounded-r-md' : message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-bl-md' : message.isLast ? 'rounded-tl-md' : 'rounded-l-md'}`}>
-                            {/* Message Text with Context-Aware Clickable Links */}
-                            <div className="mb-1">
-                              {(() => {
-                                const { textContent, urls } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
-                                return (
-                                  <>
-                                    <div className="mb-1">{textContent}</div>
-                                    {urls.map((url, index) => (
-                                      <span key={`${message._id}-${index}-${url}`}>{url}</span>
-                                    ))}
-                                  </>
-                                );
-                              })()}
+            </div>
+          ) : (
+            groupedMessages.map((dateGroup, dateIndex) => (
+              <div key={dateGroup.timestamp} className="space-y-4">
+                {/* Date Separator */}
+                <div className="flex items-center justify-center my-2 select-none">
+                  <hr className="flex-grow border-t border-gray-300 dark:border-gray-600 mx-2" />
+                  <span className="px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full shadow-sm">
+                    {getChatDateLabel(dateGroup.timestamp)}
+                  </span>
+                  <hr className="flex-grow border-t border-gray-300 dark:border-gray-600 mx-2" />
+                </div>
+                {/* Messages for this date */}
+                {dateGroup.messages.map((group, groupIndex) => (
+                  <div key={`${dateGroup.timestamp}-${groupIndex}`} className="space-y-1">
+                    {group.map((message, messageIndex) => {
+                      const isOwn = message.from === myUserId;
+                      const showAvatar = !isOwn && message.isFirst;
+                      const showTime = message.isLast;
+                      return (
+                        <div key={message._id} data-message-id={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'}`}>
+                          {/* Avatar */}
+                          {showAvatar && (
+                            <Link to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`} className="hover:opacity-80 transition-opacity">
+                              <img src={selectedUser.avatar} alt={selectedUser.username} className="w-6 h-6 rounded-full mr-2 mt-auto cursor-pointer" />
+                            </Link>
+                          )}
+                          {!isOwn && !showAvatar && <div className="w-8" />}
+                          {/* Message Bubble */}
+                          <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'}`}>
+                            <div className={`px-4 py-2 rounded-2xl text-sm break-words ${isOwn ? message.failed ? 'bg-red-500 text-white' : message.isOptimistic ? 'bg-blue-400 text-white opacity-80' : 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} ${isOwn ? message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-br-md' : message.isLast ? 'rounded-tr-md' : 'rounded-r-md' : message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-bl-md' : message.isLast ? 'rounded-tl-md' : 'rounded-l-md'}`}>
+                              {/* Message Text with Context-Aware Clickable Links */}
+                              <div className="mb-1">
+                                {(() => {
+                                  const { textContent, urls } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
+                                  return (
+                                    <>
+                                      <div className="mb-1">{textContent}</div>
+                                      {urls.map((url, index) => (
+                                        <span key={`${message._id}-${index}-${url}`}>{url}</span>
+                                      ))}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                              {/* Exact Time inside bubble */}
+                              <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>{formatExactTime(message.createdAt)}</div>
+                              {/* Retry button for failed messages */}
+                              {message.failed && (
+                                <button onClick={() => handleRetryMessage(message)} className="block mt-2 text-xs underline hover:no-underline" disabled={isSending}>Tap to retry</button>
+                              )}
                             </div>
-                            {/* Exact Time inside bubble */}
-                            <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>{formatExactTime(message.createdAt)}</div>
-                            {/* Retry button for failed messages */}
-                            {message.failed && (
-                              <button onClick={() => handleRetryMessage(message)} className="block mt-2 text-xs underline hover:no-underline" disabled={isSending}>Tap to retry</button>
-                            )}
-                          </div>
-                          {/* Message status below bubble */}
-                          <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                            {isOwn && !message.failed && (
-                              <span>
-                                {message.isOptimistic ? (
-                                  <span className="text-gray-400">sending...</span>
-                                ) : message.read ? (
-                                  <span className="text-blue-500">seen</span>
-                                ) : (
-                                  <span className="text-gray-400">delivered</span>
-                                )}
-                              </span>
-                            )}
+                            {/* Message status below bubble */}
+                            <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                              {isOwn && !message.failed && (
+                                <span>
+                                  {message.isOptimistic ? (
+                                    <span className="text-gray-400">sending...</span>
+                                  ) : message.read ? (
+                                    <span className="text-blue-500">seen</span>
+                                  ) : (
+                                    <span className="text-gray-400">delivered</span>
+                                  )}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          ))
-        )}
-      </div>
-      {/* Typing dots above input */}
-      {recipientStatus && recipientStatus.typing && (
-        <div className="flex items-center pl-4 pb-1">
-          <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '0ms' }}></span>
-          <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '150ms' }}></span>
-          <span className="inline-block w-2 h-2 rounded-full animate-bounce bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '300ms' }}></span>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
         </div>
-      )}
-      {/* Input area */}
-      <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <form onSubmit={handleSendMessage} className="p-4">
-          <div className="flex items-end space-x-3">
-            {/* Attachment button */}
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </button>
-            {/* Message input */}
-            <div className="flex-1">
-              <input
-                ref={inputRef}
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white"
-                placeholder="Type a message..."
-                disabled={isSending}
-              />
-            </div>
-            {/* Send button */}
-            <button type="submit" disabled={!input.trim() || isSending} className={`p-2 rounded-full transition ${input.trim() && !isSending ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-400 cursor-not-allowed'}`}>
-              {isSending ? (
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              )}
-            </button>
+        {/* Typing dots above input */}
+        {recipientStatus && recipientStatus.typing && (
+          <div className="flex items-center pl-4 pb-1">
+            <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '0ms' }}></span>
+            <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '150ms' }}></span>
+            <span className="inline-block w-2 h-2 rounded-full animate-bounce bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '300ms' }}></span>
           </div>
-          {/* Hidden file input for attachments */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*,application/pdf"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-        </form>
+        )}
+        {/* Input area */}
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <form onSubmit={handleSendMessage} className="p-4">
+            <div className="flex items-end space-x-3 relative">
+              {/* Media button (modern gallery icon) */}
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                {/* Modern gallery/media icon (inspired by Instagram) */}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <rect x="3" y="5" width="18" height="14" rx="3" strokeWidth="2" stroke="currentColor" />
+                  <circle cx="8.5" cy="12.5" r="1.5" strokeWidth="2" stroke="currentColor" />
+                  <path d="M21 15l-5-5-4 4-7-7" strokeWidth="2" stroke="currentColor" />
+                </svg>
+              </button>
+              {/* Message input */}
+              <div className="flex-1 relative">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white pr-10"
+                  placeholder="Type a message..."
+                  disabled={isSending}
+                  onFocus={() => setShowEmojiPicker(false)}
+                  style={{ paddingRight: '2.5rem' }} // Ensure space for mic icon
+                />
+                {/* Mic icon for VNs (voice notes) */}
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 focus:outline-none"
+                  tabIndex={-1}
+                  aria-label="Record voice note"
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="9" y="2" width="6" height="12" rx="3" strokeWidth="2" stroke="currentColor" />
+                    <path d="M5 10v2a7 7 0 0014 0v-2" strokeWidth="2" stroke="currentColor" />
+                    <line x1="12" y1="22" x2="12" y2="18" strokeWidth="2" stroke="currentColor" />
+                  </svg>
+                </button>
+                {/* Minimalist Emoji picker popup */}
+                {showEmojiPicker && (
+                  <div
+                    ref={emojiPickerRef}
+                    className="absolute left-1/2 -translate-x-1/2 bottom-12 z-20 emoji-picker-minimalist-wrapper"
+                  >
+                    <EmojiPicker
+                      onEmojiClick={handleEmojiClick}
+                      theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                      searchDisabled={false}
+                      skinTonesDisabled={true}
+                      previewConfig={{ showPreview: false }}
+                      height={320}
+                      width={320}
+                      lazyLoadEmojis={false}
+                      emojiStyle="native"
+                      className="emoji-picker-minimalist"
+                    />
+                  </div>
+                )}
+              </div>
+              {/* Emoji button */}
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker((v) => !v)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                tabIndex={-1}
+              >
+                {/* Emoji icon */}
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" strokeWidth="2" stroke="currentColor" />
+                  <path d="M8 15s1.5 2 4 2 4-2 4-2" strokeWidth="2" stroke="currentColor" strokeLinecap="round" />
+                  <circle cx="9" cy="10" r="1" fill="currentColor" />
+                  <circle cx="15" cy="10" r="1" fill="currentColor" />
+                </svg>
+              </button>
+              {/* Send button */}
+              <button type="submit" disabled={!input.trim() || isSending} className={`p-2 rounded-full transition ${input.trim() && !isSending ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-400 cursor-not-allowed'}`}>
+                {isSending ? (
+                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                )}
+              </button>
+            </div>
+            {/* Hidden file input for attachments */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,application/pdf"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+          </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

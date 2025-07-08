@@ -248,6 +248,25 @@ export default function Dashboard() {
     </div>
   );
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // If on /dashboard/inbox with chat param, but chatbox is not open, reset URL
+  // (This logic is now handled in Inbox.jsx for more accurate control)
+  // useEffect(() => {
+  //   if (
+  //     location.pathname === "/dashboard/inbox" &&
+  //     new URLSearchParams(location.search).has("chat") &&
+  //     (!isMobile || !isMobileChatOpen)
+  //   ) {
+  //     navigate("/dashboard/inbox", { replace: true });
+  //   }
+  // }, [location, isMobile, isMobileChatOpen, navigate]);
+
   return (
     <div className="fixed inset-0 flex bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       {/* Sidebar */}
@@ -506,8 +525,12 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 ml-0 transition-all duration-300 ease-in-out">
-        {/* Header - Hide on mobile when in chat */}
-        {!(isMobileChatOpen && window.innerWidth < 768) && (
+        {/* Remove header only on mobile when in chatbox, always show on desktop and on conversation list */}
+        {!(
+          isMobile &&
+          location.pathname === "/dashboard/inbox" &&
+          new URLSearchParams(location.search).has("chat")
+        ) && (
           <header className="flex items-center justify-between px-2 sm:px-4 md:px-6 py-3 sm:py-4 bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 shadow-sm sticky top-0 z-20 flex-shrink-0">
             <div className="flex items-center gap-2 sm:gap-3">
               <button
@@ -604,11 +627,17 @@ export default function Dashboard() {
                   <Route path="community/*" element={<Community user={user} />} />
                 </Routes>
               </div>
+            ) : location.pathname.startsWith("/dashboard/inbox") ? (
+              // Always use the same layout for inbox, regardless of chat param
+              <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 hide-scrollbar w-full max-w-7xl mx-auto">
+                <Routes>
+                  <Route path="inbox" element={<Inbox />} />
+                </Routes>
+              </div>
             ) : (
               <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 hide-scrollbar w-full max-w-7xl mx-auto">
                 <Routes>
                   <Route path="" element={DashboardMain} />
-                  <Route path="inbox" element={<Inbox />} />
                   <Route path="signals" element={<Signals />} />
                   <Route path="journal" element={<Journal />} />
                   <Route path="stats" element={<Stats />} />
