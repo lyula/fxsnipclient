@@ -3,6 +3,9 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
+const PAYMENTS_CACHE_KEY = "fxsnip_payments_cache";
+const PAYMENTS_CACHE_TIME_KEY = "fxsnip_payments_cache_time";
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export default function Payments() {
   const [payments, setPayments] = useState([]);
@@ -24,6 +27,14 @@ export default function Payments() {
       setLoading(true);
       setError(null);
       try {
+        // Try sessionStorage cache first
+        const cached = sessionStorage.getItem(PAYMENTS_CACHE_KEY);
+        const cachedTime = sessionStorage.getItem(PAYMENTS_CACHE_TIME_KEY);
+        if (cached && cachedTime && Date.now() - Number(cachedTime) < CACHE_TTL) {
+          setPayments(JSON.parse(cached));
+          setLoading(false);
+          return;
+        }
         const token = localStorage.getItem("token");
         const res = await axios.get(`${API_URL}/badge-payments/my`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -36,6 +47,8 @@ export default function Payments() {
           else data = [data];
         }
         setPayments(data);
+        sessionStorage.setItem(PAYMENTS_CACHE_KEY, JSON.stringify(data));
+        sessionStorage.setItem(PAYMENTS_CACHE_TIME_KEY, Date.now().toString());
       } catch (err) {
         setError("Failed to fetch payments");
       } finally {
@@ -46,14 +59,15 @@ export default function Payments() {
   }, []);
 
   return (
-    <div className="w-full max-w-3xl mx-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+    <div className="w-full md:w-auto flex-1 mx-auto p-2 md:p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-8 w-full h-full">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Payments</h2>
           <button
             className="px-3 py-1.5 rounded font-semibold shadow transition focus:outline-none focus:ring-2 text-sm"
             style={{ backgroundColor: '#a99d6b', color: '#fff' }}
             type="button"
+            onClick={() => navigate('/dashboard/ad-creation')}
           >
             Run Ad
           </button>
@@ -72,7 +86,7 @@ export default function Payments() {
                 return (
                   <div
                     key={payment._id || payment.id || idx}
-                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 flex flex-col gap-2 transition-colors duration-200 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 flex flex-col gap-2 transition-colors duration-200 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 w-full"
                     onClick={() => navigate(`/dashboard/payment/${payment._id || payment.id || idx}`)}
                   >
                     <div className="flex items-center justify-between mb-2">

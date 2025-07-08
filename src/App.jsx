@@ -20,6 +20,7 @@ import Terms from "./pages/Terms";
 import UserProfile from "./pages/dashboard/community/UserProfile";
 import MobileUserProfile from "./pages/dashboard/community/MobileUserProfile";
 import PostNotificationView from "./pages/dashboard/community/PostNotificationView";
+import AdCreation from "./pages/dashboard/AdCreation";
 import { useTheme } from "./hooks/useTheme";
 import { DashboardProvider } from "./context/dashboard";
 

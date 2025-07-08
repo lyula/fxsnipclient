@@ -26,6 +26,7 @@ import Notifications from "./dashboard/Notifications";
 import { useDashboard } from "../context/dashboard";
 import PostNotificationView from "./dashboard/community/PostNotificationView";
 import PaymentDetails from "./dashboard/PaymentDetails";
+import AdCreation from "./dashboard/AdCreation";
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
@@ -615,18 +616,9 @@ export default function Dashboard() {
                   <Route path="payment/:id" element={<PaymentDetails />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="notifications" element={<Notifications />} />
+                  <Route path="ad-creation" element={<AdCreation />} />
                 </Routes>
-                {/* Only show footer if not in community, inbox, or notifications */}
-                {!location.pathname.startsWith("/dashboard/community") &&
-                  !location.pathname.startsWith("/dashboard/inbox") &&
-                  !location.pathname.startsWith("/dashboard/notifications") ? (
-                  <footer
-                    className="w-full py-3 px-2 sm:px-6 bg-white dark:bg-gray-900 border-t border-blue-100 dark:border-gray-800 text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 flex-shrink-0 sm:static sm:z-auto"
-                    style={{}}
-                  >
-                    &copy; {currentYear} FXsnip. All rights reserved.
-                  </footer>
-                ) : null}
+                {/* Footer removed for all internal pages */}
               </div>
             )}
           </div>
