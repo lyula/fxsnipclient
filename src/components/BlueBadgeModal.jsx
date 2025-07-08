@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, forwardRef } from 'react';
 import VerifiedBadge from './VerifiedBadge';
 import { fetchWithAuth } from '../utils/api';
 import { useAuth } from '../context/auth';
+import MpesaFields from './paymentMethods/MpesaFields';
+import PaypalFields from './paymentMethods/PaypalFields';
+import StripeFields from './paymentMethods/StripeFields';
+import CardFields from './paymentMethods/CardFields';
 
 const ADVANTAGES = [
   'Increased post visibility in the Vibe section',
@@ -27,14 +31,17 @@ const paymentLogos = {
   mpesa: 'https://inspireip.com/wp-content/uploads/2022/12/m-pesa.png'
 };
 
-const USD_TO_KES = 130; // Example conversion rate, update as needed
-const TEST_KES_AMOUNT = 50; // For testing, set to 50 KES
-const TEST_USD_AMOUNT = 0.5; // For testing, set to 0.5 USD
-
 const inputClass =
   "text-center text-xl font-semibold border-2 border-[#a99d6b] rounded-lg px-4 py-3 w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-[#a99d6b] bg-gray-50 dark:bg-gray-800 text-[#1E3A8A] dark:text-[#a99d6b] placeholder:text-[#a99d6b] dark:placeholder:text-[#a99d6b]";
 
-const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
+const PaymentFields = forwardRef(({ method, onChange, billingType, setBillingType, pricing, ...rest }, ref) => {
+  // Calculate KES amount for the selected billing type
+  const amountKES = pricing
+    ? (billingType === 'annual'
+        ? Math.round(pricing.badgeAnnualUSD * pricing.usdToKes)
+        : Math.round(pricing.badgeMonthlyUSD * pricing.usdToKes))
+    : undefined;
+
   // Add billing options and amount fields for all methods
   return (
     <>
@@ -67,7 +74,7 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
           <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (USD)</label>
           <input
             type="text"
-            value={method === 'mpesa' ? `$${TEST_USD_AMOUNT}` : (billingType === 'annual' ? '$80' : '$8')}
+            value={pricing ? (billingType === 'annual' ? `$${pricing.badgeAnnualUSD}` : `$${pricing.badgeMonthlyUSD}`) : ''}
             readOnly
             className={inputClass}
             style={{ letterSpacing: '2px' }}
@@ -77,7 +84,7 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
           <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (KES)</label>
           <input
             type="text"
-            value={method === 'mpesa' ? `KES ${TEST_KES_AMOUNT}` : (billingType === 'annual' ? `KES ${80 * USD_TO_KES}` : `KES ${8 * USD_TO_KES}`)}
+            value={pricing ? (billingType === 'annual' ? `KES ${Math.round(pricing.badgeAnnualUSD * pricing.usdToKes)}` : `KES ${Math.round(pricing.badgeMonthlyUSD * pricing.usdToKes)}`) : ''}
             readOnly
             className={inputClass}
             style={{ letterSpacing: '2px' }}
@@ -89,69 +96,24 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
         {(() => {
           switch (method) {
             case 'paypal':
-              return (
-                <input
-                  type="email"
-                  name="paypalEmail"
-                  placeholder="PayPal Email"
-                  className={inputClass}
-                  onChange={onChange}
-                  required
-                />
-              );
+              return <PaypalFields onChange={onChange} />;
             case 'stripe':
-              return (
-                <input
-                  type="text"
-                  name="stripeToken"
-                  placeholder="Stripe Token"
-                  className={inputClass}
-                  onChange={onChange}
-                  required
-                />
-              );
+              return <StripeFields onChange={onChange} />;
             case 'visa':
             case 'mastercard':
-              return (
-                <>
-                  <input
-                    type="text"
-                    name="cardNumber"
-                    placeholder="Card Number"
-                    className={inputClass}
-                    onChange={onChange}
-                    required
-                  />
-                  <input
-                    type="text"
-                    name="expiry"
-                    placeholder="MM/YY"
-                    className={inputClass}
-                    onChange={onChange}
-                    required
-                  />
-                  <input
-                    type="text"
-                    name="cvc"
-                    placeholder="CVC"
-                    className={inputClass}
-                    onChange={onChange}
-                    required
-                  />
-                </>
-              );
+              return <CardFields onChange={onChange} />;
             case 'mpesa':
-              return (
-                <input
-                  type="text"
-                  name="mpesaNumber"
-                  placeholder="M-Pesa Phone Number"
-                  className={inputClass}
-                  onChange={onChange}
-                  required
-                  style={{ letterSpacing: '2px' }}
-                />
-              );
+              // Pass ref to MpesaFields
+              return <MpesaFields 
+                ref={ref}
+                billingType={billingType}
+                pricing={pricing}
+                amountKES={amountKES}
+                user={rest.user}
+                onSuccess={rest.onSuccess}
+                onError={rest.onError}
+                onLoading={rest.onLoading}
+              />;
             default:
               return null;
           }
@@ -159,7 +121,7 @@ const PaymentFields = ({ method, onChange, billingType, setBillingType }) => {
       </div>
     </>
   );
-};
+});
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -175,6 +137,17 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
   const [paymentStatus, setPaymentStatus] = useState(null); // 'success' | 'failed' | null
   const [statusMessage, setStatusMessage] = useState('');
   const [polling, setPolling] = useState(false);
+  const [pricing, setPricing] = useState(null);
+  const mpesaPayRef = useRef();
+
+  useEffect(() => {
+    if (open) {
+      resetModal();
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/badge-pricing`)
+        .then(res => res.json())
+        .then(setPricing);
+    }
+  }, [open]);
 
   // Reset modal state to initial values
   const resetModal = () => {
@@ -198,8 +171,6 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
     resetModal();
     if (onClose) onClose();
   };
-
-  if (!open) return null;
 
   const pollPaymentStatus = async () => {
     setPolling(true);
@@ -235,43 +206,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
   const handleProceed = async () => {
     if (step === 1) setStep(2);
     else if (step === 2 && selectedMethod) setStep(3);
-    else if (step === 3) {
-      if (selectedMethod === 'mpesa') {
-        setLoading(true);
-        setError(null);
-        try {
-          const res = await fetchWithAuth(`${API_BASE}/badge-payments/initiate-stk`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              phone_number: paymentDetails.mpesaNumber,
-              amount: TEST_KES_AMOUNT, // Always use 10 KES for testing
-              customer_name: currentUser?.username || 'Customer',
-              billingType // Pass billingType to backend
-            })
-          });
-          const data = await res.json();
-          if (res.ok && data.CheckoutRequestID) {
-            setStep(4); // Go to waiting page
-            setTimeout(pollPaymentStatus, 1000); // Start polling after 1s
-          } else {
-            setError(data.error || 'Failed to initiate payment.');
-          }
-        } catch (err) {
-          setError('Network error. Please try again.');
-          setTimeout(() => {
-            setError(null);
-            setPaymentDetails({});
-          }, 3000);
-        } finally {
-          setLoading(false);
-        }
-      } else {
-        alert('Only M-Pesa (PayHero) is supported for now.');
-      }
-    }
+    // Step 3: Payment is now handled by the payment method component (e.g., MpesaFields)
   };
 
   const handleBack = () => {
@@ -287,6 +222,22 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
   const handleInputChange = (e) => {
     setPaymentDetails({ ...paymentDetails, [e.target.name]: e.target.value });
   };
+
+  // New callbacks for modular payment methods
+  const handleMpesaSuccess = () => {
+    setStep(4); // Go to waiting page
+    setTimeout(pollPaymentStatus, 1000);
+  };
+  const handleMpesaError = (errMsg) => {
+    setError(errMsg);
+    setLoading(false);
+    setTimeout(() => setError(null), 3000);
+  };
+  const handleMpesaLoading = (isLoading) => {
+    setLoading(isLoading);
+  };
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 px-2 sm:px-0">
@@ -326,7 +277,8 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
                 {PAYMENT_METHODS.map((m) => (
                   <button
                     key={m.key}
-                    className={`flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 w-full shadow-sm hover:shadow-md transition bg-white ${selectedMethod === m.key ? 'ring-2 ring-[#a99d6b]' : ''}`}
+                    className={`flex items-center gap-3 border border-gray-200 rounded-lg px-4 py-3 w-full shadow-sm hover:shadow-md transition 
+    ${selectedMethod === m.key ? 'bg-black/80 text-white ring-2 ring-black/40' : 'bg-white text-gray-800'}`}
                     onClick={() => handleMethodSelect(m.key)}
                   >
                     <img 
@@ -339,7 +291,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
                       }
                       style={{ maxWidth: m.key === 'stripe' || m.key === 'mpesa' ? 120 : 60 }}
                     />
-                    <span className="font-medium text-gray-800">{m.label}</span>
+                    <span className="font-medium">{m.label}</span>
                   </button>
                 ))}
               </div>
@@ -351,7 +303,7 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
           )}
           {step === 3 && (
             <form
-              onSubmit={e => { e.preventDefault(); handleProceed(); }}
+              onSubmit={e => { e.preventDefault(); /* Payment handled by payment method component */ }}
               className="space-y-4"
             >
               <div className="flex flex-col items-center gap-2 mb-2">
@@ -388,11 +340,45 @@ const BlueBadgeModal = ({ open, onClose, userId }) => {
                   </div>
                 )}
               </div>
-              <PaymentFields method={selectedMethod} onChange={handleInputChange} billingType={billingType} setBillingType={setBillingType} />
-              <div className="flex gap-3 justify-between pt-2">
-                <button type="button" className="rounded-lg px-4 py-2 font-semibold bg-red-600 text-white hover:bg-red-700 transition" onClick={handleBack}>Back</button>
-                <button type="submit" className="rounded-lg px-4 py-2 font-semibold" style={{ background: '#a99d6b', color: 'white' }}>Proceed to Pay</button>
-              </div>
+              {pricing && (
+                <PaymentFields 
+                  ref={selectedMethod === 'mpesa' ? mpesaPayRef : undefined}
+                  method={selectedMethod} 
+                  onChange={handleInputChange} 
+                  billingType={billingType} 
+                  setBillingType={setBillingType} 
+                  pricing={pricing}
+                  amountKES={
+                    pricing
+                      ? (billingType === 'annual'
+                          ? Math.round(pricing.badgeAnnualUSD * pricing.usdToKes)
+                          : Math.round(pricing.badgeMonthlyUSD * pricing.usdToKes))
+                      : undefined
+                  }
+                  user={currentUser}
+                  onSuccess={handleMpesaSuccess}
+                  onError={handleMpesaError}
+                  onLoading={handleMpesaLoading}
+                />
+              )}
+              {selectedMethod === 'mpesa' && (
+                <div className="flex gap-3 justify-between pt-2">
+                  <button type="button" className="rounded-lg px-4 py-2 font-semibold bg-red-600 text-white hover:bg-red-700 transition" onClick={handleBack}>Back</button>
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 font-semibold" style={{ background: '#a99d6b', color: 'white' }}
+                    onClick={async () => { if (mpesaPayRef.current) await mpesaPayRef.current.handlePay(); }}
+                  >
+                    Proceed to Pay
+                  </button>
+                </div>
+              )}
+              {selectedMethod !== 'mpesa' && (
+                <div className="flex gap-3 justify-between pt-2">
+                  <button type="button" className="rounded-lg px-4 py-2 font-semibold bg-red-600 text-white hover:bg-red-700 transition" onClick={handleBack}>Back</button>
+                  <button type="submit" className="rounded-lg px-4 py-2 font-semibold" style={{ background: '#a99d6b', color: 'white' }}>Proceed to Pay</button>
+                </div>
+              )}
             </form>
           )}
           {step === 4 && (

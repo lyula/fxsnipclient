@@ -82,6 +82,31 @@ export default function Profile() {
       });
   }, []);
 
+  // Periodically refresh profile to update badge status if expired
+  useEffect(() => {
+    const interval = setInterval(() => {
+      getProfile().then((data) => {
+        if (data && data.username) {
+          setUser(data);
+          setForm({ username: data.username, email: data.email });
+          fetchFollowerCounts(data.username);
+          if (data.verified) {
+            getLatestBadgePayment().then((payment) => {
+              if (payment && payment.periodEnd) {
+                setBadgeExpiry(payment.periodEnd);
+              } else {
+                setBadgeExpiry(null);
+              }
+            });
+          } else {
+            setBadgeExpiry(null);
+          }
+        }
+      });
+    }, 60000); // 60 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setMessage("");
@@ -287,7 +312,7 @@ export default function Profile() {
       {user.verified && badgeExpiry && (
         <div className="mt-4 flex flex-col items-center">
           <button
-            className="bg-green-100 text-green-700 font-semibold px-4 py-2 rounded-lg cursor-default border border-green-300 text-center w-full"
+            className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 font-semibold px-4 py-2 rounded-lg cursor-default border border-green-300 dark:border-green-700 text-center w-full transition-colors duration-300"
             style={{ pointerEvents: 'none' }}
             readOnly
           >
