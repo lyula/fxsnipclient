@@ -476,9 +476,10 @@ export default function ChatPost({
       <div
         ref={postContainerRef}
         data-post-id={post._id}
-        className={`w-full max-w-[calc(100vw-1rem)] sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto mb-6 rounded-2xl overflow-hidden backdrop-blur-md bg-white/80 dark:bg-gray-800/80 border border-white/20 dark:border-gray-700/50 shadow-xl transition-all duration-300 ease-out ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
+        className={`w-full mx-auto mb-0 transition-all duration-300 ease-out ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
+        style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0 }}
       >
         {(post.image || post.video) && (
           <>
