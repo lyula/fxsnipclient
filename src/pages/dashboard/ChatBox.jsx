@@ -37,6 +37,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [conversationCache, setConversationCache] = useState(new Map());
 
+  // Track which messages have been marked as read
+  const readMessageIdsRef = useRef(new Set());
+
   useEffect(() => {
     if (!showEmojiPicker) return;
     function handleClickOutside(event) {
@@ -92,14 +95,26 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       socketRef.current.emit("joinRoom", { userId: myUserId, targetId: selectedUser._id });
     }
     socketRef.current.on("receiveMessage", (message) => {
-      if (message.from === selectedUser._id) {
-        setMessages((prev) => [...prev, message]);
+      setMessages((prev) => [...prev, message]);
+      // If the message is from someone else, update the conversation context
+      if (message.from !== myUserId) {
+        updateConversation(message.from, (prev) => {
+          // If the chat is not currently open, increment unreadCount
+          const isChatOpen = selectedUser && selectedUser._id === message.from;
+          let unreadCount = prev && typeof prev.unreadCount === 'number' ? prev.unreadCount : 0;
+          if (!isChatOpen) unreadCount += 1;
+          return {
+            lastMessage: message.text,
+            lastTime: new Date(message.createdAt).toISOString(),
+            unreadCount,
+          };
+        });
       }
     });
     return () => {
       socketRef.current.disconnect();
     };
-  }, [selectedUser, myUserId]);
+  }, [selectedUser, myUserId, updateConversation]);
 
   const fetchMessages = async (userId, week = 0, prepend = false) => {
     setError(null);
@@ -434,6 +449,31 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       inputElem.setSelectionRange(start + emoji.length, start + emoji.length);
     }, 0);
   };
+
+  // Decrement unreadCount in context as each unread message is read
+  useEffect(() => {
+    if (!selectedUser || !selectedUser._id) return;
+    // Find unread messages (to me, not read, not already marked)
+    const unreadMessages = messages.filter(
+      (msg) =>
+        msg.to === myUserId &&
+        !msg.read &&
+        !readMessageIdsRef.current.has(msg._id)
+    );
+    if (unreadMessages.length > 0) {
+      // Mark these as read locally
+      unreadMessages.forEach((msg) => readMessageIdsRef.current.add(msg._id));
+      // Decrement unreadCount in context for each message
+      updateConversation(selectedUser._id, (prev) => {
+        const current = typeof prev === 'object' && prev !== null ? prev.unreadCount : prev;
+        let newCount = current;
+        if (typeof current === 'number') {
+          newCount = Math.max(0, current - unreadMessages.length);
+        }
+        return { unreadCount: newCount };
+      });
+    }
+  }, [messages, selectedUser, myUserId, updateConversation]);
 
   return (
     <>

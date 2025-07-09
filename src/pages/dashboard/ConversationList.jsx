@@ -12,15 +12,17 @@ const truncateMessage = (text, isMobile = false) => {
 
 const ConversationList = ({ selectedUser, onSelect }) => {
   const { conversations: rawConversations, fetchConversations, statusMap: rawStatusMap } = useDashboard();
-  const conversations = Array.isArray(rawConversations) ? rawConversations : [];
+  const [localConversations, setLocalConversations] = useState([]);
+  const conversations = Array.isArray(localConversations.length ? localConversations : rawConversations) ? (localConversations.length ? localConversations : rawConversations) : [];
   const statusMap = rawStatusMap || {};
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (conversations.length === 0) fetchConversations();
-  }, []);
+    if (rawConversations.length === 0) fetchConversations();
+    else setLocalConversations(rawConversations);
+  }, [rawConversations, fetchConversations]);
 
   useEffect(() => {
     if (search.trim().length === 0) {
@@ -58,6 +60,10 @@ const ConversationList = ({ selectedUser, onSelect }) => {
 
   // Handle conversation selection: update URL and call onSelect
   const handleSelect = (user) => {
+    // Optimistically set unreadCount to 0 for this conversation (local)
+    setLocalConversations(prev => prev.map(u => u && u._id === user._id ? { ...u, unreadCount: 0 } : u));
+    // Also update the global context so the navbar badge updates instantly
+    updateConversation(user._id, { unreadCount: 0 });
     // Try to find the full conversation user object
     const fullUser = conversations.find(
       (u) => u && (u._id === user._id || u.username === user.username)
@@ -157,7 +163,7 @@ const ConversationList = ({ selectedUser, onSelect }) => {
                   )}
                   {user.unreadCount > 0 && (
                     <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center z-10">
-                      {user.unreadCount > 9 ? '9+' : user.unreadCount}
+                      {user.unreadCount > 99 ? '99+' : user.unreadCount}
                     </div>
                   )}
                   <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
