@@ -484,7 +484,7 @@ export default function ChatPost({
         {(post.image || post.video) && (
           <>
             <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
-            <div className="pt-4 pb-2">
+            <div className="pt-0.5 pb-2">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
                   <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
@@ -605,7 +605,7 @@ export default function ChatPost({
           style={{ maxWidth: "100%" }}
         >
           {!(post.image || post.video) && (
-            <div className="flex items-center mb-4 gap-3">
+            <div className="flex items-center p-2 gap-3">
               <Link 
                 to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
                 className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0"
