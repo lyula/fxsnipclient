@@ -59,7 +59,7 @@ export function DashboardProvider({ children }) {
 
   // --- Real-time messaging state ---
   const [inboxMessages, setInboxMessages] = useState({}); // { conversationId: [messages] }
-  const [onlineUsers, setOnlineUsers] = useState([]); // [userId]
+  const [onlineUsers, setOnlineUsers] = useState(new Set()); // Set of userIds
   const [typingUsers, setTypingUsers] = useState({}); // { conversationId: [userId] }
 
   // Setup socket connection and listeners ONCE per session
@@ -71,17 +71,34 @@ export function DashboardProvider({ children }) {
       socketRef.current.on("connect", () => {
         setSocketConnected(true);
         console.log("[DashboardContext] Socket connected", socketRef.current.id);
+        // Request the full list of online users
+        socketRef.current.emit("get-online-users");
       });
       socketRef.current.on("disconnect", () => {
         setSocketConnected(false);
         console.log("[DashboardContext] Socket disconnected");
       });
       socketRef.current.on("receiveMessage", (message) => {
+        console.log("[DashboardContext] receiveMessage event:", message);
         setInboxMessages(prev => {
           const convId = message.conversationId || message.conversation || message.to || message.from;
           const updated = { ...prev };
           if (!updated[convId]) updated[convId] = [];
-          updated[convId] = [...updated[convId], message];
+          // Try to find and replace an optimistic message
+          const optimisticIdx = updated[convId].findIndex(m =>
+            m.isOptimistic &&
+            m.text === message.text &&
+            m.from === message.from &&
+            m.to === message.to &&
+            Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 60000 // within 1 min
+          );
+          if (optimisticIdx !== -1) {
+            // Replace optimistic with real
+            updated[convId][optimisticIdx] = message;
+          } else {
+            // Append if not found
+            updated[convId] = [...updated[convId], message];
+          }
           return updated;
         });
         // Update conversation preview
@@ -92,7 +109,11 @@ export function DashboardProvider({ children }) {
         ));
       });
       socketRef.current.on("user-online", ({ userId }) => {
-        setOnlineUsers(prev => new Set(prev).add(userId));
+        setOnlineUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.add(userId);
+          return newSet;
+        });
       });
       socketRef.current.on("user-offline", ({ userId }) => {
         setOnlineUsers(prev => {
@@ -120,6 +141,9 @@ export function DashboardProvider({ children }) {
           return updated;
         });
       });
+      socketRef.current.on("online-users-list", ({ userIds }) => {
+        setOnlineUsers(new Set(userIds));
+      });
     }
     return () => {
       if (socketRef.current) {
@@ -132,6 +156,7 @@ export function DashboardProvider({ children }) {
   // --- Message send/typing helpers ---
   const sendMessage = useCallback((conversationId, text) => {
     if (!socketRef.current) return;
+    console.log("[DashboardContext] sendMessage emit:", { conversationId, text });
     socketRef.current.emit("message", { conversationId, text });
   }, []);
   const sendTyping = useCallback((conversationId) => {

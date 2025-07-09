@@ -11,10 +11,9 @@ const truncateMessage = (text, isMobile = false) => {
 };
 
 const ConversationList = ({ selectedUser, onSelect }) => {
-  const { conversations: rawConversations, fetchConversations, statusMap: rawStatusMap, updateConversation } = useDashboard();
+  const { conversations: rawConversations, fetchConversations, updateConversation, onlineUsers } = useDashboard();
   const [localConversations, setLocalConversations] = useState([]);
   const conversations = Array.isArray(localConversations.length ? localConversations : rawConversations) ? (localConversations.length ? localConversations : rawConversations) : [];
-  const statusMap = rawStatusMap || {};
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const navigate = useNavigate();
@@ -147,7 +146,8 @@ const ConversationList = ({ selectedUser, onSelect }) => {
         ) : (
           conversations.filter(Boolean).map((user) => {
             if (!user || !user._id) return null;
-            const status = statusMap[user._id] || {};
+            // Use global onlineUsers Set for online status
+            const isOnline = onlineUsers && onlineUsers.has ? onlineUsers.has(user._id) : false;
             return (
               <button
                 key={user._id}
@@ -158,7 +158,7 @@ const ConversationList = ({ selectedUser, onSelect }) => {
               >
                 <div className="relative mr-3">
                   {/* Online dot */}
-                  {status.online && (
+                  {isOnline && (
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full z-20"></span>
                   )}
                   {user.unreadCount > 0 && (
@@ -181,7 +181,8 @@ const ConversationList = ({ selectedUser, onSelect }) => {
                     </span>
                   </div>
                   <div className={`text-sm truncate ${user.unreadCount > 0 ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {status.typing ? <span className="italic text-blue-600 dark:text-blue-400">Typing...</span> : truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
+                    {/* Keep typing indicator if you want, or remove if not using statusMap.typing */}
+                    {truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
                   </div>
                 </div>
               </button>

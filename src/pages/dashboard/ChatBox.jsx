@@ -129,7 +129,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     }
   };
 
-  // --- Send message using context ---
+  // --- Send message using context (no optimistic UI) ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || !conversationId) return;
