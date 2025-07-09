@@ -7,6 +7,7 @@ import CreatePostBox from "./community/CreatePostBox";
 import UserSearch from "./community/UserSearch";
 import FollowingFeed from "./community/FollowingFeed";
 import { useDashboard } from "../../context/dashboard";
+import FloatingPlusButton from "../../components/common/FloatingPlusButton";
 
 export default function Community({ user }) {
   const [activeTab, setActiveTab] = useState("forYou");
@@ -976,13 +977,7 @@ useEffect(() => {
       </div>
       
       {/* Mobile floating create post button */}
-      <button
-        className="fixed bottom-14 right-6 z-50 sm:hidden flex items-center justify-center w-14 h-14 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
-        onClick={() => setShowCreate(true)}
-        aria-label="Create new post"
-      >
-        <FaPlus className="text-xl" />
-      </button>
+      <FloatingPlusButton onClick={() => setShowCreate(true)} visible={showTabs} />
     </div>
   );
 }
