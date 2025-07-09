@@ -479,7 +479,7 @@ export default function ChatPost({
         className={`w-full max-w-xl mx-auto mb-0 transition-all duration-300 ease-out px-2 overflow-x-hidden ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
-        style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0 }}
+        style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0, touchAction: 'pan-y' }}
       >
         {(post.image || post.video) && (
           <>
@@ -552,7 +552,7 @@ export default function ChatPost({
                 background: #fff !important;
                 margin: 0 auto !important;
                 box-shadow: none !important;
-                touch-action: none !important;
+                border: none !important;
               }
               .media-container video {
                 width: 100% !important;
@@ -565,7 +565,7 @@ export default function ChatPost({
                 background: #fff !important;
                 margin: 0 auto !important;
                 box-shadow: none !important;
-                touch-action: none !important;
+                border: none !important;
               }
               @media (prefers-color-scheme: dark) {
                 .media-container img,
@@ -581,6 +581,8 @@ export default function ChatPost({
                 padding: 0 !important;
                 background: transparent !important;
                 border-radius: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
               }
             `}</style>
             <div
