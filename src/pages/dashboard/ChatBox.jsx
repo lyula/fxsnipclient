@@ -221,31 +221,14 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     setInput("");
     setIsSending(true);
     try {
-      const response = await sendMessage(selectedUser._id, input);
-      if (response && response._id) {
-        setIsSending(false);
-        setError(null);
-        if (response.conversation) {
-          updateConversation(response.conversation);
-        } else {
-          console.warn('No conversation object in sendMessage response:', response);
-        }
-        setMessages((prev) => prev.map((msg) =>
-          msg._id === tempId ? { ...response, isOptimistic: false } : msg
-        ));
-        if (messagesContainerRef.current) {
-          setTimeout(() => {
-            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-          }, 100);
-        }
-      } else {
-        setIsSending(false);
-        setError("Failed to send message.");
-        setMessages((prev) => prev.map((msg) =>
-          msg._id === tempId ? { ...msg, failed: true, isOptimistic: false } : msg
-        ));
-        console.error('Send message error:', response);
+      // Emit via socket for real-time delivery
+      if (socketRef.current) {
+        socketRef.current.emit("sendMessage", { to: selectedUser._id, text: input });
       }
+      // Optionally, still call HTTP API for reliability (can be removed if not needed)
+      // const response = await sendMessage(selectedUser._id, input);
+      setIsSending(false);
+      setError(null);
     } catch (err) {
       setIsSending(false);
       setError("An error occurred while sending the message.");
