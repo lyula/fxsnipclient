@@ -11,7 +11,7 @@ const truncateMessage = (text, isMobile = false) => {
 };
 
 const ConversationList = ({ selectedUser, onSelect }) => {
-  const { conversations: rawConversations, fetchConversations, statusMap: rawStatusMap } = useDashboard();
+  const { conversations: rawConversations, fetchConversations, statusMap: rawStatusMap, updateConversation } = useDashboard();
   const [localConversations, setLocalConversations] = useState([]);
   const conversations = Array.isArray(localConversations.length ? localConversations : rawConversations) ? (localConversations.length ? localConversations : rawConversations) : [];
   const statusMap = rawStatusMap || {};
