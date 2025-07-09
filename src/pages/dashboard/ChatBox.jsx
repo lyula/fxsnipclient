@@ -92,6 +92,20 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     socketRef.current = io(import.meta.env.VITE_SOCKET_URL, {
       auth: { token: localStorage.getItem("token") }
     });
+    // --- DEBUG LOGGING ---
+    socketRef.current.on("connect", () => {
+      console.log("[Socket] Connected! Socket ID:", socketRef.current.id);
+    });
+    socketRef.current.on("connect_error", (err) => {
+      console.error("[Socket] Connection error:", err);
+    });
+    socketRef.current.on("disconnect", (reason) => {
+      console.warn("[Socket] Disconnected:", reason);
+    });
+    socketRef.current.on("reconnect_attempt", (attempt) => {
+      console.log("[Socket] Reconnect attempt:", attempt);
+    });
+    // --- END DEBUG LOGGING ---
     socketRef.current.connect();
     if (selectedUser) {
       socketRef.current.emit("joinRoom", { userId: myUserId, targetId: selectedUser._id });
