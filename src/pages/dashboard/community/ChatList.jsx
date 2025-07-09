@@ -6,7 +6,15 @@ export default function ChatList({
   postRefs, currentUserId, currentUsername, currentUserVerified 
 }) {
   return (
-    <div className="w-full max-w-full overflow-x-hidden min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
+    <div
+      className="w-full max-w-full mx-auto overflow-x-hidden min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300 px-0 sm:px-0"
+      style={{
+        marginLeft: 'auto',
+        marginRight: 'auto',
+        paddingLeft: 0,
+        paddingRight: 0
+      }}
+    >
       {posts.filter(post => post && post._id).map((post, idx, arr) => (
         <React.Fragment key={post._id}>
           <div

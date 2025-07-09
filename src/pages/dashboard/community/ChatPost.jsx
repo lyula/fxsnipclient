@@ -476,15 +476,15 @@ export default function ChatPost({
       <div
         ref={postContainerRef}
         data-post-id={post._id}
-        className={`w-full mx-auto mb-0 transition-all duration-300 ease-out ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
+        className={`w-full max-w-xl mx-auto mb-0 transition-all duration-300 ease-out px-2 overflow-x-hidden ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
         style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0 }}
       >
         {(post.image || post.video) && (
           <>
-            <hr className="border-gray-200/50 dark:border-gray-700/50" />
-            <div className="px-6 pt-4 pb-2">
+            <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
+            <div className="pt-4 pb-2">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
                   <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
@@ -538,22 +538,68 @@ export default function ChatPost({
         )}
 
         {(post.image || post.video) && (
-          <div
-            ref={postRef}
-            className="overflow-hidden flex justify-center items-center w-full"
-            style={{ maxWidth: "100%", maxHeight: "60vh", width: "100%" }}
-          >
-            <MediaDisplay 
-              imageUrl={post.image} 
-              videoUrl={post.video}
-              altText={`${post.author?.username || 'User'}'s post media`}
-              className="max-w-full max-h-[60vh] object-contain w-auto h-auto"
-            />
-          </div>
+          <>
+            {/* Enforce strict media sizing and overflow for all images/videos in media-container */}
+            <style>{`
+              .media-container img {
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: 60vh !important;
+                object-fit: cover !important;
+                display: block !important;
+                overflow: hidden !important;
+                border-radius: 0 !important;
+                background: #fff !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                touch-action: none !important;
+              }
+              .media-container video {
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: 60vh !important;
+                object-fit: cover !important;
+                display: block !important;
+                overflow: hidden !important;
+                border-radius: 0 !important;
+                background: #fff !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                touch-action: none !important;
+              }
+              @media (prefers-color-scheme: dark) {
+                .media-container img,
+                .media-container video {
+                  background: #18181b !important;
+                }
+              }
+              .media-container {
+                overflow: hidden !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 auto !important;
+                padding: 0 !important;
+                background: transparent !important;
+                border-radius: 0 !important;
+              }
+            `}</style>
+            <div
+              ref={postRef}
+              className="media-container w-full max-w-full flex justify-center items-center overflow-hidden p-0 m-0"
+              style={{ marginLeft: 0, marginRight: 0 }}
+            >
+              <MediaDisplay 
+                imageUrl={post.image} 
+                videoUrl={post.video}
+                altText={`${post.author?.username || 'User'}'s post media`}
+                className={'w-full h-auto object-contain max-w-full max-h-[60vh] m-0 p-0'}
+              />
+            </div>
+          </>
         )}
 
         <div
-          className={`p-6 backdrop-blur-sm transition-all overflow-x-hidden max-w-full ${
+          className={`$${post.image || post.video ? 'w-full max-w-full p-0' : 'p-6'} backdrop-blur-sm transition-all overflow-x-hidden max-w-full ${
             post.image || post.video ? "rounded-none rounded-b-2xl" : "rounded-2xl"
           }`}
           style={{ maxWidth: "100%" }}
@@ -671,7 +717,7 @@ export default function ChatPost({
           </div>
 
           {/* Interaction Bar */}
-          <div className="flex items-center gap-3 sm:gap-6 text-base mb-4 px-2 sm:px-4 py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300 w-full max-w-full overflow-x-hidden">
+          <div className={`flex items-center gap-3 sm:gap-6 text-base mb-4 ${post.image || post.video ? 'w-full max-w-full px-2' : 'px-2 sm:px-4'} py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300 overflow-x-hidden`}>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleLike}
@@ -1101,7 +1147,6 @@ export default function ChatPost({
                                   {replyInfo.totalReplies > replyHook.repliesPerComment && (
                                     <button
                                       onClick={() => {
-                                        replyHook.setExpandedReplies(prev => ({ ...prev, [comment._id]: false }));
                                         setTimeout(() => replyHook.showAllReplies(comment._id), 100);
                                       }}
                                       className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded"
@@ -1253,3 +1298,19 @@ export default function ChatPost({
     </>
   );
 }
+
+/* Add this to your global CSS (e.g., index.css or App.css):
+.fixed-mobile-media {
+  position: relative;
+  left: 50%;
+  right: 50%;
+  transform: translateX(-50%);
+}
+.mobile-media-container {
+  max-width: 100vw;
+  width: 100vw;
+  margin-left: 0;
+  margin-right: 0;
+  overflow-x: hidden;
+}
+*/

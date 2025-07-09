@@ -90,13 +90,17 @@ export default function Post({ post, onLike, onComment, trackViews = true }) {
       </div>
       {/* Conditionally render content or media */}
       {!(post.image || post.video) && (
-        <p className="text-gray-700 dark:text-gray-300 mb-2">{post.content}</p>
+        <>
+          <hr className="my-2 border-gray-200 dark:border-gray-700" />
+          <p className="text-gray-700 dark:text-gray-300 mb-2">{post.content}</p>
+        </>
       )}
       {(post.image || post.video) && (
         <MediaDisplay 
           imageUrl={post.image} 
           videoUrl={post.video}
           caption={post.content} // Content appears below media
+          forceMobileLayout={true} // Ensures video covers full width on mobile
         />
       )}
       <div className="flex items-center gap-4">

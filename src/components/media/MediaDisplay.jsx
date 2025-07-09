@@ -354,9 +354,9 @@ export default function MediaDisplay({
     setUserInteracted(true);
     setLastManualAction(Date.now());
     
-  if (isActualMobile) {
-  initMobileAudioContext();
-}
+    if (isActualMobile) {
+      initMobileAudioContext();
+    }
     
     if (isPlaying) {
       mediaRef.current.pause();
@@ -396,15 +396,14 @@ export default function MediaDisplay({
     setUserInteracted(true);
     setLastManualAction(Date.now());
     
-   if (isActualMobile) {
-  initMobileAudioContext();
-}
+    if (isActualMobile) {
+      initMobileAudioContext();
+    }
     
     const newMuted = !mediaRef.current.muted;
     
     if (isActualMobile && !newMuted) {
       initMobileAudioContext();
-      // Small delay to ensure audio context is ready
       setTimeout(() => {
         mediaRef.current.muted = newMuted;
         setIsMuted(newMuted);
@@ -684,16 +683,17 @@ export default function MediaDisplay({
 
           {showImageModal && (
             <div
-              className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black bg-opacity-90"
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 overflow-auto"
               onClick={() => setShowImageModal(false)}
-              style={{ cursor: "zoom-out" }}
+              style={{ cursor: "zoom-out", width: "100vw", height: "100vh", padding: 0, margin: 0 }}
             >
+              {/* Back arrow at bottom left */}
               <FaArrowLeft
                 onClick={e => {
                   e.stopPropagation();
                   setShowImageModal(false);
                 }}
-                className="absolute bottom-6 left-6 cursor-pointer"
+                className="absolute left-6 bottom-6 cursor-pointer"
                 size={32}
                 style={{ color: "#a99d6b", zIndex: 60, background: "white", borderRadius: "50%", padding: "6px" }}
                 title="Back to Feed"
@@ -701,8 +701,16 @@ export default function MediaDisplay({
               <img
                 src={imageUrl}
                 alt={altText}
-                className="max-w-full max-h-full"
-                style={{ objectFit: "contain" }}
+                style={{
+                  width: "auto",
+                  height: "auto",
+                  maxWidth: "none",
+                  maxHeight: "none",
+                  display: "block",
+                  margin: "0 auto",
+                  boxShadow: "0 2px 16px rgba(0,0,0,0.3)",
+                  background: "transparent"
+                }}
                 onClick={e => e.stopPropagation()}
               />
             </div>
@@ -804,9 +812,27 @@ export default function MediaDisplay({
   }
 
   if (isVideoMedia) {
+    // Portrait/phone aspect ratio: render as mobile size on desktop
+    const isPortrait = videoAspectRatio && videoAspectRatio < 0.8;
+    const isSixteenNine = videoAspectRatio && Math.abs(videoAspectRatio - 16/9) < 0.05;
     return (
       <ErrorBoundary>
-        <div className="w-full overflow-x-hidden">
+        <div
+          className={
+            isSixteenNine
+              ? 'w-screen max-w-none flex justify-center items-center relative left-1/2 right-1/2 -translate-x-1/2'
+              : isPortrait
+                ? 'flex justify-center items-center w-full'
+                : 'w-full overflow-x-hidden'
+          }
+          style={
+            isSixteenNine
+              ? { maxWidth: '100vw', width: '100vw', marginLeft: 'calc(50% - 50vw)', marginRight: 'calc(50% - 50vw)' }
+              : isPortrait
+                ? { maxWidth: '375px', width: '100%', margin: '0 auto' }
+                : { maxWidth: '100%', maxHeight: '60vh', width: '100%' }
+          }
+        >
           {!hideMedia && (
             <div 
               ref={containerRef}
@@ -823,11 +849,19 @@ export default function MediaDisplay({
               <video
                 ref={mediaRef}
                 src={ensureMP4Format(videoUrl)}
-                className="w-full block"
+                className={
+                  shouldUseMobileLayout
+                    ? 'w-full h-auto object-cover border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm'
+                    : isPortrait
+                      ? 'w-full max-w-xs h-auto object-contain border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm'
+                      : 'w-full block'
+                }
                 style={{
+                  width: shouldUseMobileLayout ? '100%' : undefined,
+                  maxWidth: shouldUseMobileLayout ? '100%' : undefined,
                   height: 'auto',
                   maxHeight: shouldUseMobileLayout ? '70vh' : '60vh',
-                  objectFit: 'cover',
+                  objectFit: shouldUseMobileLayout ? 'cover' : (isPortrait ? 'contain' : 'cover'),
                   display: 'block',
                   backgroundColor: 'transparent'
                 }}
@@ -856,11 +890,9 @@ export default function MediaDisplay({
                 onLoadedMetadata={(e) => {
                   const video = e.target;
                   setDuration(video.duration);
-                  
                   if (video.videoWidth && video.videoHeight) {
                     const aspectRatio = video.videoWidth / video.videoHeight;
                     setVideoAspectRatio(aspectRatio);
-                    
                     if (aspectRatio < 0.8) {
                       setVideoFormat('portrait');
                     } else if (aspectRatio > 1.2) {
@@ -891,7 +923,7 @@ export default function MediaDisplay({
                   className={`text-white rounded-full transition-all duration-200 hover:scale-110 pointer-events-auto ${
                     shouldUseMobileLayout 
                       ? 'p-6 bg-black/70 border-2 border-white/90'
-                      : 'p-5 bg-black/60 hover:bg-black/80'
+                      : 'p-5 bg-black/80'
                   }`}
                   style={{
                     minWidth: shouldUseMobileLayout ? '80px' : '70px',
