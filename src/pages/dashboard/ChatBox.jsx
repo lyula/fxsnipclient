@@ -89,7 +89,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   }, [selectedUser && selectedUser._id, messages.length]);
 
   useEffect(() => {
-    socketRef.current = io({
+    socketRef.current = io(import.meta.env.VITE_SOCKET_URL, {
       auth: { token: localStorage.getItem("token") }
     });
     socketRef.current.connect();
@@ -97,7 +97,22 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       socketRef.current.emit("joinRoom", { userId: myUserId, targetId: selectedUser._id });
     }
     socketRef.current.on("receiveMessage", (message) => {
-      setMessages((prev) => [...prev, message]);
+      setMessages((prev) => {
+        // Try to find an optimistic message to replace
+        const optimisticIndex = prev.findIndex(
+          (msg) =>
+            msg.isOptimistic &&
+            msg.text === message.text &&
+            msg.from === message.from &&
+            msg.to === message.to
+        );
+        if (optimisticIndex !== -1) {
+          const newMessages = [...prev];
+          newMessages[optimisticIndex] = message;
+          return newMessages;
+        }
+        return [...prev, message];
+      });
       // If the message is from someone else, update the conversation context
       if (message.from !== myUserId) {
         updateConversation(message.from, (prev) => {
@@ -223,12 +238,16 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     setInput("");
     setIsSending(true);
     try {
-      // Emit via socket for real-time delivery
+      // Log before emit
+      console.log("[ChatBox] Emitting sendMessage", { to: selectedUser._id, text: input });
       if (socketRef.current) {
-        socketRef.current.emit("sendMessage", { to: selectedUser._id, text: input });
+        socketRef.current.emit("sendMessage", { to: selectedUser._id, text: input }, (ack) => {
+          // Log ack from server
+          console.log("[ChatBox] sendMessage ack:", ack);
+        });
+      } else {
+        console.error("[ChatBox] socketRef.current is null");
       }
-      // Optionally, still call HTTP API for reliability (can be removed if not needed)
-      // const response = await sendMessage(selectedUser._id, input);
       setIsSending(false);
       setError(null);
     } catch (err) {
@@ -237,7 +256,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       setMessages((prev) => prev.map((msg) =>
         msg._id === tempId ? { ...msg, failed: true, isOptimistic: false } : msg
       ));
-      console.error('Send message exception:', err);
+      console.error('[ChatBox] Send message exception:', err);
     }
   };
 
