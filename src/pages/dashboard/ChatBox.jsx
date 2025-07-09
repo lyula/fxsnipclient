@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { getConversation } from "../../utils/api";
 import { debounce } from "lodash";
 import useUserStatus from "../../hooks/useUserStatus";
@@ -17,7 +17,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     sendTyping,
     sendStopTyping,
     typingUsers,
-    updateConversation
+    updateConversation,
+    onlineUsers // <-- add onlineUsers from context
   } = useDashboard();
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -39,6 +40,64 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [conversationCache, setConversationCache] = useState(new Map());
   const readMessageIdsRef = useRef(new Set());
+  const [localSelectedUser, setLocalSelectedUser] = useState(selectedUser);
+  const prevIsRecipientOnline = useRef(null);
+
+  // Keep localSelectedUser in sync with selectedUser prop (when switching chats)
+  useEffect(() => {
+    setLocalSelectedUser(selectedUser);
+  }, [selectedUser]);
+
+  // --- Online status for recipient ---
+  const isRecipientOnline = useMemo(() => {
+    return onlineUsers && onlineUsers.has ? onlineUsers.has(selectedUser?._id) : false;
+  }, [onlineUsers, selectedUser]);
+
+  // --- Fetch latest user info when recipient goes offline ---
+  useEffect(() => {
+    if (prevIsRecipientOnline.current === null) {
+      prevIsRecipientOnline.current = isRecipientOnline;
+      return;
+    }
+    if (prevIsRecipientOnline.current && !isRecipientOnline && selectedUser?._id) {
+      // Recipient just went offline, fetch latest last seen
+      const API_BASE = import.meta.env.VITE_API_URL;
+      fetch(`${API_BASE}/user/last-seen/${selectedUser._id}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('lastSeen fetch result:', data);
+          if (data && data.lastSeen) {
+            setLocalSelectedUser(u => ({ ...u, lastSeen: data.lastSeen }));
+          }
+        })
+        .catch(() => {});
+    }
+    prevIsRecipientOnline.current = isRecipientOnline;
+  }, [isRecipientOnline, selectedUser, token]);
+
+  // --- Fetch last seen on chat open if recipient is offline ---
+  useEffect(() => {
+    if (selectedUser && selectedUser._id && !isRecipientOnline) {
+      // Show lastSeen from selectedUser immediately (already handled by localSelectedUser)
+      const API_BASE = import.meta.env.VITE_API_URL;
+      fetch(`${API_BASE}/user/last-seen/${selectedUser._id}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('lastSeen fetch result (on open):', data);
+          if (data && data.lastSeen) {
+            setLocalSelectedUser(u => {
+              // Only update if the fetched lastSeen is newer
+              if (!u.lastSeen || new Date(data.lastSeen) > new Date(u.lastSeen)) {
+                return { ...u, lastSeen: data.lastSeen };
+              }
+              return u;
+            });
+          }
+        })
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUser && selectedUser._id]);
 
   // --- Use context for messages ---
   const conversationId = selectedUser && selectedUser._id;
@@ -365,6 +424,22 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     }
   }, [messages, selectedUser, myUserId, updateConversation]);
 
+  // --- Last seen logic ---
+  const lastSeen = localSelectedUser && localSelectedUser.lastSeen ? new Date(localSelectedUser.lastSeen) : null;
+  const getLastSeenText = () => {
+    if (!lastSeen) return '';
+    const now = new Date();
+    const diffMs = now - lastSeen;
+    const diffMinutes = Math.floor(diffMs / 60000);
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+    return lastSeen.toLocaleString();
+  };
+
   return (
     <>
       <div style={{ display: 'none' }}>
@@ -396,7 +471,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`}
             className="hover:opacity-80 transition-opacity mr-3"
           >
-            <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
+            <div className="relative">
+              <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
+              {/* Removed online dot from chatbox avatar */}
+            </div>
           </Link>
           <div className="flex-1 flex flex-col">
             <button
@@ -406,7 +484,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
               {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
             </button>
-            <UserStatus userId={selectedUser._id} token={localStorage.getItem("token") || ""} />
+            {/* Show online or last seen text, but never both */}
+            <span className={`text-xs ${isRecipientOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+              {isRecipientOnline ? 'Online' : (lastSeen ? `Last seen ${getLastSeenText()}` : '')}
+            </span>
           </div>
         </div>
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain w-full max-w-full !w-full !max-w-full !px-0 py-4 space-y-4 hide-scrollbar">

@@ -6,9 +6,10 @@ import { loginUser } from "../utils/api";
 import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/auth";
 import usePWAInstallPrompt from "../hooks/usePWAInstallPrompt";
+import { io } from "socket.io-client";
 
 export default function Login() {
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -58,9 +59,27 @@ export default function Login() {
 
       if (result.token) {
         localStorage.setItem("token", result.token);
-        await refreshUser(); // <-- fetch and set user profile
-        const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
-        navigate(lastRoute, { replace: true });
+        await refreshUser(); // fetch and set user profile
+        // Wait a tick for user to update
+        setTimeout(() => {
+          const userId = (user && (user._id || user.id));
+          if (userId) {
+            localStorage.setItem("userId", userId);
+            // Emit user-online event immediately after login
+            const socketUrl = import.meta.env.VITE_SOCKET_URL;
+            if (socketUrl) {
+              const tempSocket = io(socketUrl, {
+                auth: { token: result.token }
+              });
+              tempSocket.on("connect", () => {
+                tempSocket.emit("user-online", { userId });
+                tempSocket.disconnect(); // Disconnect after emitting
+              });
+            }
+          }
+          const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
+          navigate(lastRoute, { replace: true });
+        }, 0);
       } else {
         setError(result.message || "Login failed.");
       }

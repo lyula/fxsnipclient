@@ -71,6 +71,11 @@ export function DashboardProvider({ children }) {
       socketRef.current.on("connect", () => {
         setSocketConnected(true);
         console.log("[DashboardContext] Socket connected", socketRef.current.id);
+        // Emit user-online as soon as socket connects (user is present anywhere in app)
+        const userId = localStorage.getItem("userId");
+        if (userId) {
+          socketRef.current.emit("user-online", { userId });
+        }
         // Request the full list of online users
         socketRef.current.emit("get-online-users");
       });
