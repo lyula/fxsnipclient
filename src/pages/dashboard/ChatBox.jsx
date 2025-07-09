@@ -70,6 +70,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   }, [showEmojiPicker]);
 
   // --- Fetch messages from API for history (optional, fallback) ---
+  const { setInboxMessages } = useDashboard(); // Add this to update context
   const fetchMessages = async (userId, week = 0, prepend = false) => {
     setError(null);
     try {
@@ -81,15 +82,33 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         return;
       }
       if (response.length === 0) setHasMore(false);
-      // Optionally merge with context messages if needed
       setMessagesFetched(true);
       setLastFetchedUser(userId);
+      // --- Merge fetched messages into inboxMessages context ---
+      setInboxMessages(prev => {
+        const existing = prev[userId] || [];
+        let merged;
+        if (prepend) {
+          // Prepend older messages
+          merged = [...response, ...existing];
+        } else {
+          // Replace or merge
+          merged = [...response, ...existing.filter(m => !response.some(r => r._id === m._id))];
+        }
+        return { ...prev, [userId]: merged };
+      });
     } catch (err) {
       setError("An error occurred while fetching messages.");
       setHasMore(false);
       setMessagesFetched(true);
     }
   };
+
+  // Fetch messages when chat is opened or weekIndex changes
+  useEffect(() => {
+    if (!selectedUser || !selectedUser._id) return;
+    fetchMessages(selectedUser._id, weekIndex, weekIndex > 0);
+  }, [selectedUser, weekIndex]);
 
   // --- Scroll to bottom on new messages ---
   useEffect(() => {
