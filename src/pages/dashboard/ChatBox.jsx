@@ -89,7 +89,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   }, [selectedUser && selectedUser._id, messages.length]);
 
   useEffect(() => {
-    socketRef.current = io();
+    socketRef.current = io({
+      auth: { token: localStorage.getItem("token") }
+    });
     socketRef.current.connect();
     if (selectedUser) {
       socketRef.current.emit("joinRoom", { userId: myUserId, targetId: selectedUser._id });
