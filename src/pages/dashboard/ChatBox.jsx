@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { getConversation, sendMessage } from "../../utils/api";
+import { getConversation } from "../../utils/api";
 import { debounce } from "lodash";
-import { io } from "socket.io-client";
 import useUserStatus from "../../hooks/useUserStatus";
 import UserStatus from "../../components/UserStatus";
 import { useDashboard } from "../../context/dashboard";
@@ -12,15 +11,19 @@ import EmojiPicker from 'emoji-picker-react';
 import './emoji-picker-minimalist.css';
 
 const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
-  const { updateConversation } = useDashboard();
+  const {
+    inboxMessages,
+    sendMessage,
+    sendTyping,
+    sendStopTyping,
+    typingUsers,
+    updateConversation
+  } = useDashboard();
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [messages, setMessages] = useState([]);
   const [error, setError] = useState(null);
   const [messagesFetched, setMessagesFetched] = useState(false);
   const [lastFetchedUser, setLastFetchedUser] = useState(null);
-  const [messagesCache, setMessagesCache] = useState(new Map());
-  const [lastMessageTimestamps, setLastMessageTimestamps] = useState(new Map());
   const [linkPreviews, setLinkPreviews] = useState(new Map());
   const [loadingPreviews, setLoadingPreviews] = useState(new Set());
   const fetchedUrls = useRef(new Set());
@@ -28,7 +31,6 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const fetchTimeoutRef = useRef(null);
-  const socketRef = useRef(null);
   const recipientStatus = useUserStatus(selectedUser ? selectedUser._id : null, token);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date()));
   const [hasMore, setHasMore] = useState(true);
@@ -36,10 +38,22 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const emojiPickerRef = useRef(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [conversationCache, setConversationCache] = useState(new Map());
-
-  // Track which messages have been marked as read
   const readMessageIdsRef = useRef(new Set());
 
+  // --- Use context for messages ---
+  const conversationId = selectedUser && selectedUser._id;
+  const messages = useMemo(() => {
+    if (!conversationId) return [];
+    return inboxMessages[conversationId] || [];
+  }, [inboxMessages, conversationId]);
+
+  // --- Typing indicator from context ---
+  const isRecipientTyping = useMemo(() => {
+    if (!conversationId) return false;
+    return typingUsers[conversationId]?.includes(selectedUser._id);
+  }, [typingUsers, conversationId, selectedUser]);
+
+  // --- Emoji picker logic (unchanged) ---
   useEffect(() => {
     if (!showEmojiPicker) return;
     function handleClickOutside(event) {
@@ -55,225 +69,64 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
-  useEffect(() => {
-    if (!selectedUser || !selectedUser._id) return;
-    setMessages([]);
-    setMessagesFetched(false);
-    setError(null);
-    const cached = conversationCache.get(selectedUser._id);
-    if (cached) {
-      setMessages(cached);
-      setMessagesFetched(true);
-    } else {
-      fetchMessages(selectedUser._id);
-    }
-  }, [selectedUser]);
-
-  useEffect(() => {
-    if (!selectedUser || !selectedUser._id) return;
-    if (messagesFetched && messages.length > 0) {
-      setConversationCache(prev => {
-        const newCache = new Map(prev);
-        newCache.set(selectedUser._id, messages);
-        return newCache;
-      });
-    }
-  }, [messagesFetched, messages, selectedUser]);
-
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      setTimeout(() => {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-      }, 0);
-    }
-  }, [selectedUser && selectedUser._id, messages.length]);
-
-  useEffect(() => {
-    socketRef.current = io(import.meta.env.VITE_SOCKET_URL, {
-      auth: { token: localStorage.getItem("token") }
-    });
-    // --- DEBUG LOGGING ---
-    socketRef.current.on("connect", () => {
-      console.log("[Socket] Connected! Socket ID:", socketRef.current.id);
-    });
-    socketRef.current.on("connect_error", (err) => {
-      console.error("[Socket] Connection error:", err);
-    });
-    socketRef.current.on("disconnect", (reason) => {
-      console.warn("[Socket] Disconnected:", reason);
-    });
-    socketRef.current.on("reconnect_attempt", (attempt) => {
-      console.log("[Socket] Reconnect attempt:", attempt);
-    });
-    // --- END DEBUG LOGGING ---
-    socketRef.current.connect();
-    if (selectedUser) {
-      socketRef.current.emit("joinRoom", { userId: myUserId, targetId: selectedUser._id });
-    }
-    socketRef.current.on("receiveMessage", (message) => {
-      setMessages((prev) => {
-        // Try to find an optimistic message to replace
-        const optimisticIndex = prev.findIndex(
-          (msg) =>
-            msg.isOptimistic &&
-            msg.text === message.text &&
-            msg.from === message.from &&
-            msg.to === message.to
-        );
-        if (optimisticIndex !== -1) {
-          const newMessages = [...prev];
-          newMessages[optimisticIndex] = message;
-          return newMessages;
-        }
-        return [...prev, message];
-      });
-      // If the message is from someone else, update the conversation context
-      if (message.from !== myUserId) {
-        updateConversation(message.from, (prev) => {
-          // If the chat is not currently open, increment unreadCount
-          const isChatOpen = selectedUser && selectedUser._id === message.from;
-          let unreadCount = prev && typeof prev.unreadCount === 'number' ? prev.unreadCount : 0;
-          if (!isChatOpen) unreadCount += 1;
-          return {
-            lastMessage: message.text,
-            lastTime: new Date(message.createdAt).toISOString(),
-            unreadCount,
-          };
-        });
-      }
-    });
-    return () => {
-      socketRef.current.disconnect();
-    };
-  }, [selectedUser, myUserId, updateConversation]);
-
+  // --- Fetch messages from API for history (optional, fallback) ---
   const fetchMessages = async (userId, week = 0, prepend = false) => {
     setError(null);
     try {
       const response = await getConversation(userId + '?week=' + week);
       if (!Array.isArray(response)) {
         setError("Failed to fetch messages.");
-        setMessages([]);
         setHasMore(false);
         setMessagesFetched(true);
         return;
       }
       if (response.length === 0) setHasMore(false);
-      setMessages((prev) => prepend ? [...response, ...prev] : response);
+      // Optionally merge with context messages if needed
       setMessagesFetched(true);
       setLastFetchedUser(userId);
     } catch (err) {
       setError("An error occurred while fetching messages.");
-      setMessages([]);
       setHasMore(false);
       setMessagesFetched(true);
     }
   };
 
+  // --- Scroll to bottom on new messages ---
   useEffect(() => {
-    if (!selectedUser || !selectedUser._id) return;
-    setMessagesFetched(false);
-    setError(null);
-    setHasMore(true);
-    if (weekIndex === 0) {
-      fetchMessages(selectedUser._id, 0, false);
-    } else {
-      fetchMessages(selectedUser._id, weekIndex, true);
+    if (messagesContainerRef.current) {
+      setTimeout(() => {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }, 0);
     }
-  }, [selectedUser, weekIndex]);
+  }, [conversationId, messages.length]);
 
-  const loadPreviousWeek = () => {
-    if (!selectedUser || !selectedUser._id) return;
-    const prevWeek = subWeeks(currentWeekStart, 1);
-    setCurrentWeekStart(prevWeek);
-    fetchMessages(selectedUser._id, prevWeek);
+  // --- Typing events ---
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    if (e.target.value.trim()) {
+      sendTyping(conversationId);
+    } else {
+      sendStopTyping(conversationId);
+    }
   };
 
-  useEffect(() => {
-    if (!selectedUser || !selectedUser._id) return;
-    setMessagesFetched(false);
-    setError(null);
-    setHasMore(true);
-    fetchMessages(selectedUser._id, currentWeekStart);
-  }, [selectedUser, currentWeekStart]);
-
-  const isPrependingRef = useRef(false);
-  const anchorMessageIdRef = useRef(null);
-
-  useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    let loading = false;
-    const handleScroll = () => {
-      if (container.scrollTop < 50 && hasMore && !loading) {
-        loading = true;
-        isPrependingRef.current = true;
-        const firstVisible = container.querySelector('[data-message-id]');
-        anchorMessageIdRef.current = firstVisible ? firstVisible.getAttribute('data-message-id') : null;
-        setWeekIndex((prev) => prev + 1);
-      }
-    };
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, [hasMore, selectedUser && selectedUser._id, messages.length]);
-
-  useEffect(() => {
-    if (isPrependingRef.current && messagesContainerRef.current) {
-      const anchorId = anchorMessageIdRef.current;
-      if (anchorId) {
-        const anchorNode = messagesContainerRef.current.querySelector(`[data-message-id="${anchorId}"]`);
-        if (anchorNode) {
-          anchorNode.scrollIntoView({ block: 'start' });
-        }
-      }
-      isPrependingRef.current = false;
-      anchorMessageIdRef.current = null;
-    }
-  }, [messages]);
-
-  useEffect(() => {
-    setWeekIndex(0);
-  }, [selectedUser && selectedUser._id]);
-
+  // --- Send message using context ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !selectedUser || !selectedUser._id) return;
-    const tempId = `optimistic-${Date.now()}`;
-    const now = new Date().toISOString();
-    const optimisticMessage = {
-      _id: tempId,
-      from: myUserId,
-      to: selectedUser._id,
-      text: input,
-      createdAt: now,
-      isOptimistic: true
-    };
-    setMessages((prev) => [...prev, optimisticMessage]);
-    setInput("");
+    if (!input.trim() || !conversationId) return;
     setIsSending(true);
     try {
-      // Log before emit
-      console.log("[ChatBox] Emitting sendMessage", { to: selectedUser._id, text: input });
-      if (socketRef.current) {
-        socketRef.current.emit("sendMessage", { to: selectedUser._id, text: input }, (ack) => {
-          // Log ack from server
-          console.log("[ChatBox] sendMessage ack:", ack);
-        });
-      } else {
-        console.error("[ChatBox] socketRef.current is null");
-      }
+      sendMessage(conversationId, input);
+      setInput("");
       setIsSending(false);
       setError(null);
     } catch (err) {
       setIsSending(false);
       setError("An error occurred while sending the message.");
-      setMessages((prev) => prev.map((msg) =>
-        msg._id === tempId ? { ...msg, failed: true, isOptimistic: false } : msg
-      ));
-      console.error('[ChatBox] Send message exception:', err);
     }
   };
 
+  // --- Link preview logic (unchanged) ---
   const fetchLinkPreview = useCallback(
     debounce(async (url) => {
       if (fetchedUrls.current.has(url)) return;
@@ -625,7 +478,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             ))
           )}
         </div>
-        {recipientStatus && recipientStatus.typing && (
+        {isRecipientTyping && (
           <div className="flex items-center pl-4 pb-1">
             <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '0ms' }}></span>
             <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '150ms' }}></span>
@@ -647,7 +500,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                   ref={inputRef}
                   type="text"
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white pr-10"
                   placeholder="Type a message..."
                   disabled={isSending}

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { io } from "socket.io-client";
 import { 
   getConversations, 
   getNotifications, 
@@ -51,6 +52,96 @@ export function DashboardProvider({ children }) {
 
   // Ref to track initial load execution
   const initialLoadExecuted = useRef(false);
+
+  // --- SOCKET.IO GLOBAL CONNECTION ---
+  const socketRef = useRef(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  // --- Real-time messaging state ---
+  const [inboxMessages, setInboxMessages] = useState({}); // { conversationId: [messages] }
+  const [onlineUsers, setOnlineUsers] = useState([]); // [userId]
+  const [typingUsers, setTypingUsers] = useState({}); // { conversationId: [userId] }
+
+  // Setup socket connection and listeners ONCE per session
+  useEffect(() => {
+    if (!socketRef.current) {
+      socketRef.current = io(import.meta.env.VITE_SOCKET_URL, {
+        auth: { token: localStorage.getItem("token") }
+      });
+      socketRef.current.on("connect", () => {
+        setSocketConnected(true);
+        console.log("[DashboardContext] Socket connected", socketRef.current.id);
+      });
+      socketRef.current.on("disconnect", () => {
+        setSocketConnected(false);
+        console.log("[DashboardContext] Socket disconnected");
+      });
+      socketRef.current.on("receiveMessage", (message) => {
+        setInboxMessages(prev => {
+          const convId = message.conversationId || message.conversation || message.to || message.from;
+          const updated = { ...prev };
+          if (!updated[convId]) updated[convId] = [];
+          updated[convId] = [...updated[convId], message];
+          return updated;
+        });
+        // Update conversation preview
+        setConversations(prev => prev.map(conv =>
+          conv._id === (message.conversationId || message.conversation)
+            ? { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: conv.unreadCount + 1 }
+            : conv
+        ));
+      });
+      socketRef.current.on("user-online", ({ userId }) => {
+        setOnlineUsers(prev => new Set(prev).add(userId));
+      });
+      socketRef.current.on("user-offline", ({ userId }) => {
+        setOnlineUsers(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(userId);
+          return newSet;
+        });
+      });
+      socketRef.current.on("typing", ({ conversationId, userId: typingId }) => {
+        setTypingUsers(prev => {
+          const updated = { ...prev };
+          if (!updated[conversationId]) updated[conversationId] = [];
+          if (!updated[conversationId].includes(typingId)) {
+            updated[conversationId].push(typingId);
+          }
+          return updated;
+        });
+      });
+      socketRef.current.on("stop-typing", ({ conversationId, userId: typingId }) => {
+        setTypingUsers(prev => {
+          const updated = { ...prev };
+          if (updated[conversationId]) {
+            updated[conversationId] = updated[conversationId].filter(id => id !== typingId);
+          }
+          return updated;
+        });
+      });
+    }
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
+
+  // --- Message send/typing helpers ---
+  const sendMessage = useCallback((conversationId, text) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit("message", { conversationId, text });
+  }, []);
+  const sendTyping = useCallback((conversationId) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit("typing", { conversationId });
+  }, []);
+  const sendStopTyping = useCallback((conversationId) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit("stop-typing", { conversationId });
+  }, []);
 
   // Format relative time
   const formatRelativeTime = useCallback((timestamp) => {
@@ -671,6 +762,15 @@ const updatePost = useCallback((postId, updatedData) => {
     followingCyclingInfo,
     loadNewerFollowingPosts,
     loadFreshFollowingContent,
+    socket: socketRef.current,
+    socketConnected,
+    inboxMessages,
+    setInboxMessages,
+    onlineUsers,
+    typingUsers,
+    sendMessage,
+    sendTyping,
+    sendStopTyping,
   }), [
     conversations,
     fetchConversations,
@@ -703,6 +803,13 @@ const updatePost = useCallback((postId, updatedData) => {
     followingCyclingInfo,
     loadNewerFollowingPosts,
     loadFreshFollowingContent,
+    socketConnected,
+    inboxMessages,
+    onlineUsers,
+    typingUsers,
+    sendMessage,
+    sendTyping,
+    sendStopTyping,
   ]);
 
   return (
