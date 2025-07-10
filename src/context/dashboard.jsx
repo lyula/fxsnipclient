@@ -118,10 +118,11 @@ export function DashboardProvider({ children }) {
       reconnectionDelay: 10000,
       reconnectionDelayMax: 20000,
     });
-    // On connect, emit user-online
+    // On connect, emit user-online and get-online-users
     socketRef.current.on("connect", () => {
       setSocketConnected(true);
       socketRef.current.emit("user-online", { userId });
+      socketRef.current.emit("get-online-users");
       lastEmittedUserId.current = userId;
     });
     socketRef.current.on("disconnect", () => {
@@ -199,6 +200,7 @@ export function DashboardProvider({ children }) {
     const interval = setInterval(() => {
       if (userId && socketConnected && socketRef.current) {
         socketRef.current.emit("user-online", { userId });
+        socketRef.current.emit("get-online-users");
       }
     }, 15000);
     return () => {
@@ -836,10 +838,11 @@ export function DashboardProvider({ children }) {
       reconnectionDelay: 10000,
       reconnectionDelayMax: 20000,
     });
-    // On connect, emit user-online
+    // On connect, emit user-online and get-online-users
     socketRef.current.on("connect", () => {
       setSocketConnected(true);
       socketRef.current.emit("user-online", { userId });
+      socketRef.current.emit("get-online-users");
       lastEmittedUserId.current = userId;
     });
     socketRef.current.on("disconnect", () => {
@@ -917,6 +920,7 @@ export function DashboardProvider({ children }) {
     const interval = setInterval(() => {
       if (userId && socketConnected && socketRef.current) {
         socketRef.current.emit("user-online", { userId });
+        socketRef.current.emit("get-online-users");
       }
     }, 15000);
     return () => {
