@@ -236,16 +236,32 @@ export function DashboardProvider({ children }) {
     socketRef.current.emit("sendMessage", { to: conversationId, text });
   }, [userId]);
 
-  const sendTyping = useCallback((conversationId, to) => {
+  /**
+   * Emits typing event to recipient.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} recipientUserId - The userId of the recipient (NOT the conversationId)
+   */
+  const sendTyping = useCallback((conversationId, recipientUserId) => {
     if (!socketRef.current) return;
-    console.log('[DashboardContext] sendTyping emit:', { conversationId, to });
-    socketRef.current.emit("typing", { conversationId, to });
+    if (!recipientUserId || recipientUserId === conversationId) {
+      console.warn('[DashboardContext] sendTyping: recipientUserId is missing or equals conversationId! This will break typing indicator.', { conversationId, recipientUserId });
+    }
+    console.log('[DashboardContext] sendTyping emit:', { conversationId, to: recipientUserId });
+    socketRef.current.emit("typing", { conversationId, to: recipientUserId });
   }, []);
 
-  const sendStopTyping = useCallback((conversationId, to) => {
+  /**
+   * Emits stop-typing event to recipient.
+   * @param {string} conversationId - The conversation ID
+   * @param {string} recipientUserId - The userId of the recipient (NOT the conversationId)
+   */
+  const sendStopTyping = useCallback((conversationId, recipientUserId) => {
     if (!socketRef.current) return;
-    console.log('[DashboardContext] sendStopTyping emit:', { conversationId, to });
-    socketRef.current.emit("stop-typing", { conversationId, to });
+    if (!recipientUserId || recipientUserId === conversationId) {
+      console.warn('[DashboardContext] sendStopTyping: recipientUserId is missing or equals conversationId! This will break typing indicator.', { conversationId, recipientUserId });
+    }
+    console.log('[DashboardContext] sendStopTyping emit:', { conversationId, to: recipientUserId });
+    socketRef.current.emit("stop-typing", { conversationId, to: recipientUserId });
   }, []);
 
   // --- Send seen receipts for messages ---

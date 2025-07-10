@@ -167,6 +167,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // --- Typing events ---
   const handleInputChange = (e) => {
     setInput(e.target.value);
+    // Always use selectedUser._id as recipientUserId for typing events
     if (e.target.value.trim()) {
       sendTyping(conversationId, selectedUser?._id);
     } else {
