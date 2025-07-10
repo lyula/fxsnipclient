@@ -238,11 +238,13 @@ export function DashboardProvider({ children }) {
 
   const sendTyping = useCallback((conversationId, to) => {
     if (!socketRef.current) return;
+    console.log('[DashboardContext] sendTyping emit:', { conversationId, to });
     socketRef.current.emit("typing", { conversationId, to });
   }, []);
 
   const sendStopTyping = useCallback((conversationId, to) => {
     if (!socketRef.current) return;
+    console.log('[DashboardContext] sendStopTyping emit:', { conversationId, to });
     socketRef.current.emit("stop-typing", { conversationId, to });
   }, []);
 
