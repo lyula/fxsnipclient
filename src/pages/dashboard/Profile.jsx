@@ -190,7 +190,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-md w-full mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-6 mt-8 mb-8">
+    <div className="max-w-md flex-1 min-h-0 mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-6 mt-8 mb-8">
       {/* IG-style profile image and stats */}
       <div className="flex flex-col items-center mb-6">
         <div className="w-24 h-24 rounded-full bg-[#a99d6b] flex items-center justify-center text-white text-4xl font-bold mb-3 select-none">

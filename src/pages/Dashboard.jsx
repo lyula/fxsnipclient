@@ -120,6 +120,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (user === null || user === undefined) {
+      navigate('/login', { replace: true });
+    }
+  }, [user, navigate]);
+
   // --- Remember last dashboard route in localStorage ---
   useEffect(() => {
     if (location.pathname.startsWith("/dashboard")) {
@@ -632,13 +639,13 @@ export default function Dashboard() {
               </div>
             ) : location.pathname.startsWith("/dashboard/inbox") ? (
               // Always use the same layout for inbox, regardless of chat param
-              <div className="flex-1 min-h-0 min-w-0 w-full h-full p-0 m-0 overflow-hidden">
+              <div className="flex-1 min-h-0 min-w-0 p-0 m-0 overflow-hidden">
                 <Routes>
                   <Route path="inbox" element={<Inbox />} />
                 </Routes>
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 hide-scrollbar w-full max-w-7xl mx-auto">
+              <div className="flex-1 min-h-0 overflow-y-auto p-2 sm:p-4 md:p-6 hide-scrollbar">
                 <Routes>
                   <Route path="" element={DashboardMain} />
                   <Route path="signals" element={<Signals />} />

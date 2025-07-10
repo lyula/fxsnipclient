@@ -150,7 +150,7 @@ const ConversationList = ({ selectedUser, onSelect }) => {
       </div>
 
       {/* Conversations List */}
-      <div className="w-full h-full overflow-y-auto hide-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto hide-scrollbar">
         {conversations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full p-8 text-center">
             <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">

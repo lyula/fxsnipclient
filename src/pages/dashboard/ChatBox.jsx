@@ -506,9 +506,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
           autoFocusSearch={false}
         />
       </div>
-      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full w-full max-w-full !w-full !max-w-full">
+      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full">
         <div
-          className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full"
+          className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
           style={{
             position: 'sticky',
             top: 0,
@@ -545,7 +545,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         </div>
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto overscroll-y-contain w-full max-w-full !w-full !max-w-full !px-0 py-4 space-y-4 hide-scrollbar"
+          className="flex-1 overflow-y-auto overscroll-y-contain py-4 space-y-4 hide-scrollbar"
           style={{
             paddingTop: 72, // match header height (p-4 = 16px + avatar = 40px + margin)
           }}
@@ -715,7 +715,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             <span className="inline-block w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#a99d6b', animationDelay: '300ms' }}></span>
           </div>
         )}
-        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full">
+        <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <form onSubmit={handleSendMessage} className="p-4">
             {/* Reply preview above input */}
             {replyToMessage && (

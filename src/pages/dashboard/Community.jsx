@@ -881,12 +881,10 @@ useEffect(() => {
       {/* Enhanced posts container */}
       <div 
         ref={activeTab === 'forYou' ? containerRef : followingContainerRef}
-        className={`flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar ${
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar ${
           activeTab === 'following' ? '' : 'py-0'
         }`}
         style={{ 
-          minHeight: 0,
-          maxHeight: '100%',
           overscrollBehavior: 'contain',
           WebkitOverflowScrolling: 'touch',
           scrollBehavior: 'smooth',

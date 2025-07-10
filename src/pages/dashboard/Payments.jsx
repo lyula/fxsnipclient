@@ -59,8 +59,8 @@ export default function Payments() {
   }, []);
 
   return (
-    <div className="w-full flex-1 mx-0 p-0">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-8 w-full h-full">
+    <div className="flex-1 min-h-0 mx-0 p-0">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-8 flex-1 min-h-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Payments</h2>
           <button
