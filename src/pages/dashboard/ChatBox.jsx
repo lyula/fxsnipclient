@@ -570,9 +570,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         </div>
         {isRecipientTyping && (
           <div className="flex items-center pl-4 pb-1">
-            <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '0ms' }}></span>
-            <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1 bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '150ms' }}></span>
-            <span className="inline-block w-2 h-2 rounded-full animate-bounce bg-blue-500 dark:bg-blue-300" style={{ animationDelay: '300ms' }}></span>
+            <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1" style={{ backgroundColor: '#a99d6b', animationDelay: '0ms' }}></span>
+            <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1" style={{ backgroundColor: '#a99d6b', animationDelay: '150ms' }}></span>
+            <span className="inline-block w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: '#a99d6b', animationDelay: '300ms' }}></span>
           </div>
         )}
         <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full">
