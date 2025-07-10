@@ -79,7 +79,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const conversationId = selectedUser && selectedUser._id;
   const messages = useMemo(() => {
     const msgs = conversationId ? inboxMessages[conversationId] || [] : [];
-    console.log('[ChatBox] messages useMemo', { conversationId, msgs });
+    console.log('[ChatBox] useMemo messages', { conversationId, msgs, inboxMessages });
     return msgs;
   }, [inboxMessages, conversationId]);
 

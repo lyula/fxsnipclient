@@ -130,22 +130,12 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("receiveMessage", (message) => {
+      const convId = message.conversationId || message.conversation || message.to || message.from;
+      console.log('[DashboardProvider] receiveMessage for convId:', convId, message);
       setInboxMessages(prev => {
-        const convId = message.conversationId || message.conversation || message.to || message.from;
         const updated = { ...prev };
-        if (!updated[convId]) updated[convId] = [];
-        const optimisticIdx = updated[convId].findIndex(m =>
-          m.isOptimistic &&
-          m.text === message.text &&
-          m.from === message.from &&
-          m.to === message.to &&
-          Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 60000
-        );
-        if (optimisticIdx !== -1) {
-          updated[convId][optimisticIdx] = message;
-        } else {
-          updated[convId] = [...updated[convId], message];
-        }
+        updated[convId] = [...(updated[convId] || []), message];
+        console.log('[DashboardProvider] inboxMessages updated:', updated);
         return updated;
       });
       setConversations(prev => prev.map(conv =>
@@ -851,22 +841,12 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("receiveMessage", (message) => {
+      const convId = message.conversationId || message.conversation || message.to || message.from;
+      console.log('[DashboardProvider] receiveMessage for convId:', convId, message);
       setInboxMessages(prev => {
-        const convId = message.conversationId || message.conversation || message.to || message.from;
         const updated = { ...prev };
-        if (!updated[convId]) updated[convId] = [];
-        const optimisticIdx = updated[convId].findIndex(m =>
-          m.isOptimistic &&
-          m.text === message.text &&
-          m.from === message.from &&
-          m.to === message.to &&
-          Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 60000
-        );
-        if (optimisticIdx !== -1) {
-          updated[convId][optimisticIdx] = message;
-        } else {
-          updated[convId] = [...updated[convId], message];
-        }
+        updated[convId] = [...(updated[convId] || []), message];
+        console.log('[DashboardProvider] inboxMessages updated:', updated);
         return updated;
       });
       setConversations(prev => prev.map(conv =>
