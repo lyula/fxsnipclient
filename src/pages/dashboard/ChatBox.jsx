@@ -94,9 +94,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
 
   // --- Typing indicator from context ---
   const isRecipientTyping = useMemo(() => {
-    if (!conversationId) return false;
-    return typingUsers[conversationId]?.includes(selectedUser._id) || false;
-  }, [typingUsers, conversationId, selectedUser]);
+    if (!conversationId || !typingUsers[conversationId]) return false;
+    // Show typing if anyone in the conversation except me is typing
+    return typingUsers[conversationId].some(id => id !== myUserId);
+  }, [typingUsers, conversationId, myUserId]);
 
   // --- Emoji picker logic ---
   useEffect(() => {
