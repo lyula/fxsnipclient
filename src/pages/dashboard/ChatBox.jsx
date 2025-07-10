@@ -507,7 +507,15 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         />
       </div>
       <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full w-full max-w-full !w-full !max-w-full">
-        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full">
+        <div
+          className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full"
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
+            boxShadow: '0 2px 8px 0 rgba(0,0,0,0.03)',
+          }}
+        >
           <button
             className="lg:hidden mr-3 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             onClick={onBack}
@@ -535,7 +543,13 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             <UserStatus userId={selectedUser._id} token={token} typing={isRecipientTyping} online={isRecipientOnline} />
           </div>
         </div>
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain w-full max-w-full !w-full !max-w-full !px-0 py-4 space-y-4 hide-scrollbar">
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto overscroll-y-contain w-full max-w-full !w-full !max-w-full !px-0 py-4 space-y-4 hide-scrollbar"
+          style={{
+            paddingTop: 72, // match header height (p-4 = 16px + avatar = 40px + margin)
+          }}
+        >
           {error ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
