@@ -10,8 +10,26 @@ const truncateMessage = (text, isMobile = false) => {
   return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
 };
 
+// Animated typing dots component
+const TypingDots = () => (
+  <span style={{ color: '#a99d6b', display: 'inline-flex', alignItems: 'center' }}>
+    Typing
+    <span className="typing-dots ml-1" style={{ display: 'inline-block', width: 18 }}>
+      <span style={{ animation: 'blink 1s infinite', opacity: 1 }}>.</span>
+      <span style={{ animation: 'blink 1s infinite 0.2s', opacity: 1 }}>.</span>
+      <span style={{ animation: 'blink 1s infinite 0.4s', opacity: 1 }}>.</span>
+    </span>
+    <style>{`
+      @keyframes blink {
+        0%, 80%, 100% { opacity: 1; }
+        40% { opacity: 0.2; }
+      }
+    `}</style>
+  </span>
+);
+
 const ConversationList = ({ selectedUser, onSelect }) => {
-  const { conversations: rawConversations, fetchConversations, updateConversation, onlineUsers } = useDashboard();
+  const { conversations: rawConversations, fetchConversations, updateConversation, onlineUsers, typingUsers, userId, getConversationId } = useDashboard();
   const [localConversations, setLocalConversations] = useState([]);
   const conversations = Array.isArray(localConversations.length ? localConversations : rawConversations) ? (localConversations.length ? localConversations : rawConversations) : [];
   const [search, setSearch] = useState("");
@@ -148,6 +166,15 @@ const ConversationList = ({ selectedUser, onSelect }) => {
             if (!user || !user._id) return null;
             // Use global onlineUsers Set for online status
             const isOnline = onlineUsers && onlineUsers.has ? onlineUsers.has(user._id) : false;
+            // Typing indicator logic
+            let showTyping = false;
+            let conversationId = null;
+            if (userId && user._id) {
+              conversationId = getConversationId(userId, user._id);
+              const typingArr = typingUsers && typingUsers[conversationId];
+              // Show typing if someone else (not me) is typing in this conversation
+              showTyping = Array.isArray(typingArr) && typingArr.some(id => id !== userId);
+            }
             return (
               <button
                 key={user._id}
@@ -181,8 +208,7 @@ const ConversationList = ({ selectedUser, onSelect }) => {
                     </span>
                   </div>
                   <div className={`text-sm truncate ${user.unreadCount > 0 ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {/* Keep typing indicator if you want, or remove if not using statusMap.typing */}
-                    {truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
+                    {showTyping ? <TypingDots /> : truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
                   </div>
                 </div>
               </button>
