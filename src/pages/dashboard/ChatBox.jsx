@@ -454,22 +454,20 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       const dy = Math.abs(touch.clientY - touchData.current.y);
       if (dx > 0 && dy < 30) {
         setDragOffset(Math.min(dx, 80)); // Limit drag distance
+        // Instantly set for reply on any right swipe
+        if (dx > 2) {
+          setReplyToMessageId(touchData.current.id);
+          setDraggedMsgId(null);
+          setDragOffset(0);
+          touchData.current = { x: 0, y: 0, id: null, dragging: false };
+        }
       } else {
         setDragOffset(0);
       }
     }
   };
   const handleTouchEnd = (e) => {
-    if (!touchData.current.id) return;
-    const touch = e.changedTouches && e.changedTouches[0];
-    let dx = 0, dy = 0;
-    if (touch) {
-      dx = touch.clientX - touchData.current.x;
-      dy = Math.abs(touch.clientY - touchData.current.y);
-    }
-    if (dx > 40 && dy < 30) {
-      setReplyToMessageId(touchData.current.id);
-    }
+    // No need to check dx/dy, reply is already set in handleTouchMove
     setDraggedMsgId(null);
     setDragOffset(0);
     touchData.current = { x: 0, y: 0, id: null, dragging: false };
@@ -706,11 +704,20 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                   ✕
                 </button>
                 <div>
-                  {getReplyPreview(
-                    replyToMessage,
-                    { [replyToMessage.from]: { username: replyToMessage.from === myUserId ? 'You' : selectedUser.username } },
-                    replyToMessage.from === myUserId
-                  )}
+                  {/* Add padding to username and message in reply preview */}
+                  <div style={{ padding: '0.4em 0' }}>
+                    {(() => {
+                      // Truncate reply message to first 5 words with ... if too long
+                      const msg = replyToMessage?.text || '';
+                      const words = msg.trim().split(/\s+/);
+                      const truncated = words.length > 5 ? words.slice(0, 5).join(' ') + '...' : msg;
+                      return getReplyPreview(
+                        { ...replyToMessage, text: truncated },
+                        { [replyToMessage.from]: { username: replyToMessage.from === myUserId ? 'You' : selectedUser.username } },
+                        replyToMessage.from === myUserId
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             )}
