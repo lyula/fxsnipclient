@@ -17,6 +17,11 @@ const DashboardContext = createContext();
 // Track if socket connect message has been printed for this session
 let hasPrintedSocketConnect = false;
 
+// Helper to generate a unique conversationId for 1:1 chats
+function getConversationId(userId1, userId2) {
+  return [userId1, userId2].sort().join(":");
+}
+
 export function DashboardProvider({ children }) {
   // State for conversations (messaging)
   const [conversations, setConversations] = useState([]);
@@ -130,23 +135,19 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("receiveMessage", (message) => {
-      // Always use the other user's id as the conversation key
-      let otherUserId;
-      if (message.from === userId) {
-        otherUserId = message.to;
-      } else {
-        otherUserId = message.from;
+      // Use conversationId from message if present, else generate
+      let conversationId = message.conversationId;
+      if (!conversationId && message.from && message.to) {
+        conversationId = getConversationId(message.from, message.to);
       }
-      const convId = otherUserId;
-      console.log('[DashboardProvider] receiveMessage for convId:', convId, message);
+      console.log('[DashboardProvider] receiveMessage for conversationId:', conversationId, message);
       setInboxMessages(prev => {
         const updated = { ...prev };
-        updated[convId] = [...(updated[convId] || []), message];
-        console.log('[DashboardProvider] inboxMessages updated:', updated);
+        updated[conversationId] = [...(updated[conversationId] || []), message];
         return updated;
       });
       setConversations(prev => prev.map(conv =>
-        conv._id === convId
+        conv._id === conversationId
           ? { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: conv.unreadCount + 1 }
           : conv
       ));
@@ -196,15 +197,8 @@ export function DashboardProvider({ children }) {
     socketRef.current.on("messagesSeen", ({ conversationId, messageIds }) => {
       setInboxMessages(prev => {
         const updated = { ...prev };
-        // Update both possible keys for the conversation
         if (updated[conversationId]) {
           updated[conversationId] = updated[conversationId].map(msg =>
-            messageIds.includes(msg._id) ? { ...msg, read: true } : msg
-          );
-        }
-        // Also update your own id as key, if present (for sender/recipient symmetry)
-        if (userId && updated[userId]) {
-          updated[userId] = updated[userId].map(msg =>
             messageIds.includes(msg._id) ? { ...msg, read: true } : msg
           );
         }
@@ -229,11 +223,11 @@ export function DashboardProvider({ children }) {
   }, [userId]);
 
   // --- Message send/typing helpers ---
-  const sendMessage = useCallback((conversationId, text) => {
+  const sendMessage = useCallback((conversationId, text, recipientUserId) => {
     if (!socketRef.current || !userId) return;
-    // Only emit the event; do not add an optimistic message
-    console.log("[DashboardContext] sendMessage emit:", { to: conversationId, text });
-    socketRef.current.emit("sendMessage", { to: conversationId, text });
+    // Always emit with correct conversationId and recipient
+    console.log("[DashboardContext] sendMessage emit:", { to: recipientUserId, conversationId, text });
+    socketRef.current.emit("sendMessage", { to: recipientUserId, text, conversationId });
   }, [userId]);
 
   /**
@@ -243,8 +237,8 @@ export function DashboardProvider({ children }) {
    */
   const sendTyping = useCallback((conversationId, recipientUserId) => {
     if (!socketRef.current) return;
-    if (!recipientUserId || recipientUserId === conversationId) {
-      console.warn('[DashboardContext] sendTyping: recipientUserId is missing or equals conversationId! This will break typing indicator.', { conversationId, recipientUserId });
+    if (!recipientUserId) {
+      console.warn('[DashboardContext] sendTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
     console.log('[DashboardContext] sendTyping emit:', { conversationId, to: recipientUserId });
     socketRef.current.emit("typing", { conversationId, to: recipientUserId });
@@ -257,18 +251,18 @@ export function DashboardProvider({ children }) {
    */
   const sendStopTyping = useCallback((conversationId, recipientUserId) => {
     if (!socketRef.current) return;
-    if (!recipientUserId || recipientUserId === conversationId) {
-      console.warn('[DashboardContext] sendStopTyping: recipientUserId is missing or equals conversationId! This will break typing indicator.', { conversationId, recipientUserId });
+    if (!recipientUserId) {
+      console.warn('[DashboardContext] sendStopTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
     console.log('[DashboardContext] sendStopTyping emit:', { conversationId, to: recipientUserId });
     socketRef.current.emit("stop-typing", { conversationId, to: recipientUserId });
   }, []);
 
   // --- Send seen receipts for messages ---
-  const sendSeen = useCallback(({ conversationId, messageIds }) => {
+  const sendSeen = useCallback(({ conversationId, to, messageIds }) => {
     if (!socketRef.current || !userId || !Array.isArray(messageIds) || messageIds.length === 0) return;
-    console.log('[DashboardContext] sendSeen emit:', { conversationId, messageIds });
-    socketRef.current.emit("seen", { conversationId, messageIds });
+    console.log('[DashboardContext] sendSeen emit:', { conversationId, to, messageIds });
+    socketRef.current.emit("seen", { conversationId, to, messageIds });
   }, [userId]);
 
   // Format relative time
@@ -892,23 +886,19 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("receiveMessage", (message) => {
-      // Always use the other user's id as the conversation key
-      let otherUserId;
-      if (message.from === userId) {
-        otherUserId = message.to;
-      } else {
-        otherUserId = message.from;
+      // Use conversationId from message if present, else generate
+      let conversationId = message.conversationId;
+      if (!conversationId && message.from && message.to) {
+        conversationId = getConversationId(message.from, message.to);
       }
-      const convId = otherUserId;
-      console.log('[DashboardProvider] receiveMessage for convId:', convId, message);
+      console.log('[DashboardProvider] receiveMessage for conversationId:', conversationId, message);
       setInboxMessages(prev => {
         const updated = { ...prev };
-        updated[convId] = [...(updated[convId] || []), message];
-        console.log('[DashboardProvider] inboxMessages updated:', updated);
+        updated[conversationId] = [...(updated[conversationId] || []), message];
         return updated;
       });
       setConversations(prev => prev.map(conv =>
-        conv._id === convId
+        conv._id === conversationId
           ? { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: conv.unreadCount + 1 }
           : conv
       ));
@@ -958,15 +948,8 @@ export function DashboardProvider({ children }) {
     socketRef.current.on("messagesSeen", ({ conversationId, messageIds }) => {
       setInboxMessages(prev => {
         const updated = { ...prev };
-        // Update both possible keys for the conversation
         if (updated[conversationId]) {
           updated[conversationId] = updated[conversationId].map(msg =>
-            messageIds.includes(msg._id) ? { ...msg, read: true } : msg
-          );
-        }
-        // Also update your own id as key, if present (for sender/recipient symmetry)
-        if (userId && updated[userId]) {
-          updated[userId] = updated[userId].map(msg =>
             messageIds.includes(msg._id) ? { ...msg, read: true } : msg
           );
         }
@@ -1050,6 +1033,7 @@ export function DashboardProvider({ children }) {
     logout,
     syncUserIdFromStorage,
     forceSocketReconnect,
+    getConversationId,
   }), [
     conversations,
     fetchConversations,
@@ -1094,6 +1078,7 @@ export function DashboardProvider({ children }) {
     logout,
     syncUserIdFromStorage,
     forceSocketReconnect,
+    getConversationId,
   ]);
 
   // Always sync userId from localStorage and emit online status on mount and when dashboard loads

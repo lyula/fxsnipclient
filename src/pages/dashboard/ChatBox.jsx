@@ -9,6 +9,11 @@ import EmojiPicker from 'emoji-picker-react';
 import './emoji-picker-minimalist.css';
 import UserStatus from '../../components/UserStatus';
 
+// Helper to generate a unique conversationId for 1:1 chats
+function getConversationId(userId1, userId2) {
+  return [userId1, userId2].sort().join(":");
+}
+
 const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const {
     inboxMessages,
@@ -78,7 +83,11 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   }, [selectedUser, isRecipientOnline, token]);
 
   // --- Use context for messages ---
-  const conversationId = selectedUser && selectedUser._id;
+  const conversationId = useMemo(() => {
+    if (!selectedUser || !selectedUser._id || !myUserId) return null;
+    return getConversationId(myUserId, selectedUser._id);
+  }, [selectedUser, myUserId]);
+
   // Use the same logic as ConversationList to always create a new array for reactivity
   const messages = useMemo(() => {
     if (!conversationId) return [];
@@ -131,14 +140,14 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       setMessagesFetched(true);
       setLastFetchedUser(userId);
       setInboxMessages(prev => {
-        const existing = prev[userId] || [];
+        const existing = prev[conversationId] || [];
         let merged;
         if (prepend) {
           merged = [...response, ...existing];
         } else {
           merged = [...response, ...existing.filter(m => !response.some(r => r._id === m._id))];
         }
-        return { ...prev, [userId]: merged };
+        return { ...prev, [conversationId]: merged };
       });
     } catch (err) {
       setError("An error occurred while fetching messages.");
@@ -185,7 +194,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     setIsSending(true);
     console.log('[ChatBox] Sending message', { conversationId, input });
     try {
-      sendMessage(conversationId, input); // Do not await, as sendMessage is synchronous and returns undefined
+      sendMessage(conversationId, input, selectedUser?._id); // Pass recipient for context if needed
       setInput("");
       setIsSending(false);
       setError(null);
@@ -392,7 +401,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     );
     if (unreadMessages.length > 0) {
       unreadMessages.forEach((msg) => readMessageIdsRef.current.add(msg._id));
-      updateConversation(selectedUser._id, (prev) => {
+      updateConversation(conversationId, (prev) => {
         const current = typeof prev === 'object' && prev !== null ? prev.unreadCount : prev;
         let newCount = current;
         if (typeof current === 'number') {
@@ -402,10 +411,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       });
       // Instantly mark as seen in backend and for sender
       if (typeof sendSeen === 'function') {
-        sendSeen({ conversationId: selectedUser._id, messageIds: unreadMessages.map(m => m._id) });
+        sendSeen({ conversationId, to: selectedUser._id, messageIds: unreadMessages.map(m => m._id) });
       }
     }
-  }, [messages, selectedUser, myUserId, updateConversation, sendSeen]);
+  }, [messages, selectedUser, myUserId, updateConversation, sendSeen, conversationId]);
 
   // --- Last seen logic ---
   const lastSeen = localSelectedUser && localSelectedUser.lastSeen ? new Date(localSelectedUser.lastSeen) : null;
