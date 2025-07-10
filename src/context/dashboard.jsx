@@ -193,6 +193,18 @@ export function DashboardProvider({ children }) {
       setOnlineUsers(new Set(userIds));
     });
 
+    socketRef.current.on("messagesSeen", ({ conversationId, messageIds }) => {
+      setInboxMessages(prev => {
+        const updated = { ...prev };
+        if (updated[conversationId]) {
+          updated[conversationId] = updated[conversationId].map(msg =>
+            messageIds.includes(msg._id) ? { ...msg, read: true } : msg
+          );
+        }
+        return updated;
+      });
+    });
+
     // Heartbeat: emit user-online every 15 seconds
     const interval = setInterval(() => {
       if (userId && socketConnected && socketRef.current) {
@@ -226,6 +238,13 @@ export function DashboardProvider({ children }) {
     if (!socketRef.current) return;
     socketRef.current.emit("stop-typing", { conversationId });
   }, []);
+
+  // --- Send seen receipts for messages ---
+  const sendSeen = useCallback(({ conversationId, messageIds }) => {
+    if (!socketRef.current || !userId || !Array.isArray(messageIds) || messageIds.length === 0) return;
+    console.log('[DashboardContext] sendSeen emit:', { conversationId, messageIds });
+    socketRef.current.emit("seen", { conversationId, messageIds });
+  }, [userId]);
 
   // Format relative time
   const formatRelativeTime = useCallback((timestamp) => {
@@ -911,6 +930,18 @@ export function DashboardProvider({ children }) {
       setOnlineUsers(new Set(userIds));
     });
 
+    socketRef.current.on("messagesSeen", ({ conversationId, messageIds }) => {
+      setInboxMessages(prev => {
+        const updated = { ...prev };
+        if (updated[conversationId]) {
+          updated[conversationId] = updated[conversationId].map(msg =>
+            messageIds.includes(msg._id) ? { ...msg, read: true } : msg
+          );
+        }
+        return updated;
+      });
+    });
+
     // Heartbeat: emit user-online every 15 seconds
     const interval = setInterval(() => {
       if (userId && socketConnected && socketRef.current) {
@@ -981,6 +1012,7 @@ export function DashboardProvider({ children }) {
     sendMessage,
     sendTyping,
     sendStopTyping,
+    sendSeen,
     userId,
     setUserId,
     logout,
@@ -1025,6 +1057,7 @@ export function DashboardProvider({ children }) {
     sendMessage,
     sendTyping,
     sendStopTyping,
+    sendSeen,
     userId,
     logout,
     syncUserIdFromStorage,
