@@ -189,6 +189,7 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("typing", ({ conversationId, userId: typingId }) => {
+      console.log('[DashboardContext] typing event received:', { conversationId, typingId });
       setTypingUsers(prev => {
         const updated = { ...prev };
         if (!updated[conversationId]) updated[conversationId] = [];
@@ -200,6 +201,7 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("stop-typing", ({ conversationId, userId: typingId }) => {
+      console.log('[DashboardContext] stop-typing event received:', { conversationId, typingId });
       setTypingUsers(prev => {
         const updated = { ...prev };
         if (updated[conversationId]) {
