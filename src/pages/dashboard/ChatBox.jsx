@@ -94,10 +94,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     const raw = inboxMessages[conversationId] || [];
     // Always return a new array reference to trigger React updates
     const msgs = [...raw];
-    if (msgs.length > 0) {
-      console.log('[ChatBox] RAW first message:', msgs[0]);
-    }
-    console.log('[ChatBox] useMemo messages (copied logic from ConversationList)', { conversationId, msgs, inboxMessages });
+    // Remove debug logs
     return msgs;
   }, [inboxMessages, conversationId]);
 
@@ -254,13 +251,15 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // Remove filteredMessages, use messages directly in groupedMessages
   const groupedMessages = useMemo(() => {
     if (!messages.length) return [];
+    // Sort messages by createdAt ascending to ensure correct order
+    const sortedMessages = [...messages].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     const groupedByDate = [];
     let currentDateGroup = null;
     let currentTimeGroup = [];
     let lastSender = null;
     let lastTime = null;
     let lastDate = null;
-    messages.forEach((message, index) => {
+    sortedMessages.forEach((message, index) => {
       const messageTime = new Date(message.createdAt);
       const messageDate = new Date(messageTime.getFullYear(), messageTime.getMonth(), messageTime.getDate());
       if (!lastDate || messageDate.getTime() !== lastDate.getTime()) {
@@ -289,11 +288,11 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       currentTimeGroup.push({
         ...message,
         isFirst: !shouldGroup || currentTimeGroup.length === 0,
-        isLast: index === messages.length - 1 ||
-          (index < messages.length - 1 &&
-            (messages[index + 1].from !== message.from ||
-              new Date(messages[index + 1].createdAt).getTime() - messageTime.getTime() > 60000 ||
-              new Date(messages[index + 1].createdAt).toDateString() !== messageTime.toDateString()))
+        isLast: index === sortedMessages.length - 1 ||
+          (index < sortedMessages.length - 1 &&
+            (sortedMessages[index + 1].from !== message.from ||
+              new Date(sortedMessages[index + 1].createdAt).getTime() - messageTime.getTime() > 60000 ||
+              new Date(sortedMessages[index + 1].createdAt).toDateString() !== messageTime.toDateString()))
       });
       lastSender = message.from;
       lastTime = messageTime;
@@ -304,7 +303,16 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     if (currentDateGroup) {
       groupedByDate.push(currentDateGroup);
     }
-    return groupedByDate;
+    // Remove duplicate date groups (shouldn't happen, but extra safety)
+    const uniqueGroups = [];
+    const seenTimestamps = new Set();
+    for (const group of groupedByDate) {
+      if (!seenTimestamps.has(group.timestamp)) {
+        uniqueGroups.push(group);
+        seenTimestamps.add(group.timestamp);
+      }
+    }
+    return uniqueGroups;
   }, [messages]);
 
   const renderMessageWithLinksAndPreviews = (text, isOwn, messageId) => {
@@ -376,48 +384,6 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  if (!selectedUser || !selectedUser._id) return null;
-
-  const handleEmojiClick = (emojiData, event) => {
-    const emoji = emojiData.emoji;
-    const inputElem = inputRef.current;
-    if (!inputElem) return;
-    const start = inputElem.selectionStart;
-    const end = inputElem.selectionEnd;
-    const newValue = input.slice(0, start) + emoji + input.slice(end);
-    setInput(newValue);
-    setTimeout(() => {
-      inputElem.focus();
-      inputElem.setSelectionRange(start + emoji.length, start + emoji.length);
-    }, 0);
-  };
-
-  // Decrement unreadCount in context as each unread message is read
-  useEffect(() => {
-    if (!selectedUser || !selectedUser._id) return;
-    const unreadMessages = messages.filter(
-      (msg) =>
-        msg.to === myUserId &&
-        !msg.read &&
-        !readMessageIdsRef.current.has(msg._id)
-    );
-    if (unreadMessages.length > 0) {
-      unreadMessages.forEach((msg) => readMessageIdsRef.current.add(msg._id));
-      updateConversation(conversationId, (prev) => {
-        const current = typeof prev === 'object' && prev !== null ? prev.unreadCount : prev;
-        let newCount = current;
-        if (typeof current === 'number') {
-          newCount = Math.max(0, current - unreadMessages.length);
-        }
-        return { unreadCount: newCount };
-      });
-      // Instantly mark as seen in backend and for sender
-      if (typeof sendSeen === 'function') {
-        sendSeen({ conversationId, to: selectedUser._id, messageIds: unreadMessages.map(m => m._id) });
-      }
-    }
-  }, [messages, selectedUser, myUserId, updateConversation, sendSeen, conversationId]);
-
   // --- Last seen logic ---
   const lastSeen = localSelectedUser && localSelectedUser.lastSeen ? new Date(localSelectedUser.lastSeen) : null;
   const getLastSeenText = () => {
@@ -433,6 +399,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
     return lastSeen.toLocaleString();
   };
+
+  // Move the early return here, after all hooks
+  if (!selectedUser || !selectedUser._id) return null;
 
   return (
     <>
