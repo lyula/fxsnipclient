@@ -194,10 +194,12 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     setIsSending(true);
     console.log('[ChatBox] Sending message', { conversationId, input });
     try {
-      sendMessage(conversationId, input, selectedUser?._id); // Pass recipient for context if needed
+      sendMessage(conversationId, input, selectedUser?._id); // Do not await, as sendMessage is synchronous and returns undefined
       setInput("");
       setIsSending(false);
       setError(null);
+      // Immediately emit stop-typing after sending a message
+      sendStopTyping(conversationId, selectedUser?._id);
     } catch (err) {
       setIsSending(false);
       setError("An error occurred while sending the message.");
