@@ -15,6 +15,8 @@ function getConversationId(userId1, userId2) {
 }
 
 const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
+  if (!selectedUser || !selectedUser._id) return null;
+
   const {
     inboxMessages,
     sendMessage,
@@ -399,9 +401,6 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
     return lastSeen.toLocaleString();
   };
-
-  // Move the early return here, after all hooks
-  if (!selectedUser || !selectedUser._id) return null;
 
   // Decrement unreadCount in context as each unread message is read
   useEffect(() => {
