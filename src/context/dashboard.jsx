@@ -196,8 +196,15 @@ export function DashboardProvider({ children }) {
     socketRef.current.on("messagesSeen", ({ conversationId, messageIds }) => {
       setInboxMessages(prev => {
         const updated = { ...prev };
+        // Update both possible keys for the conversation
         if (updated[conversationId]) {
           updated[conversationId] = updated[conversationId].map(msg =>
+            messageIds.includes(msg._id) ? { ...msg, read: true } : msg
+          );
+        }
+        // Also update your own id as key, if present (for sender/recipient symmetry)
+        if (userId && updated[userId]) {
+          updated[userId] = updated[userId].map(msg =>
             messageIds.includes(msg._id) ? { ...msg, read: true } : msg
           );
         }
@@ -933,8 +940,15 @@ export function DashboardProvider({ children }) {
     socketRef.current.on("messagesSeen", ({ conversationId, messageIds }) => {
       setInboxMessages(prev => {
         const updated = { ...prev };
+        // Update both possible keys for the conversation
         if (updated[conversationId]) {
           updated[conversationId] = updated[conversationId].map(msg =>
+            messageIds.includes(msg._id) ? { ...msg, read: true } : msg
+          );
+        }
+        // Also update your own id as key, if present (for sender/recipient symmetry)
+        if (userId && updated[userId]) {
+          updated[userId] = updated[userId].map(msg =>
             messageIds.includes(msg._id) ? { ...msg, read: true } : msg
           );
         }
