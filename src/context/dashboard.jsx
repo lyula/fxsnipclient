@@ -214,10 +214,11 @@ export function DashboardProvider({ children }) {
 
   // --- Message send/typing helpers ---
   const sendMessage = useCallback((conversationId, text) => {
-    if (!socketRef.current) return;
-    console.log("[DashboardContext] sendMessage emit:", { conversationId, text });
-    socketRef.current.emit("message", { conversationId, text });
-  }, []);
+    if (!socketRef.current || !userId) return;
+    // Only emit the event; do not add an optimistic message
+    console.log("[DashboardContext] sendMessage emit:", { to: conversationId, text });
+    socketRef.current.emit("sendMessage", { to: conversationId, text });
+  }, [userId]);
 
   const sendTyping = useCallback((conversationId) => {
     if (!socketRef.current) return;

@@ -78,8 +78,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // --- Use context for messages ---
   const conversationId = selectedUser && selectedUser._id;
   const messages = useMemo(() => {
-    if (!conversationId) return [];
-    return inboxMessages[conversationId] || [];
+    const msgs = conversationId ? inboxMessages[conversationId] || [] : [];
+    console.log('[ChatBox] messages useMemo', { conversationId, msgs });
+    return msgs;
   }, [inboxMessages, conversationId]);
 
   // --- Typing indicator from context ---
@@ -146,7 +147,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   useEffect(() => {
     if (messagesContainerRef.current) {
       setTimeout(() => {
-        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
       }, 0);
     }
   }, [conversationId, messages.length]);
@@ -164,16 +167,21 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // --- Send message using context ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !conversationId) return;
+    if (!input.trim() || !conversationId) {
+      console.log('[ChatBox] Not sending: input empty or no conversationId', { input, conversationId });
+      return;
+    }
     setIsSending(true);
+    console.log('[ChatBox] Sending message', { conversationId, input });
     try {
-      sendMessage(conversationId, input);
+      sendMessage(conversationId, input); // Do not await, as sendMessage is synchronous and returns undefined
       setInput("");
       setIsSending(false);
       setError(null);
     } catch (err) {
       setIsSending(false);
       setError("An error occurred while sending the message.");
+      console.error('[ChatBox] Error sending message:', err);
     }
   };
 
