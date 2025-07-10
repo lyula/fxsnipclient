@@ -7,6 +7,7 @@ import { startOfWeek } from "date-fns";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import EmojiPicker from 'emoji-picker-react';
 import './emoji-picker-minimalist.css';
+import UserStatus from '../../components/UserStatus';
 
 const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const {
@@ -463,9 +464,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
               {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
             </button>
-            <span className={`text-xs ${isRecipientOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
-              {isRecipientOnline ? 'Online' : (lastSeen ? `Last seen ${getLastSeenText()}` : '')}
-            </span>
+            <UserStatus userId={selectedUser._id} token={token} typing={isRecipientTyping} />
           </div>
         </div>
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain w-full max-w-full !w-full !max-w-full !px-0 py-4 space-y-4 hide-scrollbar">
