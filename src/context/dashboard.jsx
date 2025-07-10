@@ -130,7 +130,14 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("receiveMessage", (message) => {
-      const convId = message.conversationId || message.conversation || message.to || message.from;
+      // Always use the other user's id as the conversation key
+      let otherUserId;
+      if (message.from === userId) {
+        otherUserId = message.to;
+      } else {
+        otherUserId = message.from;
+      }
+      const convId = otherUserId;
       console.log('[DashboardProvider] receiveMessage for convId:', convId, message);
       setInboxMessages(prev => {
         const updated = { ...prev };
@@ -139,7 +146,7 @@ export function DashboardProvider({ children }) {
         return updated;
       });
       setConversations(prev => prev.map(conv =>
-        conv._id === (message.conversationId || message.conversation)
+        conv._id === convId
           ? { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: conv.unreadCount + 1 }
           : conv
       ));
@@ -841,7 +848,14 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("receiveMessage", (message) => {
-      const convId = message.conversationId || message.conversation || message.to || message.from;
+      // Always use the other user's id as the conversation key
+      let otherUserId;
+      if (message.from === userId) {
+        otherUserId = message.to;
+      } else {
+        otherUserId = message.from;
+      }
+      const convId = otherUserId;
       console.log('[DashboardProvider] receiveMessage for convId:', convId, message);
       setInboxMessages(prev => {
         const updated = { ...prev };
@@ -850,7 +864,7 @@ export function DashboardProvider({ children }) {
         return updated;
       });
       setConversations(prev => prev.map(conv =>
-        conv._id === (message.conversationId || message.conversation)
+        conv._id === convId
           ? { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: conv.unreadCount + 1 }
           : conv
       ));

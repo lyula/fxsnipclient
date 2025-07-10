@@ -16,7 +16,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     sendStopTyping,
     typingUsers,
     updateConversation,
-    onlineUsers
+    onlineUsers,
+    sendSeen // <-- Add sendSeen from context
   } = useDashboard();
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -77,9 +78,16 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
 
   // --- Use context for messages ---
   const conversationId = selectedUser && selectedUser._id;
+  // Use the same logic as ConversationList to always create a new array for reactivity
   const messages = useMemo(() => {
-    const msgs = conversationId ? inboxMessages[conversationId] || [] : [];
-    console.log('[ChatBox] useMemo messages', { conversationId, msgs, inboxMessages });
+    if (!conversationId) return [];
+    const raw = inboxMessages[conversationId] || [];
+    // Always return a new array reference to trigger React updates
+    const msgs = [...raw];
+    if (msgs.length > 0) {
+      console.log('[ChatBox] RAW first message:', msgs[0]);
+    }
+    console.log('[ChatBox] useMemo messages (copied logic from ConversationList)', { conversationId, msgs, inboxMessages });
     return msgs;
   }, [inboxMessages, conversationId]);
 
@@ -229,26 +237,16 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     }
   }, [messages, fetchLinkPreview]);
 
-  const filteredMessages = useMemo(() =>
-    selectedUser && selectedUser._id
-      ? messages.filter(
-          (msg) =>
-            (msg.from === myUserId && msg.to === selectedUser._id) ||
-            (msg.from === selectedUser._id && msg.to === myUserId)
-        )
-      : [],
-    [messages, myUserId, selectedUser]
-  );
-
+  // Remove filteredMessages, use messages directly in groupedMessages
   const groupedMessages = useMemo(() => {
-    if (!filteredMessages.length) return [];
+    if (!messages.length) return [];
     const groupedByDate = [];
     let currentDateGroup = null;
     let currentTimeGroup = [];
     let lastSender = null;
     let lastTime = null;
     let lastDate = null;
-    filteredMessages.forEach((message, index) => {
+    messages.forEach((message, index) => {
       const messageTime = new Date(message.createdAt);
       const messageDate = new Date(messageTime.getFullYear(), messageTime.getMonth(), messageTime.getDate());
       if (!lastDate || messageDate.getTime() !== lastDate.getTime()) {
@@ -293,7 +291,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       groupedByDate.push(currentDateGroup);
     }
     return groupedByDate;
-  }, [filteredMessages]);
+  }, [messages]);
 
   const renderMessageWithLinksAndPreviews = (text, isOwn, messageId) => {
     if (!text) return { textContent: text, urls: [] };
@@ -399,8 +397,12 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         }
         return { unreadCount: newCount };
       });
+      // Instantly mark as seen in backend and for sender
+      if (typeof sendSeen === 'function') {
+        sendSeen({ conversationId: selectedUser._id, messageIds: unreadMessages.map(m => m._id) });
+      }
     }
-  }, [messages, selectedUser, myUserId, updateConversation]);
+  }, [messages, selectedUser, myUserId, updateConversation, sendSeen]);
 
   // --- Last seen logic ---
   const lastSeen = localSelectedUser && localSelectedUser.lastSeen ? new Date(localSelectedUser.lastSeen) : null;
