@@ -439,13 +439,20 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const touchData = useRef({ x: 0, y: 0, id: null, dragging: false });
   const [draggedMsgId, setDraggedMsgId] = useState(null);
   const [dragOffset, setDragOffset] = useState(0);
+  const dragSnapTimeout = useRef(null);
+
   const handleTouchStart = (e, messageId) => {
     if (e.touches && e.touches.length === 1) {
       touchData.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, id: messageId, dragging: true };
       setDraggedMsgId(messageId);
       setDragOffset(0);
+      if (dragSnapTimeout.current) {
+        clearTimeout(dragSnapTimeout.current);
+        dragSnapTimeout.current = null;
+      }
     }
   };
+
   const handleTouchMove = (e) => {
     if (!touchData.current.dragging || !touchData.current.id) return;
     const touch = e.touches && e.touches[0];
@@ -454,20 +461,26 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       const dy = Math.abs(touch.clientY - touchData.current.y);
       if (dx > 0 && dy < 30) {
         setDragOffset(Math.min(dx, 80)); // Limit drag distance
-        // Instantly set for reply on any right swipe
-        if (dx > 2) {
-          setReplyToMessageId(touchData.current.id);
-          setDraggedMsgId(null);
-          setDragOffset(0);
-          touchData.current = { x: 0, y: 0, id: null, dragging: false };
+        // Animate drag, then trigger reply and snap back
+        if (dx > 2 && !dragSnapTimeout.current) {
+          setDragOffset(60); // Animate to 60px
+          dragSnapTimeout.current = setTimeout(() => {
+            setReplyToMessageId(touchData.current.id);
+            setDraggedMsgId(null);
+            setDragOffset(0);
+            touchData.current = { x: 0, y: 0, id: null, dragging: false };
+            dragSnapTimeout.current = null;
+          }, 150); // 150ms animation
         }
       } else {
         setDragOffset(0);
       }
     }
   };
+
   const handleTouchEnd = (e) => {
-    // No need to check dx/dy, reply is already set in handleTouchMove
+    // If animation is running, let timeout handle reset
+    if (dragSnapTimeout.current) return;
     setDraggedMsgId(null);
     setDragOffset(0);
     touchData.current = { x: 0, y: 0, id: null, dragging: false };
