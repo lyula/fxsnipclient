@@ -436,23 +436,43 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   );
 
   // --- Swipe-to-reply handlers (mobile) ---
-  const touchData = useRef({ x: 0, y: 0, id: null });
+  const touchData = useRef({ x: 0, y: 0, id: null, dragging: false });
+  const [draggedMsgId, setDraggedMsgId] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
   const handleTouchStart = (e, messageId) => {
     if (e.touches && e.touches.length === 1) {
-      touchData.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, id: messageId };
+      touchData.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, id: messageId, dragging: true };
+      setDraggedMsgId(messageId);
+      setDragOffset(0);
+    }
+  };
+  const handleTouchMove = (e) => {
+    if (!touchData.current.dragging || !touchData.current.id) return;
+    const touch = e.touches && e.touches[0];
+    if (touch) {
+      const dx = touch.clientX - touchData.current.x;
+      const dy = Math.abs(touch.clientY - touchData.current.y);
+      if (dx > 0 && dy < 30) {
+        setDragOffset(Math.min(dx, 80)); // Limit drag distance
+      } else {
+        setDragOffset(0);
+      }
     }
   };
   const handleTouchEnd = (e) => {
     if (!touchData.current.id) return;
     const touch = e.changedTouches && e.changedTouches[0];
+    let dx = 0, dy = 0;
     if (touch) {
-      const dx = touch.clientX - touchData.current.x;
-      const dy = Math.abs(touch.clientY - touchData.current.y);
-      if (dx > 40 && dy < 30) {
-        setReplyToMessageId(touchData.current.id);
-      }
+      dx = touch.clientX - touchData.current.x;
+      dy = Math.abs(touch.clientY - touchData.current.y);
     }
-    touchData.current = { x: 0, y: 0, id: null };
+    if (dx > 40 && dy < 30) {
+      setReplyToMessageId(touchData.current.id);
+    }
+    setDraggedMsgId(null);
+    setDragOffset(0);
+    touchData.current = { x: 0, y: 0, id: null, dragging: false };
   };
 
   // Detect mobile device
@@ -559,8 +579,12 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                               width: 'fit-content',
                               minWidth: '0',
                               maxWidth: '90vw',
+                              transform: isMobile && draggedMsgId === message._id && dragOffset > 0 ? `translateX(${dragOffset}px)` : undefined,
+                              transition: isMobile && draggedMsgId === message._id && dragOffset === 0 ? 'transform 0.2s cubic-bezier(.4,2,.6,1)' : undefined,
+                              zIndex: isMobile && draggedMsgId === message._id ? 2 : undefined,
                             }}
                             onTouchStart={isMobile ? (e) => handleTouchStart(e, message._id) : undefined}
+                            onTouchMove={isMobile ? handleTouchMove : undefined}
                             onTouchEnd={isMobile ? handleTouchEnd : undefined}
                           >
                             <div className="relative">
