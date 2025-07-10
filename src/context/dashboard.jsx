@@ -236,14 +236,14 @@ export function DashboardProvider({ children }) {
     socketRef.current.emit("sendMessage", { to: conversationId, text });
   }, [userId]);
 
-  const sendTyping = useCallback((conversationId) => {
+  const sendTyping = useCallback((conversationId, to) => {
     if (!socketRef.current) return;
-    socketRef.current.emit("typing", { conversationId });
+    socketRef.current.emit("typing", { conversationId, to });
   }, []);
 
-  const sendStopTyping = useCallback((conversationId) => {
+  const sendStopTyping = useCallback((conversationId, to) => {
     if (!socketRef.current) return;
-    socketRef.current.emit("stop-typing", { conversationId });
+    socketRef.current.emit("stop-typing", { conversationId, to });
   }, []);
 
   // --- Send seen receipts for messages ---

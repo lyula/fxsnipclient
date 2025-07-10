@@ -166,9 +166,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const handleInputChange = (e) => {
     setInput(e.target.value);
     if (e.target.value.trim()) {
-      sendTyping(conversationId);
+      sendTyping(conversationId, selectedUser?._id);
     } else {
-      sendStopTyping(conversationId);
+      sendStopTyping(conversationId, selectedUser?._id);
     }
   };
 
