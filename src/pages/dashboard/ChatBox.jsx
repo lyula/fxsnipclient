@@ -8,6 +8,7 @@ import VerifiedBadge from "../../components/VerifiedBadge";
 import EmojiPicker from 'emoji-picker-react';
 import './emoji-picker-minimalist.css';
 import UserStatus from '../../components/UserStatus';
+import { getReplyPreview, findMessageById } from '../../utils/replyUtils.jsx';
 
 // Helper to generate a unique conversationId for 1:1 chats
 function getConversationId(userId1, userId2) {
@@ -47,6 +48,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [conversationCache, setConversationCache] = useState(new Map());
   const readMessageIdsRef = useRef(new Set());
   const [localSelectedUser, setLocalSelectedUser] = useState(selectedUser);
+  const [replyToMessageId, setReplyToMessageId] = useState(null);
+  const clearReply = () => setReplyToMessageId(null);
   const navigate = useNavigate();
 
   // Keep localSelectedUser in sync with selectedUser prop (when switching chats)
@@ -187,22 +190,20 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || !conversationId) {
-      console.log('[ChatBox] Not sending: input empty or no conversationId', { input, conversationId });
       return;
     }
     setIsSending(true);
-    console.log('[ChatBox] Sending message', { conversationId, input });
     try {
-      sendMessage(conversationId, input, selectedUser?._id); // Do not await, as sendMessage is synchronous and returns undefined
+      // Pass replyToMessageId as metadata
+      sendMessage(conversationId, input, selectedUser?._id, { replyTo: replyToMessageId });
       setInput("");
       setIsSending(false);
       setError(null);
-      // Immediately emit stop-typing after sending a message
+      setReplyToMessageId(null); // Clear reply after sending
       sendStopTyping(conversationId, selectedUser?._id);
     } catch (err) {
       setIsSending(false);
       setError("An error occurred while sending the message.");
-      console.error('[ChatBox] Error sending message:', err);
     }
   };
 
@@ -429,6 +430,34 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     }
   }, [messages, selectedUser, myUserId, updateConversation, sendSeen, conversationId]);
 
+  const replyToMessage = useMemo(
+    () => replyToMessageId ? findMessageById(messages, replyToMessageId) : null,
+    [replyToMessageId, messages]
+  );
+
+  // --- Swipe-to-reply handlers (mobile) ---
+  const touchData = useRef({ x: 0, y: 0, id: null });
+  const handleTouchStart = (e, messageId) => {
+    if (e.touches && e.touches.length === 1) {
+      touchData.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, id: messageId };
+    }
+  };
+  const handleTouchEnd = (e) => {
+    if (!touchData.current.id) return;
+    const touch = e.changedTouches && e.changedTouches[0];
+    if (touch) {
+      const dx = touch.clientX - touchData.current.x;
+      const dy = Math.abs(touch.clientY - touchData.current.y);
+      if (dx > 40 && dy < 30) {
+        setReplyToMessageId(touchData.current.id);
+      }
+    }
+    touchData.current = { x: 0, y: 0, id: null };
+  };
+
+  // Detect mobile device
+  const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+
   return (
     <>
       <div style={{ display: 'none' }}>
@@ -510,35 +539,102 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                       const isOwn = message.from === myUserId;
                       const showAvatar = !isOwn && message.isFirst;
                       const showTime = message.isLast;
+                      // Find reply message if exists
+                      const repliedMsg = message.replyTo ? findMessageById(messages, message.replyTo) : null;
                       return (
-                        <div key={message._id} data-message-id={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'} w-full`}>
+                        <div key={message._id} data-message-id={message._id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${message.isFirst ? 'mt-4' : 'mt-1'} w-full group`}>
                           {showAvatar && (
                             <Link to={`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`} className="hover:opacity-80 transition-opacity">
                               <img src={selectedUser.avatar} alt={selectedUser.username} className="w-6 h-6 rounded-full mr-2 mt-auto cursor-pointer" />
                             </Link>
                           )}
                           {!isOwn && !showAvatar && <div className="w-8" />}
-                          <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'} ${isOwn ? 'mr-2 sm:mr-4' : 'ml-2 sm:ml-4'}`}>
-                            <div className={`px-4 py-2 rounded-2xl text-sm break-words ${isOwn ? message.failed ? 'bg-red-500 text-white' : message.isOptimistic ? 'bg-blue-400 text-white opacity-80' : 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} ${isOwn ? message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-br-md' : message.isLast ? 'rounded-tr-md' : 'rounded-r-md' : message.isFirst && message.isLast ? 'rounded-2xl' : message.isFirst ? 'rounded-bl-md' : message.isLast ? 'rounded-tl-md' : 'rounded-l-md'}`}>
-                              <div className="mb-1">
-                                {(() => {
-                                  const { textContent, urls } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
-                                  return (
-                                    <>
-                                      <div className="mb-1">{textContent}</div>
-                                      {urls.map((url, index) => (
-                                        <span key={`${message._id}-${index}-${url}`}>{url}</span>
-                                      ))}
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                              <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
-                                {formatExactTime(message.createdAt)}
-                              </div>
-                              {message.failed && (
-                                <button onClick={() => handleRetryMessage(message)} className="block mt-2 text-xs underline hover:no-underline" disabled={isSending}>Tap to retry</button>
+                          <div
+                            className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'ml-auto' : 'mr-auto'} ${isOwn ? 'mr-2 sm:mr-4' : 'ml-2 sm:ml-4'} relative`}
+                            style={{
+                              // For received: leave space on the right, for sent: leave space on the left
+                              marginRight: isOwn ? '0' : '20%',
+                              marginLeft: isOwn ? '20%' : '0',
+                              // Prevent full width on either side
+                              width: 'fit-content',
+                              minWidth: '0',
+                              maxWidth: '90vw',
+                            }}
+                            onTouchStart={isMobile ? (e) => handleTouchStart(e, message._id) : undefined}
+                            onTouchEnd={isMobile ? handleTouchEnd : undefined}
+                          >
+                            <div className="relative">
+                              {/* Reply button, only show on non-mobile */}
+                              {!isMobile && (
+                                <button
+                                  type="button"
+                                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-blue-400 hover:text-blue-600 p-1 z-10"
+                                  onClick={() => setReplyToMessageId(message._id)}
+                                  title="Reply"
+                                  style={{ background: 'transparent', fontSize: '1.25rem', lineHeight: 1, transform: 'rotate(90deg)' }}
+                                >
+                                  {'>'}
+                                </button>
                               )}
+                              <div
+                                className={`px-4 py-2 text-sm break-words relative whatsapp-bubble ${isOwn ? 'sent' : 'received'} ${isOwn ? message.failed ? 'bg-red-500 text-white' : message.isOptimistic ? 'bg-blue-400 text-white opacity-80' : 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                                style={{
+                                  borderRadius: '0.45em', // All corners equally less round
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                  minWidth: '40px',
+                                  maxWidth: '100%',
+                                  wordBreak: 'break-word',
+                                }}
+                              >
+                                {/* Reply preview in bubble (INSIDE the bubble, not above) */}
+                                {repliedMsg && (
+                                  <div className="mb-1">
+                                    <div
+                                      className="flex items-stretch overflow-hidden"
+                                      style={{
+                                        background: isOwn ? '#205c4a' : '#232d3b',
+                                        borderRadius: '0.35em',
+                                      }}
+                                    >
+                                      <div
+                                        className="w-1"
+                                        style={{
+                                          background: '#a99d6b',
+                                          borderRadius: '0.25em',
+                                        }}
+                                      />
+                                      <div className="flex-1 min-w-0 py-1 pl-2 pr-3">
+                                        <div className="text-xs font-semibold" style={{ color: '#a99d6b' }}>
+                                          {repliedMsg.from === myUserId ? 'You' : selectedUser.username}
+                                        </div>
+                                        <div className="text-xs text-white whitespace-pre-line break-words">
+                                          {repliedMsg.text}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {/* Main message text */}
+                                <div className="mb-1">
+                                  {(() => {
+                                    const { textContent, urls } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
+                                    return (
+                                      <>
+                                        <div className="mb-1">{textContent}</div>
+                                        {urls.map((url, index) => (
+                                          <span key={`${message._id}-${index}-${url}`}>{url}</span>
+                                        ))}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                                <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                  {formatExactTime(message.createdAt)}
+                                </div>
+                                {message.failed && (
+                                  <button onClick={() => handleRetryMessage(message)} className="block mt-2 text-xs underline hover:no-underline" disabled={isSending}>Tap to retry</button>
+                                )}
+                              </div>
                             </div>
                             <div className={`flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400 ${isOwn ? 'justify-end' : 'justify-start'} ${isOwn ? 'mr-2 sm:mr-4' : 'ml-2 sm:ml-4'}`}>
                               {isOwn && !message.failed && (
@@ -572,6 +668,28 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         )}
         <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 w-full max-w-full !w-full !max-w-full">
           <form onSubmit={handleSendMessage} className="p-4">
+            {/* Reply preview above input */}
+            {replyToMessage && (
+              <div className="mb-2 relative">
+                {/* X button above the reply highlight */}
+                <button
+                  type="button"
+                  onClick={clearReply}
+                  className="absolute -top-2 right-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white dark:bg-gray-900 rounded-full shadow p-0.5 z-10"
+                  style={{ fontSize: '1.1em', lineHeight: 1 }}
+                  aria-label="Cancel reply"
+                >
+                  ✕
+                </button>
+                <div>
+                  {getReplyPreview(
+                    replyToMessage,
+                    { [replyToMessage.from]: { username: replyToMessage.from === myUserId ? 'You' : selectedUser.username } },
+                    replyToMessage.from === myUserId
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex items-end space-x-3 relative">
               <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -678,6 +796,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
 
 export default ChatBox;
 
+// Helper functions should be above export default
 const handleFileSelect = (e) => {
   const files = Array.from(e.target.files || []);
   console.log('Selected files:', files);
@@ -686,3 +805,4 @@ const handleFileSelect = (e) => {
 const handleRetryMessage = (message) => {
   console.log('Retrying message:', message);
 };
+

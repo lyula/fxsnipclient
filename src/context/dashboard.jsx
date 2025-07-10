@@ -71,6 +71,7 @@ export function DashboardProvider({ children }) {
   const [inboxMessages, setInboxMessages] = useState({}); // { conversationId: [messages] }
   const [onlineUsers, setOnlineUsers] = useState(new Set()); // Set of userIds
   const [typingUsers, setTypingUsers] = useState({}); // { conversationId: [userId] }
+  const onlineHeartbeatRef = useRef(null); // Track heartbeat interval
 
   // Remove userId from localStorage if not logged in (on app load)
   useEffect(() => {
@@ -82,6 +83,7 @@ export function DashboardProvider({ children }) {
         socketRef.current.emit("user-offline", { userId: lastEmittedUserId.current });
         lastEmittedUserId.current = null;
       }
+      setOnlineUsers(new Set()); // Clear online users on logout
     }
   }, []);
 
@@ -97,11 +99,7 @@ export function DashboardProvider({ children }) {
     setUserId(null);
     lastEmittedUserId.current = null;
     setSocketConnected(false);
-    setOnlineUsers(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(userId);
-      return newSet;
-    });
+    setOnlineUsers(new Set()); // Clear online users on logout
   }, [userId]);
 
   // Setup socket connection and monitor userId changes
@@ -114,6 +112,7 @@ export function DashboardProvider({ children }) {
     }
     if (!userId || !token) {
       setSocketConnected(false);
+      setOnlineUsers(new Set()); // Clear online users if not connected
       return;
     }
     // Create new socket with latest credentials
@@ -129,9 +128,22 @@ export function DashboardProvider({ children }) {
       socketRef.current.emit("user-online", { userId });
       socketRef.current.emit("get-online-users");
       lastEmittedUserId.current = userId;
+      // Start heartbeat interval (only one)
+      if (onlineHeartbeatRef.current) clearInterval(onlineHeartbeatRef.current);
+      onlineHeartbeatRef.current = setInterval(() => {
+        if (socketRef.current && userId) {
+          socketRef.current.emit("user-online", { userId });
+          socketRef.current.emit("get-online-users");
+        }
+      }, 15000);
     });
     socketRef.current.on("disconnect", () => {
       setSocketConnected(false);
+      setOnlineUsers(new Set()); // Clear online users on disconnect
+      if (onlineHeartbeatRef.current) {
+        clearInterval(onlineHeartbeatRef.current);
+        onlineHeartbeatRef.current = null;
+      }
     });
 
     socketRef.current.on("receiveMessage", (message) => {
@@ -156,20 +168,24 @@ export function DashboardProvider({ children }) {
       }));
     });
 
-    socketRef.current.on("user-online", ({ userId }) => {
+    socketRef.current.on("user-online", ({ userId: onlineId }) => {
       setOnlineUsers(prev => {
         const newSet = new Set(prev);
-        newSet.add(userId);
+        newSet.add(onlineId);
         return newSet;
       });
     });
 
-    socketRef.current.on("user-offline", ({ userId }) => {
+    socketRef.current.on("user-offline", ({ userId: offlineId }) => {
       setOnlineUsers(prev => {
         const newSet = new Set(prev);
-        newSet.delete(userId);
+        newSet.delete(offlineId);
         return newSet;
       });
+    });
+
+    socketRef.current.on("online-users-list", ({ userIds }) => {
+      setOnlineUsers(new Set(userIds));
     });
 
     socketRef.current.on("typing", ({ conversationId, userId: typingId }) => {
@@ -191,10 +207,6 @@ export function DashboardProvider({ children }) {
         }
         return updated;
       });
-    });
-
-    socketRef.current.on("online-users-list", ({ userIds }) => {
-      setOnlineUsers(new Set(userIds));
     });
 
     socketRef.current.on("messagesSeen", ({ conversationId, messageIds }) => {
@@ -219,28 +231,26 @@ export function DashboardProvider({ children }) {
       }));
     });
 
-    // Heartbeat: emit user-online every 15 seconds
-    const interval = setInterval(() => {
-      if (userId && socketConnected && socketRef.current) {
-        socketRef.current.emit("user-online", { userId });
-        socketRef.current.emit("get-online-users");
-      }
-    }, 15000);
     return () => {
-      clearInterval(interval);
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      if (onlineHeartbeatRef.current) {
+        clearInterval(onlineHeartbeatRef.current);
+        onlineHeartbeatRef.current = null;
+      }
+      setOnlineUsers(new Set()); // Clear online users on cleanup
     };
   }, [userId]);
 
   // --- Message send/typing helpers ---
-  const sendMessage = useCallback((conversationId, text, recipientUserId) => {
+  const sendMessage = useCallback((conversationId, text, recipientUserId, options = {}) => {
     if (!socketRef.current || !userId) return;
     // Always emit with correct conversationId and recipient
-    console.log("[DashboardContext] sendMessage emit:", { to: recipientUserId, conversationId, text });
-    socketRef.current.emit("sendMessage", { to: recipientUserId, text, conversationId });
+    const payload = { to: recipientUserId, text, conversationId };
+    if (options.replyTo) payload.replyTo = options.replyTo;
+    socketRef.current.emit("sendMessage", payload);
   }, [userId]);
 
   /**
@@ -934,27 +944,6 @@ export function DashboardProvider({ children }) {
       });
     });
 
-    socketRef.current.on("typing", ({ conversationId, userId: typingId }) => {
-      setTypingUsers(prev => {
-        const updated = { ...prev };
-        if (!updated[conversationId]) updated[conversationId] = [];
-        if (!updated[conversationId].includes(typingId)) {
-          updated[conversationId].push(typingId);
-        }
-        return updated;
-      });
-    });
-
-    socketRef.current.on("stop-typing", ({ conversationId, userId: typingId }) => {
-      setTypingUsers(prev => {
-        const updated = { ...prev };
-        if (updated[conversationId]) {
-          updated[conversationId] = updated[conversationId].filter(id => id !== typingId);
-        }
-        return updated;
-      });
-    });
-
     socketRef.current.on("online-users-list", ({ userIds }) => {
       setOnlineUsers(new Set(userIds));
     });
@@ -981,33 +970,20 @@ export function DashboardProvider({ children }) {
       }));
     });
 
-    // Heartbeat: emit user-online every 15 seconds
-    const interval = setInterval(() => {
-      if (userId && socketConnected && socketRef.current) {
-        socketRef.current.emit("user-online", { userId });
-        socketRef.current.emit("get-online-users");
-      }
-    }, 15000);
     return () => {
-      clearInterval(interval);
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      if (onlineHeartbeatRef.current) {
+        clearInterval(onlineHeartbeatRef.current);
+        onlineHeartbeatRef.current = null;
+      }
+      setOnlineUsers(new Set()); // Clear online users on cleanup
     };
   }, [userId]);
 
-  // Also disconnect socket on logout (userId or token becomes null)
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!userId || !token) {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-      setSocketConnected(false);
-    }
-  }, [userId]);
+  // Remove any duplicate or legacy heartbeat/online status intervals/effects below this point
 
   // Context value
   const value = useMemo(() => ({
