@@ -263,6 +263,7 @@ export function DashboardProvider({ children }) {
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
+    console.log('[DashboardContext] sendTyping emit:', { conversationId, to: recipientUserId });
     socketRef.current.emit("typing", { conversationId, to: recipientUserId });
   }, []);
 
@@ -276,6 +277,7 @@ export function DashboardProvider({ children }) {
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendStopTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
+    console.log('[DashboardContext] sendStopTyping emit:', { conversationId, to: recipientUserId });
     socketRef.current.emit("stop-typing", { conversationId, to: recipientUserId });
   }, []);
 
