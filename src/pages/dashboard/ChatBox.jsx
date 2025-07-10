@@ -403,6 +403,33 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // Move the early return here, after all hooks
   if (!selectedUser || !selectedUser._id) return null;
 
+  // Decrement unreadCount in context as each unread message is read
+  useEffect(() => {
+    if (!selectedUser || !selectedUser._id) return;
+    // Find all unread messages sent to me
+    const unreadMessages = messages.filter(
+      (msg) =>
+        msg.to === myUserId &&
+        !msg.read
+    );
+    // Only emit if there are any unread messages
+    if (unreadMessages.length > 0 && typeof sendSeen === 'function') {
+      const unreadIds = unreadMessages.map(m => m._id);
+      sendSeen({ conversationId, to: selectedUser._id, messageIds: unreadIds });
+      // Update the ref to prevent duplicate emits for the same messages
+      unreadIds.forEach(id => readMessageIdsRef.current.add(id));
+      // Update unreadCount in context
+      updateConversation(conversationId, (prev) => {
+        const current = typeof prev === 'object' && prev !== null ? prev.unreadCount : prev;
+        let newCount = current;
+        if (typeof current === 'number') {
+          newCount = Math.max(0, current - unreadMessages.length);
+        }
+        return { unreadCount: newCount };
+      });
+    }
+  }, [messages, selectedUser, myUserId, updateConversation, sendSeen, conversationId]);
+
   return (
     <>
       <div style={{ display: 'none' }}>
