@@ -140,17 +140,20 @@ export function DashboardProvider({ children }) {
       if (!conversationId && message.from && message.to) {
         conversationId = getConversationId(message.from, message.to);
       }
-      console.log('[DashboardProvider] receiveMessage for conversationId:', conversationId, message);
       setInboxMessages(prev => {
         const updated = { ...prev };
         updated[conversationId] = [...(updated[conversationId] || []), message];
         return updated;
       });
-      setConversations(prev => prev.map(conv =>
-        conv._id === conversationId
-          ? { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: conv.unreadCount + 1 }
-          : conv
-      ));
+      setConversations(prev => prev.map(conv => {
+        if (conv._id !== conversationId) return conv;
+        // Only increment unreadCount if the message is to the current user
+        if (message.to === userId) {
+          return { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: (conv.unreadCount || 0) + 1 };
+        } else {
+          return { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now() };
+        }
+      }));
     });
 
     socketRef.current.on("user-online", ({ userId }) => {
@@ -204,6 +207,16 @@ export function DashboardProvider({ children }) {
         }
         return updated;
       });
+      // Decrement unreadCount for this conversation by the number of messages seen (if any were previously unread)
+      setConversations(prev => prev.map(conv => {
+        if (conv._id !== conversationId) return conv;
+        // Count how many of these messages were previously unread and to the current user
+        const prevUnread = (inboxMessages[conversationId] || []).filter(msg => messageIds.includes(msg._id) && !msg.read && msg.to === userId).length;
+        if (prevUnread > 0) {
+          return { ...conv, unreadCount: Math.max(0, (conv.unreadCount || 0) - prevUnread) };
+        }
+        return conv;
+      }));
     });
 
     // Heartbeat: emit user-online every 15 seconds
@@ -889,17 +902,20 @@ export function DashboardProvider({ children }) {
       if (!conversationId && message.from && message.to) {
         conversationId = getConversationId(message.from, message.to);
       }
-      console.log('[DashboardProvider] receiveMessage for conversationId:', conversationId, message);
       setInboxMessages(prev => {
         const updated = { ...prev };
         updated[conversationId] = [...(updated[conversationId] || []), message];
         return updated;
       });
-      setConversations(prev => prev.map(conv =>
-        conv._id === conversationId
-          ? { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: conv.unreadCount + 1 }
-          : conv
-      ));
+      setConversations(prev => prev.map(conv => {
+        if (conv._id !== conversationId) return conv;
+        // Only increment unreadCount if the message is to the current user
+        if (message.to === userId) {
+          return { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now(), unreadCount: (conv.unreadCount || 0) + 1 };
+        } else {
+          return { ...conv, lastMessage: message.text, lastTime: formatRelativeTime(Date.now()), lastTimestamp: Date.now() };
+        }
+      }));
     });
 
     socketRef.current.on("user-online", ({ userId }) => {
@@ -953,6 +969,16 @@ export function DashboardProvider({ children }) {
         }
         return updated;
       });
+      // Decrement unreadCount for this conversation by the number of messages seen (if any were previously unread)
+      setConversations(prev => prev.map(conv => {
+        if (conv._id !== conversationId) return conv;
+        // Count how many of these messages were previously unread and to the current user
+        const prevUnread = (inboxMessages[conversationId] || []).filter(msg => messageIds.includes(msg._id) && !msg.read && msg.to === userId).length;
+        if (prevUnread > 0) {
+          return { ...conv, unreadCount: Math.max(0, (conv.unreadCount || 0) - prevUnread) };
+        }
+        return conv;
+      }));
     });
 
     // Heartbeat: emit user-online every 15 seconds
