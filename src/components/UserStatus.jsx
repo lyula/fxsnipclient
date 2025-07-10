@@ -1,9 +1,10 @@
 import React from "react";
 import useUserStatus from "../hooks/useUserStatus";
 
-export default function UserStatus({ userId, token, typing: typingProp }) {
-  const { online, lastSeen, typing: typingState } = useUserStatus(userId, token);
+export default function UserStatus({ userId, token, typing: typingProp, online: onlineProp }) {
+  const { online: onlineState, lastSeen, typing: typingState } = useUserStatus(userId, token);
   const typing = typeof typingProp === 'boolean' ? typingProp : typingState;
+  const online = typeof onlineProp === 'boolean' ? onlineProp : onlineState;
 
   let statusText = "";
   if (typing) statusText = "Typing...";

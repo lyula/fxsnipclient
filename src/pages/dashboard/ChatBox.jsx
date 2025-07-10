@@ -464,7 +464,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
               {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
             </button>
-            <UserStatus userId={selectedUser._id} token={token} typing={isRecipientTyping} />
+            <UserStatus userId={selectedUser._id} token={token} typing={isRecipientTyping} online={isRecipientOnline} />
           </div>
         </div>
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-y-contain w-full max-w-full !w-full !max-w-full !px-0 py-4 space-y-4 hide-scrollbar">
