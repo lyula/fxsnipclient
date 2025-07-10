@@ -7,9 +7,11 @@ import { jwtDecode } from "jwt-decode";
 import { useAuth } from "../context/auth";
 import usePWAInstallPrompt from "../hooks/usePWAInstallPrompt";
 import { io } from "socket.io-client";
+import { useDashboard } from "../context/dashboard";
 
 export default function Login() {
   const { refreshUser, user } = useAuth();
+  const { syncUserIdFromStorage } = useDashboard();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -59,27 +61,32 @@ export default function Login() {
 
       if (result.token) {
         localStorage.setItem("token", result.token);
-        await refreshUser(); // fetch and set user profile
-        // Wait a tick for user to update
-        setTimeout(() => {
-          const userId = (user && (user._id || user.id));
-          if (userId) {
-            localStorage.setItem("userId", userId);
-            // Emit user-online event immediately after login
-            const socketUrl = import.meta.env.VITE_SOCKET_URL;
-            if (socketUrl) {
-              const tempSocket = io(socketUrl, {
-                auth: { token: result.token }
-              });
-              tempSocket.on("connect", () => {
-                tempSocket.emit("user-online", { userId });
-                tempSocket.disconnect(); // Disconnect after emitting
-              });
-            }
+        // Get userId from result or decode from token
+        let userId = result.user?._id || result.user?.id;
+        if (!userId) {
+          try {
+            const decoded = jwtDecode(result.token);
+            userId = decoded?.id || decoded?._id || decoded?.userId;
+          } catch {}
+        }
+        if (userId) {
+          localStorage.setItem("userId", userId);
+          syncUserIdFromStorage(); // <-- Update DashboardContext immediately
+          // Emit user-online event immediately after setting userId
+          const socketUrl = import.meta.env.VITE_SOCKET_URL;
+          if (socketUrl) {
+            const tempSocket = io(socketUrl, {
+              auth: { token: result.token }
+            });
+            tempSocket.on("connect", () => {
+              tempSocket.emit("user-online", { userId });
+              tempSocket.disconnect(); // Disconnect after emitting
+            });
           }
-          const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
-          navigate(lastRoute, { replace: true });
-        }, 0);
+        }
+        await refreshUser(); // fetch and set user profile
+        const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
+        navigate(lastRoute, { replace: true });
       } else {
         setError(result.message || "Login failed.");
       }

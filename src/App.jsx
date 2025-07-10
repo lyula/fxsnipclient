@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import React, { useEffect, useState } from "react";
 import PublicLayout from "./components/layout/PublicLayout";
 import PrivateLayout from "./components/layout/PrivateLayout";
@@ -22,7 +22,7 @@ import MobileUserProfile from "./pages/dashboard/community/MobileUserProfile";
 import PostNotificationView from "./pages/dashboard/community/PostNotificationView";
 import AdCreation from "./pages/dashboard/AdCreation";
 import { useTheme } from "./hooks/useTheme";
-import { DashboardProvider } from "./context/dashboard";
+import { DashboardProvider, useDashboard } from "./context/dashboard";
 
 function Placeholder({ title }) {
   return (
@@ -31,6 +31,53 @@ function Placeholder({ title }) {
         {title} Page
       </h1>
     </div>
+  );
+}
+
+function AppRoutes({ isMobile }) {
+  const location = useLocation();
+  const { syncUserIdFromStorage } = useDashboard();
+
+  useEffect(() => {
+    const protectedPrefixes = ["/dashboard", "/tsr", "/stats", "/user-profile"];
+    if (protectedPrefixes.some(prefix => location.pathname.startsWith(prefix))) {
+      syncUserIdFromStorage();
+    }
+  }, [location.pathname, syncUserIdFromStorage]);
+
+  return (
+    <PWARouteGuard>
+      <DesktopPWALayout>
+        <DesktopPWATitleBar />
+        <div className="app-content">
+          <Routes>
+            <Route path="/terms" element={<Terms />} />
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Landing />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/news" element={<News />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/markets" element={<Markets />} />
+            </Route>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/dashboard/community/post/:postId" element={<PostNotificationView />} />
+            <Route path="/dashboard/*" element={<Dashboard />} />
+            <Route element={<PrivateLayout />}>
+              <Route path="/tsr" element={<Placeholder title="TSR" />} />
+              <Route path="/stats" element={<Placeholder title="Stats" />} />
+              <Route
+                path="/user-profile"
+                element={isMobile ? <MobileUserProfile /> : <UserProfile />}
+              />
+            </Route>
+          </Routes>
+        </div>
+        <PWAUpdateNotification />
+        <PWAInstallPrompt />
+        <DesktopPWANotifications />
+      </DesktopPWALayout>
+    </PWARouteGuard>
   );
 }
 
@@ -50,60 +97,16 @@ function App() {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-
     handleResize();
     window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
     <Router>
-      <PWARouteGuard>
-        <DesktopPWALayout>
-          {/* Desktop PWA Title Bar */}
-          <DesktopPWATitleBar />
-          <DashboardProvider>
-          <div className="app-content">
-            <Routes>
-          <Route path="/terms" element={<Terms />} />
-          <Route element={<PublicLayout />}>
-            <Route path="/" element={<Landing />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/news" element={<News />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/markets" element={<Markets />} />
-          </Route>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-
-          {/* Single post notification view route */}
-          <Route path="/dashboard/community/post/:postId" element={<PostNotificationView />} />
-
-          <Route
-            path="/dashboard/*"
-            element={<Dashboard />}
-          />
-
-          <Route element={<PrivateLayout />}>
-            <Route path="/tsr" element={<Placeholder title="TSR" />} />
-            <Route path="/stats" element={<Placeholder title="Stats" />} />
-            <Route
-              path="/user-profile"
-              element={isMobile ? <MobileUserProfile /> : <UserProfile />}
-            />
-          </Route>
-        </Routes>
-        </div>
-        </DashboardProvider>
-        {/* PWA Components */}
-        <PWAUpdateNotification />
-        <PWAInstallPrompt />
-        <DesktopPWANotifications />
-        </DesktopPWALayout>
-      </PWARouteGuard>
+      <DashboardProvider>
+        <AppRoutes isMobile={isMobile} />
+      </DashboardProvider>
     </Router>
   );
 }

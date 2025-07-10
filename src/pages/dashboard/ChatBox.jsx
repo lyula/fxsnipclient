@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { getConversation } from "../../utils/api";
 import { debounce } from "lodash";
-import useUserStatus from "../../hooks/useUserStatus";
-import UserStatus from "../../components/UserStatus";
 import { useDashboard } from "../../context/dashboard";
-import { Link } from "react-router-dom";
-import { startOfWeek, subWeeks } from "date-fns";
+import { Link, useNavigate } from "react-router-dom";
+import { startOfWeek } from "date-fns";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import EmojiPicker from 'emoji-picker-react';
 import './emoji-picker-minimalist.css';
@@ -18,7 +16,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     sendStopTyping,
     typingUsers,
     updateConversation,
-    onlineUsers // <-- add onlineUsers from context
+    onlineUsers
   } = useDashboard();
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -32,7 +30,6 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const fetchTimeoutRef = useRef(null);
-  const recipientStatus = useUserStatus(selectedUser ? selectedUser._id : null, token);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date()));
   const [hasMore, setHasMore] = useState(true);
   const [weekIndex, setWeekIndex] = useState(0);
@@ -41,7 +38,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [conversationCache, setConversationCache] = useState(new Map());
   const readMessageIdsRef = useRef(new Set());
   const [localSelectedUser, setLocalSelectedUser] = useState(selectedUser);
-  const prevIsRecipientOnline = useRef(null);
+  const navigate = useNavigate();
 
   // Keep localSelectedUser in sync with selectedUser prop (when switching chats)
   useEffect(() => {
@@ -50,43 +47,23 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
 
   // --- Online status for recipient ---
   const isRecipientOnline = useMemo(() => {
-    return onlineUsers && onlineUsers.has ? onlineUsers.has(selectedUser?._id) : false;
+    return onlineUsers && selectedUser?._id ? onlineUsers.has(selectedUser._id) : false;
   }, [onlineUsers, selectedUser]);
-
-  // --- Fetch latest user info when recipient goes offline ---
-  useEffect(() => {
-    if (prevIsRecipientOnline.current === null) {
-      prevIsRecipientOnline.current = isRecipientOnline;
-      return;
-    }
-    if (prevIsRecipientOnline.current && !isRecipientOnline && selectedUser?._id) {
-      // Recipient just went offline, fetch latest last seen
-      const API_BASE = import.meta.env.VITE_API_URL;
-      fetch(`${API_BASE}/user/last-seen/${selectedUser._id}`)
-        .then(res => res.json())
-        .then(data => {
-          console.log('lastSeen fetch result:', data);
-          if (data && data.lastSeen) {
-            setLocalSelectedUser(u => ({ ...u, lastSeen: data.lastSeen }));
-          }
-        })
-        .catch(() => {});
-    }
-    prevIsRecipientOnline.current = isRecipientOnline;
-  }, [isRecipientOnline, selectedUser, token]);
 
   // --- Fetch last seen on chat open if recipient is offline ---
   useEffect(() => {
     if (selectedUser && selectedUser._id && !isRecipientOnline) {
-      // Show lastSeen from selectedUser immediately (already handled by localSelectedUser)
       const API_BASE = import.meta.env.VITE_API_URL;
-      fetch(`${API_BASE}/user/last-seen/${selectedUser._id}`)
+      fetch(`${API_BASE}/user/last-seen/${selectedUser._id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
         .then(res => res.json())
         .then(data => {
           console.log('lastSeen fetch result (on open):', data);
           if (data && data.lastSeen) {
             setLocalSelectedUser(u => {
-              // Only update if the fetched lastSeen is newer
               if (!u.lastSeen || new Date(data.lastSeen) > new Date(u.lastSeen)) {
                 return { ...u, lastSeen: data.lastSeen };
               }
@@ -96,8 +73,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         })
         .catch(() => {});
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUser && selectedUser._id]);
+  }, [selectedUser, isRecipientOnline, token]);
 
   // --- Use context for messages ---
   const conversationId = selectedUser && selectedUser._id;
@@ -109,10 +85,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // --- Typing indicator from context ---
   const isRecipientTyping = useMemo(() => {
     if (!conversationId) return false;
-    return typingUsers[conversationId]?.includes(selectedUser._id);
+    return typingUsers[conversationId]?.includes(selectedUser._id) || false;
   }, [typingUsers, conversationId, selectedUser]);
 
-  // --- Emoji picker logic (unchanged) ---
+  // --- Emoji picker logic ---
   useEffect(() => {
     if (!showEmojiPicker) return;
     function handleClickOutside(event) {
@@ -128,8 +104,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
-  // --- Fetch messages from API for history (optional, fallback) ---
-  const { setInboxMessages } = useDashboard(); // Add this to update context
+  // --- Fetch messages from API for history ---
+  const { setInboxMessages } = useDashboard();
   const fetchMessages = async (userId, week = 0, prepend = false) => {
     setError(null);
     try {
@@ -143,15 +119,12 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       if (response.length === 0) setHasMore(false);
       setMessagesFetched(true);
       setLastFetchedUser(userId);
-      // --- Merge fetched messages into inboxMessages context ---
       setInboxMessages(prev => {
         const existing = prev[userId] || [];
         let merged;
         if (prepend) {
-          // Prepend older messages
           merged = [...response, ...existing];
         } else {
-          // Replace or merge
           merged = [...response, ...existing.filter(m => !response.some(r => r._id === m._id))];
         }
         return { ...prev, [userId]: merged };
@@ -188,7 +161,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     }
   };
 
-  // --- Send message using context (no optimistic UI) ---
+  // --- Send message using context ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || !conversationId) return;
@@ -204,7 +177,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     }
   };
 
-  // --- Link preview logic (unchanged) ---
+  // --- Link preview logic ---
   const fetchLinkPreview = useCallback(
     debounce(async (url) => {
       if (fetchedUrls.current.has(url)) return;
@@ -225,7 +198,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
           return newSet;
         });
       }
-    }),
+    }, 500),
     []
   );
 
@@ -256,7 +229,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             (msg.from === selectedUser._id && msg.to === myUserId)
         )
       : [],
-    [messages, myUserId, selectedUser && selectedUser._id]
+    [messages, myUserId, selectedUser]
   );
 
   const groupedMessages = useMemo(() => {
@@ -317,7 +290,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const renderMessageWithLinksAndPreviews = (text, isOwn, messageId) => {
     if (!text) return { textContent: text, urls: [] };
     const urlRegex = /(https?:\/\/(?:[-\w.])+(:\d+)?(?:\/[\w\/_\-.]*)*(?:\?[\w&=%.]*)?(?:#[\w.]+)?)|(?:www\.(?:[-\w.])+(:\d+)?(?:\/[\w\/_\-.]*)*(?:\?[\w&=%.]*)?(?:#[\w.]+)?)/gi;
-    const parts = text.split(urlRegex).filter(Boolean); // Declare parts with const
+    const parts = text.split(urlRegex).filter(Boolean);
     const urls = [];
     parts.forEach((part) => {
       urlRegex.lastIndex = 0;
@@ -402,7 +375,6 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // Decrement unreadCount in context as each unread message is read
   useEffect(() => {
     if (!selectedUser || !selectedUser._id) return;
-    // Find unread messages (to me, not read, not already marked)
     const unreadMessages = messages.filter(
       (msg) =>
         msg.to === myUserId &&
@@ -410,9 +382,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         !readMessageIdsRef.current.has(msg._id)
     );
     if (unreadMessages.length > 0) {
-      // Mark these as read locally
       unreadMessages.forEach((msg) => readMessageIdsRef.current.add(msg._id));
-      // Decrement unreadCount in context for each message
       updateConversation(selectedUser._id, (prev) => {
         const current = typeof prev === 'object' && prev !== null ? prev.unreadCount : prev;
         let newCount = current;
@@ -473,7 +443,6 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
           >
             <div className="relative">
               <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
-              {/* Removed online dot from chatbox avatar */}
             </div>
           </Link>
           <div className="flex-1 flex flex-col">
@@ -484,7 +453,6 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
               {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
             </button>
-            {/* Show online or last seen text, but never both */}
             <span className={`text-xs ${isRecipientOnline ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
               {isRecipientOnline ? 'Online' : (lastSeen ? `Last seen ${getLastSeenText()}` : '')}
             </span>
@@ -696,4 +664,8 @@ export default ChatBox;
 const handleFileSelect = (e) => {
   const files = Array.from(e.target.files || []);
   console.log('Selected files:', files);
+};
+
+const handleRetryMessage = (message) => {
+  console.log('Retrying message:', message);
 };
