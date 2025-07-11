@@ -264,32 +264,16 @@ export default function ChatPost({
 
   const handleLike = async (e) => {
     if (e) {
-      e.stopPropagation();
       e.preventDefault();
-    }
-    
-    setLikeAnimating(true);
-    setTimeout(() => setLikeAnimating(false), 300);
-    
-    if (e && !liked) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const heartId = Date.now();
-      const newHeart = {
-        id: heartId,
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2
-      };
-      
-      setFloatingHearts(prev => [...prev, newHeart]);
-      
-      setTimeout(() => {
-        setFloatingHearts(prev => prev.filter(heart => heart.id !== heartId));
-      }, 1000);
+      e.stopPropagation();
     }
 
+    setLikeAnimating(true);
+    setTimeout(() => setLikeAnimating(false), 300);
+
     const newLiked = !liked;
-    
-    // Update the likes count optimistically
+
+    // Optimistically update likes
     setLocalPost(prev => ({
       ...prev,
       likes: newLiked 
@@ -297,59 +281,30 @@ export default function ChatPost({
         : (Array.isArray(prev.likes) ? prev.likes.filter(id => String(id) !== String(currentUserId)) : [])
     }));
 
-    // Update the likers list optimistically if it's loaded
+    // Optimistically update likers list if loaded
     if (likesUsers.length > 0) {
-      if (newLiked) {
-        // Add current user to the likers list
-        const currentUser = {
-          _id: currentUserId,
-          username: currentUsername,
-          verified: currentUserVerified
-        };
-        setLikesUsers(prev => {
-          // Don't add if already exists
-          if (prev.some(user => String(user._id) === String(currentUserId))) {
-            return prev;
-          }
-          return [currentUser, ...prev];
-        });
-      } else {
-        // Remove current user from the likers list
-        setLikesUsers(prev => prev.filter(user => String(user._id) !== String(currentUserId)));
-      }
+      setLikesUsers(prev => newLiked
+        ? [...prev, { _id: currentUserId, username: currentUsername, verified: currentUserVerified }]
+        : prev.filter(u => String(u._id) !== String(currentUserId))
+      );
     }
 
     try {
-      await onLike(post._id);
-      console.log('Post like API success');
+      // Call backend to like/unlike
+      const response = await onLike?.(localPost._id, newLiked);
+      // If backend returns updated post, merge it into localPost
+      if (response && response.post) {
+        setLocalPost(prev => ({ ...prev, ...response.post }));
+      }
     } catch (error) {
-      console.error("Error in handleLike:", error);
-      // Revert the optimistic updates on error
+      // On error, revert optimistic update
       setLocalPost(prev => ({
         ...prev,
-        likes: post.likes
+        likes: liked
+          ? (Array.isArray(prev.likes) ? [...prev.likes, currentUserId] : [currentUserId])
+          : (Array.isArray(prev.likes) ? prev.likes.filter(id => String(id) !== String(currentUserId)) : [])
       }));
-      
-      // Revert the likers list on error
-      if (likesUsers.length > 0) {
-        if (newLiked) {
-          // Remove the user we optimistically added
-          setLikesUsers(prev => prev.filter(user => String(user._id) !== String(currentUserId)));
-        } else {
-          // Add back the user we optimistically removed
-          const currentUser = {
-            _id: currentUserId,
-            username: currentUsername,
-            verified: currentUserVerified
-          };
-          setLikesUsers(prev => {
-            if (prev.some(user => String(user._id) === String(currentUserId))) {
-              return prev;
-            }
-            return [currentUser, ...prev];
-          });
-        }
-      }
+      setError('Failed to update like. Please try again.');
     }
   };
 
@@ -461,7 +416,7 @@ export default function ChatPost({
     }
   }, [highlightedCommentId, highlightedReplyId, localPost.comments]);
 
-  // Log post author profile image only once on mount
+  // Log post author profile image only on mount
   useEffect(() => {
     console.log('Post author:', post.author);
     console.log('Post author profileImage:', post.author?.profile?.profileImage);
@@ -997,23 +952,29 @@ export default function ChatPost({
 
               <div className="w-full max-w-full overflow-x-hidden">
                 {displayedComments.map((comment) => {
+                  // Log comment author profile details for debugging
+                  console.log('Comment author:', comment.author);
+                  console.log('Comment author profile:', comment.author?.profile);
+                  console.log('Comment author profileImage:', comment.author?.profile?.profileImage);
                   const replyInfo = replyHook.getReplyDisplayInfo(comment);
                   const displayedReplies = replyHook.getDisplayedReplies(comment);
                   
                   return (
                     <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
                       <div className="flex items-start gap-3 w-full min-w-0">
-                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden">
-                          {comment.author?.profileImage ? (
-                            <img
-                              src={comment.author.profileImage}
-                              alt="Profile"
-                              className="w-8 h-8 rounded-full object-cover"
-                              onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
-                            />
-                          ) : (
-                            <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-                          )}
+                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden cursor-pointer"
+                          onClick={() => (comment.author?.profile?.profileImage) && setShowProfileZoom(true)}
+                          title="View profile picture"
+                        >
+                          {comment.author?.profile?.profileImage
+                            ? (<img
+                                src={comment.author.profile.profileImage}
+                                alt="Profile"
+                                className="w-8 h-8 rounded-full object-cover"
+                                onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+                              />)
+                            : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
+                          }
                         </div>
                         <div className="flex-1 min-w-0 overflow-hidden">
                           <div className="flex items-center gap-2 mb-1">
@@ -1223,9 +1184,9 @@ export default function ChatPost({
     >
       <div className="flex items-center gap-2 mb-1 flex-wrap">
         <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden">
-          {reply.author?.profileImage ? (
+          {reply.author?.profile?.profileImage ? (
             <img
-              src={reply.author.profileImage}
+              src={reply.author.profile.profileImage}
               alt="Profile"
               className="w-8 h-8 rounded-full object-cover"
               onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
