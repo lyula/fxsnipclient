@@ -495,7 +495,7 @@ useEffect(() => {
   // Pull-to-refresh state for top of feed
   const [pullDistance, setPullDistance] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-  const pullThreshold = 100; // px to trigger refresh (was 60, now less sensitive)
+  const pullThreshold = 500; // px to trigger refresh (now much less sensitive)
 
   // Pull-to-refresh handlers for forYou tab
   const handleFeedTouchStart = (e) => {
@@ -513,7 +513,7 @@ useEffect(() => {
       e.preventDefault();
       setScrollUpDistance(0); // prevent load new posts button
       setShowLoadNewButton(false);
-      setPullDistance(distance > 140 ? 140 : distance); // allow a bit more drag, but not too much
+      setPullDistance(distance > 700 ? 700 : distance); // allow a big drag, but not infinite
     }
   };
   const handleFeedTouchEnd = async (e) => {
@@ -1074,7 +1074,7 @@ useEffect(() => {
         onTouchEnd={handleFeedTouchEnd}
       >
         {/* Pull-to-refresh spinner */}
-        {activeTab === 'forYou' && (pullDistance > 40 || isPullRefreshing) && (
+        {activeTab === 'forYou' && (pullDistance > 500 || isPullRefreshing) && (
           <div className="w-full flex justify-center items-center pt-2 pb-1" style={{ minHeight: 32 }}>
             <div className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${isPullRefreshing ? '' : 'opacity-60'}`}></div>
           </div>
