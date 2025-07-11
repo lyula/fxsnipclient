@@ -495,25 +495,31 @@ useEffect(() => {
   // Pull-to-refresh state for top of feed
   const [pullDistance, setPullDistance] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-  const pullThreshold = 500; // px to trigger refresh (now much less sensitive)
+  const pullThreshold = 200; // px to trigger refresh (Instagram-like)
+  const minDragToTrack = 40; // px before we even start tracking a pull
+  const minDragToShowSpinner = 120; // px before spinner shows
 
   // Pull-to-refresh handlers for forYou tab
   const handleFeedTouchStart = (e) => {
     if (activeTab !== 'forYou') return;
     if (containerRef.current && containerRef.current.scrollTop === 0) {
-      setPullDistance(e.targetTouches[0].clientY);
+      setTouchStart(e.targetTouches[0].clientY);
+      setPullDistance(0);
     } else {
+      setTouchStart(0);
       setPullDistance(0);
     }
   };
   const handleFeedTouchMove = (e) => {
-    if (activeTab !== 'forYou' || pullDistance === 0) return;
-    const distance = e.targetTouches[0].clientY - pullDistance;
-    if (distance > 0) {
+    if (activeTab !== 'forYou' || touchStart === 0) return;
+    const distance = e.targetTouches[0].clientY - touchStart;
+    if (distance > minDragToTrack) {
       e.preventDefault();
       setScrollUpDistance(0); // prevent load new posts button
       setShowLoadNewButton(false);
-      setPullDistance(distance > 700 ? 700 : distance); // allow a big drag, but not infinite
+      setPullDistance(distance > 350 ? 350 : distance); // allow a big drag, but not infinite
+    } else {
+      setPullDistance(0); // Don't track small drags
     }
   };
   const handleFeedTouchEnd = async (e) => {
@@ -1074,7 +1080,7 @@ useEffect(() => {
         onTouchEnd={handleFeedTouchEnd}
       >
         {/* Pull-to-refresh spinner */}
-        {activeTab === 'forYou' && (pullDistance > 500 || isPullRefreshing) && (
+        {activeTab === 'forYou' && (pullDistance > minDragToShowSpinner || isPullRefreshing) && (
           <div className="w-full flex justify-center items-center pt-2 pb-1" style={{ minHeight: 32 }}>
             <div className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${isPullRefreshing ? '' : 'opacity-60'}`}></div>
           </div>
