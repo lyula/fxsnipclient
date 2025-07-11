@@ -40,6 +40,7 @@ export default function Community({ user }) {
   const followingContainerRef = useRef(null);
   const isLoadingRef = useRef(false);
   const [showTabs, setShowTabs] = useState(true);
+  const [rotatedPosts, setRotatedPosts] = useState([]); // NEW: for cycling
 
  const {
   dedupedCommunityPosts: communityPosts,
@@ -424,8 +425,6 @@ useEffect(() => {
             }, 12000);
             setButtonHideTimeout(timeout);
           }
-          
-          return newDistance;
         });
       } else if (currentScrollDirection === 'down' && scrollDelta > 10) {
         // Reset scroll distance and hide button when scrolling down significantly
@@ -493,6 +492,66 @@ useEffect(() => {
     }
   }, [activeTab, handleFollowingScroll, followingButtonHideTimeout]);
 
+  // Pull-to-refresh state for top of feed
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const pullThreshold = 60; // px to trigger refresh
+
+  // Pull-to-refresh handlers for forYou tab
+  const handleFeedTouchStart = (e) => {
+    if (activeTab !== 'forYou') return;
+    if (containerRef.current && containerRef.current.scrollTop === 0) {
+      setPullDistance(e.targetTouches[0].clientY);
+    } else {
+      setPullDistance(0);
+    }
+  };
+  const handleFeedTouchMove = (e) => {
+    if (activeTab !== 'forYou' || pullDistance === 0) return;
+    const distance = e.targetTouches[0].clientY - pullDistance;
+    if (distance > 0) {
+      e.preventDefault();
+      setScrollUpDistance(0); // prevent load new posts button
+      setShowLoadNewButton(false);
+      setPullDistance(distance > 120 ? 120 : distance);
+    }
+  };
+  const handleFeedTouchEnd = async (e) => {
+    if (activeTab !== 'forYou' || pullDistance === 0) {
+      setPullDistance(0);
+      return;
+    }
+    if (pullDistance > pullThreshold) {
+      setIsPullRefreshing(true);
+      setPullDistance(0);
+      // Try to fetch new posts
+      let result;
+      try {
+        result = await loadFreshContent({ force: true });
+      } catch (err) {
+        result = null;
+      }
+      // If no new posts, rotate the feed
+      if (!result || !result.hasNewContent) {
+        // Rotate posts: move first post to end
+        if (rotatedPosts.length > 1) {
+          setRotatedPosts(prev => [...prev.slice(1), prev[0]]);
+        }
+      } else {
+        // If new posts, reset rotation
+        setRotatedPosts(communityPosts);
+      }
+      setTimeout(() => setIsPullRefreshing(false), 800);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  // Whenever communityPosts changes (new posts loaded), reset rotatedPosts
+  useEffect(() => {
+    setRotatedPosts(communityPosts);
+  }, [communityPosts]);
+
   // Rest of your existing handlers (handleNewPost, handleComment, handleReply, etc.)
   const handleNewPost = async (content, image, video) => {
     const tempId = `temp-${Date.now()}`;
@@ -504,9 +563,11 @@ useEffect(() => {
       video,
       author: {
         _id: user._id,
-        username: user.username,
-        verified: user.verified,
-        countryFlag: user.countryFlag
+        username: user.username || user.name || 'Unknown',
+        verified: user.verified || false,
+        countryFlag: user.countryFlag || '',
+        profileImage: user.profileImage || '',
+        createdAt: user.createdAt || new Date().toISOString(),
       },
       likes: [], // Do not fill like button for author
       comments: [],
@@ -867,45 +928,32 @@ useEffect(() => {
 
   const handleLoadFreshPosts = async () => {
     const container = containerRef.current;
-    
     setIsLoadingFresh(true);
     setShowLoadNewButton(false);
     setScrollUpDistance(0);
-    
     if (buttonHideTimeout) {
       clearTimeout(buttonHideTimeout);
       setButtonHideTimeout(null);
     }
-    
     try {
-      console.log('Loading fresh content...');
-      const result = await loadFreshContent();
-      console.log('Fresh content result:', result);
-      
+      // Always fetch the latest posts from the backend, even if there are no new posts
+      const result = await loadFreshContent({ force: true });
       if (result?.hasNewContent && result?.trulyNewContentCount > 0) {
         // Fresh posts were actually added, update offset to account for new posts
         const newPostsCount = result.trulyNewContentCount || 0;
         setCurrentOffset(prev => prev + newPostsCount);
         setHasMore(true);
-        
-        // Scroll to top to show the new posts
         if (container) {
           container.scrollTop = 0;
         }
-        
-        console.log('Fresh content loaded:', newPostsCount, 'truly new posts added');
+        setRotatedPosts(communityPosts); // Reset rotation on new posts
       } else {
-        // No new posts available, just scroll to top to show latest existing posts
-        if (container) {
-          container.scrollTop = 0;
+        // No new posts available, rotate the feed so the top post changes
+        if (rotatedPosts.length > 1) {
+          setRotatedPosts(prev => [...prev.slice(1), prev[0]]);
         }
-        
-        console.log('No new posts found, scrolled to top of existing content');
+        setHasMore(true);
       }
-      
-      // Always ensure hasMore is true to maintain cycling
-      setHasMore(true);
-      
     } catch (error) {
       console.error('Error loading fresh posts:', error);
     } finally {
@@ -1019,7 +1067,17 @@ useEffect(() => {
           scrollBehavior: 'smooth',
           willChange: 'scroll-position'
         }}
+        onTouchStart={handleFeedTouchStart}
+        onTouchMove={handleFeedTouchMove}
+        onTouchEnd={handleFeedTouchEnd}
       >
+        {/* Pull-to-refresh spinner */}
+        {activeTab === 'forYou' && (pullDistance > 0 || isPullRefreshing) && (
+          <div className="w-full flex justify-center items-center pt-2 pb-1" style={{ minHeight: 32 }}>
+            <div className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${isPullRefreshing ? '' : 'opacity-60'}`}></div>
+          </div>
+        )}
+
         {showCreate && (
           <CreatePostBox
             onPost={handleNewPost}
@@ -1044,7 +1102,7 @@ useEffect(() => {
             onLoadFresh={handleLoadFreshFollowingPosts}
             isLoadingFresh={followingIsLoadingFresh}
           />
-        ) : communityPosts.length === 0 ? (
+        ) : rotatedPosts.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             No posts yet. Be the first to share something!
           </div>
@@ -1052,7 +1110,7 @@ useEffect(() => {
           <>
             <div className="w-full max-w-full overflow-x-hidden px-1 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
               <ChatList
-                posts={communityPosts}
+                posts={rotatedPosts}
                 postRefs={postRefs}
                 onReply={handleReply}
                 onComment={handleComment}
