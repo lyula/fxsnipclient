@@ -483,8 +483,8 @@ export default function ChatPost({
             <img
               src={post.author.profile.profileImage}
               alt="Profile Zoom"
-              className="rounded-full shadow-lg max-w-full max-h-[80vh] border-4 border-white"
-              style={{ background: '#fff' }}
+              className="rounded-full shadow-lg border-4 border-white"
+              style={{ background: '#fff', borderRadius: '50%', width: '300px', height: '300px', objectFit: 'cover', aspectRatio: '1 / 1', maxWidth: '80vw', maxHeight: '80vw' }}
             />
           </div>
         </div>
