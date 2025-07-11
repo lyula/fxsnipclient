@@ -519,18 +519,24 @@ export function DashboardProvider({ children }) {
   }, []);
 
   // Update a specific post
-  const updatePost = useCallback((postId, updatedData) => {
+  const updatePost = useCallback((postId, updatedData, forceId = null) => {
     React.startTransition(() => {
       setCommunityPosts(prev => 
-        prev.map(post => 
-          post._id === postId ? { ...post, ...updatedData } : post
-        )
+        prev.map(post => {
+          if (post._id === postId || (forceId && post._id === forceId)) {
+            // If backend returns a different _id, keep the optimistic ID for React rendering
+            return { ...updatedData, _id: forceId || postId };
+          }
+          return post;
+        })
       );
-      
       setFollowingPosts(prev => 
-        prev.map(post => 
-          post._id === postId ? { ...post, ...updatedData } : post
-        )
+        prev.map(post => {
+          if (post._id === postId || (forceId && post._id === forceId)) {
+            return { ...updatedData, _id: forceId || postId };
+          }
+          return post;
+        })
       );
     });
   }, []);

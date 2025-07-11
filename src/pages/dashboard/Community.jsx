@@ -558,27 +558,94 @@ useEffect(() => {
     }
   };
 
+  const fetchSinglePost = async (backendId, optimisticId = null) => {
+    try {
+      const res = await fetch(`${API_BASE}/posts/${backendId}`, {
+        method: "GET",
+        headers: authHeaders,
+      });
+      if (res.ok) {
+        const postData = await res.json();
+        // Find the optimistic post in state
+        const optimisticPost = communityPosts.find(p => p._id === (optimisticId || backendId))
+          || followingPosts.find(p => p._id === (optimisticId || backendId));
+        // Helper to merge author fields
+        function mergeAuthor(target, source) {
+          if (!target || !source) return target || source;
+          // If backend author is missing profile image, use optimistic
+          if (!target.profileImage && source.profileImage) {
+            return { ...target, profileImage: source.profileImage };
+          }
+          // If backend author is missing other fields, use optimistic
+          return { ...source, ...target };
+        }
+        // Merge post author
+        if (optimisticPost && postData.author) {
+          postData.author = mergeAuthor(postData.author, optimisticPost.author);
+        }
+        // Merge comments' authors (match by content and createdAt, not index)
+        if (optimisticPost && Array.isArray(postData.comments)) {
+          postData.comments = postData.comments.map((c) => {
+            // Try to find a matching optimistic comment by content and createdAt (or temp _id)
+            let optimisticComment = null;
+            if (optimisticPost.comments) {
+              optimisticComment = optimisticPost.comments.find(oc => {
+                // Match by temp _id if present
+                if (oc._id && oc._id.startsWith('temp-') && c.content === oc.content) return true;
+                // Otherwise, match by content and close createdAt
+                if (c.content === oc.content && Math.abs(new Date(c.createdAt) - new Date(oc.createdAt)) < 10000) return true;
+                return false;
+              });
+            }
+            if (optimisticComment && c.author) {
+              return {
+                ...c,
+                author: mergeAuthor(c.author, optimisticComment.author),
+                // Merge replies' authors (match by content and createdAt)
+                replies: Array.isArray(c.replies) ? c.replies.map((r) => {
+                  let optimisticReply = null;
+                  if (optimisticComment.replies) {
+                    optimisticReply = optimisticComment.replies.find(or => {
+                      if (or._id && or._id.startsWith('temp-') && r.content === or.content) return true;
+                      if (r.content === or.content && Math.abs(new Date(r.createdAt) - new Date(or.createdAt)) < 10000) return true;
+                      return false;
+                    });
+                  }
+                  if (optimisticReply && r.author) {
+                    return {
+                      ...r,
+                      author: mergeAuthor(r.author, optimisticReply.author)
+                    };
+                  }
+                  return r;
+                }) : c.replies
+              };
+            }
+            return c;
+          });
+        }
+        updatePost(optimisticId || backendId, postData, optimisticId || backendId);
+      }
+    } catch (error) {
+      console.error('Error silently refreshing post:', error);
+    }
+  };
+
   const handleComment = useCallback(async (postId, commentContent) => {
     const originalPostId = getOriginalPostId(postId);
-    
     try {
       console.log('Adding comment to post:', originalPostId);
-      
       const res = await fetch(`${API_BASE}/posts/${originalPostId}/comments`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ content: commentContent }),
       });
-      
       if (res.ok) {
         const updatedPost = await res.json();
         console.log('Comment added successfully:', updatedPost);
-        
-        updatePost(postId, { 
-          ...updatedPost, 
-          _id: postId,
-          _originalId: originalPostId 
-        });
+        updatePost(postId, { ...updatedPost, _id: postId, _originalId: originalPostId });
+        // Silently refresh the post to restore all profile images
+        fetchSinglePost(originalPostId, postId);
         return updatedPost;
       } else {
         const errorData = await res.json();

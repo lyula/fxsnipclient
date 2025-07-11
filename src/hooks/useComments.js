@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { addCommentToPost, likeComment, editComment, deleteComment } from '../utils/api';
 
-export const useComments = (localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified, commentMenuRefs) => {
+export const useComments = (localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified, currentUserProfile, commentMenuRefs) => {
   const [currentCommentPage, setCurrentCommentPage] = useState(0); // 0-based page index
   const [loadingMoreComments, setLoadingMoreComments] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
@@ -84,7 +84,11 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
       _id: `temp-comment-${Date.now()}`,
       content: comment,
       user: currentUserId,
-      author: { username: currentUsername, verified: currentUserVerified },
+      author: {
+        username: currentUsername,
+        verified: currentUserVerified,
+        profile: currentUserProfile ? { profileImage: currentUserProfile.profileImage } : undefined
+      },
       createdAt: new Date().toISOString(),
       replies: [],
       likes: [],
@@ -92,7 +96,10 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
 
     setLocalPost(prev => ({
       ...prev,
-      comments: [tempComment, ...(prev.comments || [])],
+      comments: [
+        tempComment,
+        ...prev.comments.filter(c => !c._id.startsWith('temp-comment')) // Only remove previous temp comments, leave all others untouched
+      ],
     }));
 
     // Reset to first page when adding a new comment
@@ -101,10 +108,27 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
     try {
       const res = await addCommentToPost(localPost._id, comment);
       if (res && res.comment && !res.error) {
-        setLocalPost(prev => ({
-          ...prev,
-          comments: [res.comment, ...prev.comments.filter(c => !c._id.startsWith('temp-comment'))],
-        }));
+        setLocalPost(prev => {
+          const updatedComments = prev.comments.map(c => {
+            if (c._id === tempComment._id) {
+              // Only update backend fields, but preserve author and profile from optimistic comment
+              return {
+                ...c,
+                _id: res.comment._id,
+                createdAt: res.comment.createdAt || c.createdAt,
+                replies: res.comment.replies || c.replies,
+                likes: res.comment.likes || c.likes,
+                // Do NOT replace author/profile with backend's author
+              };
+            }
+            return c;
+          });
+          return {
+            ...prev,
+            comments: updatedComments,
+            // Do NOT update post author from backend here
+          };
+        });
       } else {
         if (onComment) {
           const updatedPost = await onComment();
@@ -125,7 +149,7 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
       setLoadingComment(false);
       setComment("");
     }
-  }, [localPost._id, currentUserId, currentUsername, currentUserVerified, setLocalPost]);
+  }, [localPost._id, currentUserId, currentUsername, currentUserVerified, currentUserProfile, setLocalPost]);
 
   // Handle comment edit
   const handleEditComment = useCallback((commentId, content) => {
