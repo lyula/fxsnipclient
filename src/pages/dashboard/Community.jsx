@@ -556,6 +556,22 @@ useEffect(() => {
   // Whenever communityPosts changes (new posts loaded), reset rotatedPosts
   useEffect(() => {
     setRotatedPosts(communityPosts);
+    // Debug: Log createdAt for all posts and their authors
+    if (communityPosts && communityPosts.length) {
+      communityPosts.forEach((post, idx) => {
+        console.log(`[NaN-debug] [communityPosts] Post #${idx} _id:`, post._id, 'createdAt:', post.createdAt, 'author.createdAt:', post.author?.createdAt, 'author:', post.author);
+        if (Array.isArray(post.comments)) {
+          post.comments.forEach((comment, cidx) => {
+            console.log(`[NaN-debug] [communityPosts]   Comment #${cidx} _id:`, comment._id, 'createdAt:', comment.createdAt, 'author.createdAt:', comment.author?.createdAt, 'author:', comment.author);
+            if (Array.isArray(comment.replies)) {
+              comment.replies.forEach((reply, ridx) => {
+                console.log(`[NaN-debug] [communityPosts]     Reply #${ridx} _id:`, reply._id, 'createdAt:', reply.createdAt, 'author.createdAt:', reply.author?.createdAt, 'author:', reply.author);
+              });
+            }
+          });
+        }
+      });
+    }
   }, [communityPosts]);
 
   // Rest of your existing handlers (handleNewPost, handleComment, handleReply, etc.)
@@ -582,6 +598,8 @@ useEffect(() => {
       sending: true,
       isOptimistic: true
     };
+    // Debug: Log optimistic post createdAt (just posted)
+    console.log('[NaN-debug] [handleNewPost] Just posted optimistic post:', optimisticPost._id, 'createdAt:', optimisticPost.createdAt, 'author.createdAt:', optimisticPost.author.createdAt, 'author:', optimisticPost.author);
 
     addPostOptimistically(optimisticPost);
     setActiveTab("forYou");
@@ -600,11 +618,18 @@ useEffect(() => {
       
       if (res.ok) {
         const newPost = await res.json();
-        // Remove the optimistic post and add the real post at the top
-        deletePost(tempId); // Remove optimistic post
-        addPostOptimistically({ ...newPost, sending: false, isOptimistic: false }); // Add real post
-        // Immediately refresh the post to get all profile images and correct timestamps
-        fetchSinglePost(newPost._id, tempId);
+        // Debug: Log backend post createdAt (just posted)
+        console.log('[NaN-debug] [handleNewPost] Just posted backend post:', newPost._id, 'createdAt:', newPost.createdAt, 'author.createdAt:', newPost.author?.createdAt, 'author:', newPost.author);
+        // Instead of replacing the optimistic post, update it with backend _id and sending/isOptimistic fields, but keep optimisticPost's username and createdAt
+        updatePost(tempId, {
+          ...optimisticPost,
+          _id: newPost._id, // update to real backend id
+          sending: false,
+          isOptimistic: false,
+          // Optionally merge in any backend fields you want, but keep optimisticPost's author and createdAt
+        });
+        // Optionally, you can fetchSinglePost to update profile images, but do not replace optimistic post's username/createdAt
+        fetchSinglePost(newPost._id, newPost._id);
         console.log('Post created successfully:', newPost);
       } else {
         const errorData = await res.json();
@@ -635,6 +660,8 @@ useEffect(() => {
       });
       if (res.ok) {
         const postData = await res.json();
+        // Debug: Log backend postData createdAt
+        console.log('[NaN-debug] [fetchSinglePost] Backend post:', postData._id, 'createdAt:', postData.createdAt, 'author.createdAt:', postData.author?.createdAt, 'author:', postData.author);
         // Find the optimistic post in state
         const optimisticPost = communityPosts.find(p => p._id === (optimisticId || backendId))
           || followingPosts.find(p => p._id === (optimisticId || backendId));
@@ -663,6 +690,13 @@ useEffect(() => {
                 if (oc._id && oc._id.startsWith('temp-') && c.content === oc.content) return true;
                 if (c.content === oc.content && Math.abs(new Date(c.createdAt) - new Date(oc.createdAt)) < 10000) return true;
                 return false;
+              });
+            }
+            // Debug: Log comment createdAt
+            console.log('[NaN-debug] [fetchSinglePost]   Comment:', c._id, 'createdAt:', c.createdAt, 'author.createdAt:', c.author?.createdAt, 'author:', c.author);
+            if (Array.isArray(c.replies)) {
+              c.replies.forEach((r) => {
+                console.log('[NaN-debug] [fetchSinglePost]     Reply:', r._id, 'createdAt:', r.createdAt, 'author.createdAt:', r.author?.createdAt, 'author:', r.author);
               });
             }
             // If backend comment's author is current user and missing profile image, merge in current user's profile
@@ -816,21 +850,24 @@ useEffect(() => {
     
     const currentUserId = user._id || user.id;
     const isCurrentlyLiked = currentPost.likes?.some(likeId => String(likeId) === String(currentUserId));
-    
-    // Create optimistic update
-    const optimisticUpdate = {
+    // Compute newLikes for optimistic update
+    let newLikes;
+    if (isCurrentlyLiked) {
+      // Unlike: remove user from likes
+      newLikes = currentPost.likes.filter(likeId => String(likeId) !== String(currentUserId));
+    } else {
+      // Like: add user to likes
+      newLikes = [...(currentPost.likes || []), currentUserId];
+    }
+    // Only update likes and like count optimistically, merging with the rest of the post
+    updatePost(postId, {
       ...currentPost,
-      likes: isCurrentlyLiked 
-        ? (currentPost.likes || []).filter(likeId => String(likeId) !== String(currentUserId))
-        : [...(currentPost.likes || []), currentUserId]
-    };
-    
-    // Apply optimistic update to both collections
-    updatePost(postId, optimisticUpdate);
+      likes: newLikes,
+      // likeCount: newLikes.length
+    });
 
     try {
       console.log('Toggling like for post:', originalPostId, 'Currently liked:', isCurrentlyLiked);
-      
       const res = await fetch(`${API_BASE}/posts/${originalPostId}/like`, {
         method: "POST",
         headers: {
@@ -838,29 +875,28 @@ useEffect(() => {
           "Content-Type": "application/json",
         },
       });
-      
       if (res.ok) {
         const updatedPost = await res.json();
         console.log('Like toggled successfully:', updatedPost);
-        
-        // Update with server response, preserving display ID
-        const finalUpdate = { 
-          ...updatedPost, 
-          _id: postId, // Keep the display ID for React rendering
-          _originalId: originalPostId 
-        };
-        
-        updatePost(postId, finalUpdate);
+        // Merge backend likes with the latest post state to avoid race conditions
+        const latestPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId) || currentPost;
+        updatePost(postId, {
+          ...latestPost,
+          likes: updatedPost.likes,
+          // likeCount: updatedPost.likes?.length
+        });
       } else {
         const errorText = await res.text();
         console.error("Failed to toggle like:", res.status, errorText);
-        // Revert optimistic update on error
-        updatePost(postId, currentPost);
+        // Revert optimistic update on error, merging with the latest post state
+        const latestPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId) || currentPost;
+        updatePost(postId, { ...latestPost, likes: currentPost.likes });
       }
     } catch (error) {
       console.error("Error toggling like:", error);
-      // Revert optimistic update on error
-      updatePost(postId, currentPost);
+      // Revert optimistic update on error, merging with the latest post state
+      const latestPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId) || currentPost;
+      updatePost(postId, { ...latestPost, likes: currentPost.likes });
     }
   }, [API_BASE, communityPosts, followingPosts, updatePost, user]);
 
