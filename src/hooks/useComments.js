@@ -162,13 +162,13 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
 
   // Handle delete comment
   const handleDeleteComment = useCallback(async (commentId) => {
+    console.log('[DEBUG] handleDeleteComment: Attempting to delete comment', { postId: localPost._id, commentId });
     if (window.confirm('Are you sure you want to delete this comment?')) {
       try {
         const response = await deleteComment(localPost._id, commentId);
-        
+        console.log('[DEBUG] handleDeleteComment: Backend response', response);
         if (response && !response.error && response._id) {
           setLocalPost(response);
-          
           // Check if we need to go back a page after deletion
           const newTotalComments = response.comments?.length || 0;
           const maxPage = Math.floor(Math.max(0, newTotalComments - 1) / commentsPerPage);
@@ -176,15 +176,15 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
             setCurrentCommentPage(Math.max(0, maxPage));
           }
         } else {
-          console.error('Failed to delete comment:', response?.error || 'Unknown error');
+          console.error('[DEBUG] handleDeleteComment: Failed to delete comment', response?.error || 'Unknown error');
           alert('Failed to delete comment. Please try again.');
         }
       } catch (error) {
-        console.error('Failed to delete comment:', error);
+        console.error('[DEBUG] handleDeleteComment: Error deleting comment', error);
         alert('Failed to delete comment. Please try again.');
       }
     }
-  }, [localPost._id, setLocalPost, currentCommentPage]);
+  }, [localPost._id, commentsPerPage, currentCommentPage, setCurrentCommentPage]);
 
   // Handle like comment with optimistic updates
   const handleLikeComment = useCallback(async (commentId) => {

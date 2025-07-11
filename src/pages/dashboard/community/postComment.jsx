@@ -65,9 +65,11 @@ export default function PostComment({
     commentHook.commentMenuRefs.current = {};
   }
 
-  // Add logging for debugging
+  // Commented out noisy logs to avoid console spam during debugging
+  /*
   console.log('[PostComment] Render', { comment, currentUserId, commentHook });
   console.log('[PostComment] editingCommentId', commentHook.editingCommentId, 'editCommentContent', commentHook.editCommentContent);
+  */
 
   const replyInfo = replyHook.getReplyDisplayInfo(comment);
   const displayedReplies = replyHook.getDisplayedReplies(comment);
@@ -104,6 +106,7 @@ export default function PostComment({
   }, [showMenu]);
 
   // Debug: log when editingCommentId or editCommentContent changes
+  /*
   useEffect(() => {
     console.log('[PostComment] useEffect editingCommentId/editCommentContent', {
       editingCommentId: commentHook.editingCommentId,
@@ -112,6 +115,7 @@ export default function PostComment({
       isEditMode: commentHook.editingCommentId === comment._id
     });
   }, [commentHook.editingCommentId, commentHook.editCommentContent, comment._id]);
+  */
 
   const handleEditClick = () => {
     setShowMenu(false);
@@ -126,11 +130,17 @@ export default function PostComment({
     commentHook.handleCancelCommentEdit();
   };
 
-  const handleDelete = async () => {
+  const handleDelete = (e) => {
+    // Prevent both onMouseDown and onClick from firing if both are present
+    if (e) e.preventDefault();
+    console.log('[PostComment] Delete button clicked for comment', comment._id); // Debug log
     setShowMenu(false);
-    if (window.confirm('Are you sure you want to delete this comment?')) {
-      await commentHook.handleDeleteComment(comment._id);
-    }
+    // Only call confirm and delete once, and do not use async/await or call handleDeleteComment as a promise here
+    setTimeout(() => {
+      if (window.confirm('Are you sure you want to delete this comment?')) {
+        commentHook.handleDeleteComment(comment._id);
+      }
+    }, 0);
   };
 
   // Show/hide replies logic
@@ -209,12 +219,14 @@ export default function PostComment({
                           <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Comment
                         </button>
                       )}
-                      <button
-                        onClick={handleDelete}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                      >
-                        <FaTrash className="text-red-500 dark:text-red-400" /> Delete
-                      </button>
+                      {(canEditDelete(comment.author?._id || comment.user) || canDeleteAsPostOwner()) && (
+                        <button
+                          onMouseDown={handleDelete} // <-- Use onMouseDown for reliability
+                          className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+                        >
+                          <FaTrash className="text-red-500 dark:text-red-400" /> Delete
+                        </button>
+                      )}
                     </div>,
                     document.body
                   )}
