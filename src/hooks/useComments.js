@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { addCommentToPost, likeComment, editComment, deleteComment } from '../utils/api';
 
-export const useComments = (localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified) => {
+export const useComments = (localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified, commentMenuRefs) => {
   const [currentCommentPage, setCurrentCommentPage] = useState(0); // 0-based page index
   const [loadingMoreComments, setLoadingMoreComments] = useState(false);
-  const [editingComment, setEditingComment] = useState(null);
+  const [editingCommentId, setEditingCommentId] = useState(null);
   const [editCommentContent, setEditCommentContent] = useState("");
   const [loadingCommentLike, setLoadingCommentLike] = useState({});
   const [showCommentMenus, setShowCommentMenus] = useState({});
@@ -129,7 +129,7 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
 
   // Handle comment edit
   const handleEditComment = useCallback((commentId, content) => {
-    setEditingComment(commentId);
+    setEditingCommentId(commentId);
     setEditCommentContent(content);
   }, []);
 
@@ -142,7 +142,7 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
       
       if (response && !response.error && response._id) {
         setLocalPost(response);
-        setEditingComment(null);
+        setEditingCommentId(null);
         setEditCommentContent('');
       } else {
         console.error('Failed to edit comment:', response?.error || 'Unknown error');
@@ -156,7 +156,7 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
 
   // Handle cancel comment edit
   const handleCancelCommentEdit = useCallback(() => {
-    setEditingComment(null);
+    setEditingCommentId(null);
     setEditCommentContent('');
   }, []);
 
@@ -238,7 +238,7 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
     // State
     currentCommentPage,
     loadingMoreComments,
-    editingComment,
+    editingCommentId,
     editCommentContent,
     loadingCommentLike,
     showCommentMenus,
@@ -248,6 +248,7 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
     setCurrentCommentPage,
     setEditCommentContent,
     setShowCommentMenus,
+    setEditingCommentId,
     
     // Functions
     getDisplayedComments,
@@ -259,6 +260,7 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
     handleSaveCommentEdit,
     handleDeleteComment,
     handleCancelCommentEdit,
-    handleLikeComment
+    handleLikeComment,
+    commentMenuRefs, // Attach commentMenuRefs to the returned object
   };
 };

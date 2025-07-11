@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { likeReply, editReply, deleteReply } from '../utils/api';
 
-export const useReplies = (localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified) => {
+export const useReplies = (localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified, replyMenuRefs) => {
   const [expandedReplies, setExpandedReplies] = useState({});
   const [replyPages, setReplyPages] = useState({});
   const [loadingMoreReplies, setLoadingMoreReplies] = useState({});
@@ -12,6 +12,14 @@ export const useReplies = (localPost, setLocalPost, currentUserId, currentUserna
   const [loadingReply, setLoadingReply] = useState({});
   
   const repliesPerComment = 3;
+
+  // If replyMenuRefs is not provided, create a default one (for backward compatibility)
+  if (!replyMenuRefs) {
+    replyMenuRefs = { current: {} };
+  }
+  if (!replyMenuRefs.current) {
+    replyMenuRefs.current = {};
+  }
 
   // Enhanced reply display logic with progressive hiding
   const getDisplayedReplies = useCallback((comment) => {
@@ -335,6 +343,9 @@ export const useReplies = (localPost, setLocalPost, currentUserId, currentUserna
     handleSaveReplyEdit,
     handleDeleteReply,
     handleCancelReplyEdit,
-    handleLikeReply
+    handleLikeReply,
+
+    // Refs
+    replyMenuRefs, // <-- Return the refs for use in components
   };
 };

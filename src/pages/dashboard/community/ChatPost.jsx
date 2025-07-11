@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
-import FloatingMenu from "../../../components/common/FloatingMenu";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import MediaDisplay from '../../../components/media/MediaDisplay';
 import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers } from "../../../utils/api";
@@ -11,6 +10,8 @@ import { usePostViewTracking } from '../../../hooks/usePostViewTracking';
 import { useComments } from '../../../hooks/useComments';
 import { useReplies } from '../../../hooks/useReplies';
 import { renderHighlightedContent } from '../../../utils/renderHighlight.jsx';
+import PostComment from "./postComment";
+import CommentReplies from "./commentReplies";
 
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
@@ -148,12 +149,20 @@ export default function ChatPost({
   highlightedReplyId = null,
   scrollable = false // NEW PROP: only true in notification post view
 }) {
-  // Keep existing state that's not comment/reply related
+  // Move localPost state to the very top before any hooks that use it
+  const [localPost, setLocalPost] = useState(post);
+  // Remove parent state for editingCommentId and editCommentContent
+  // Use only the hook's state for editingCommentId and editCommentContent
+  const commentMenuRefs = useRef({});
+  const replyMenuRefs = useRef({}); // <-- Add this line
+  const commentHook = useComments(localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified, commentMenuRefs);
+  const replyHook = useReplies(localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified, replyMenuRefs); // <-- Pass replyMenuRefs
+
+  // Add state for comment editing (move to top)
   const [showComments, setShowComments] = useState(forceShowComments);
   const [activeReply, setActiveReply] = useState(null);
   const [comment, setComment] = useState("");
   const [loadingComment, setLoadingComment] = useState(false);
-  const [localPost, setLocalPost] = useState(post);
   const [error, setError] = useState(null);
   const [showCommentInput, setShowCommentInput] = useState(true);
   const [editingPost, setEditingPost] = useState(false);
@@ -169,21 +178,17 @@ export default function ChatPost({
   const [likesUsers, setLikesUsers] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
   const [zoomProfile, setZoomProfile] = useState(null);
+  // Add state for comment editing
   
   const postContainerRef = useRef(null);
   const commentsRef = useRef(null);
   const postRef = useRef(null);
   const previousContentRef = useRef(post.content);
-  const commentMenuRefs = useRef({});
-  const replyMenuRefs = useRef({});
   const { search } = useLocation();
 
   const liked = Array.isArray(localPost.likes) && currentUserId
     ? localPost.likes.map(String).includes(String(currentUserId))
     : false;
-
-  const commentHook = useComments(localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified);
-  const replyHook = useReplies(localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified);
 
   // Use hook functions and state
   const displayedComments = commentHook.getDisplayedComments(commentSortType, sortComments);
@@ -954,372 +959,26 @@ export default function ChatPost({
               )}
 
               <div className="w-full max-w-full overflow-x-hidden">
-                {displayedComments.map((comment) => {
-                  // Log comment author profile details for debugging
-                  console.log('Comment author:', comment.author);
-                  console.log('Comment author profile:', comment.author?.profile);
-                  console.log('Comment author profileImage:', comment.author?.profile?.profileImage);
-                  const replyInfo = replyHook.getReplyDisplayInfo(comment);
-                  const displayedReplies = replyHook.getDisplayedReplies(comment);
-                  
-                  return (
-                    <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
-                      <div className="flex items-start gap-3 w-full min-w-0">
-                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden cursor-pointer"
-                          onClick={() => (comment.author?.profile?.profileImage) && setZoomProfile({ profileImage: comment.author.profile.profileImage, username: comment.author.username })}
-                          title="View profile picture"
-                        >
-                          {comment.author?.profile?.profileImage
-                            ? (<img
-                                src={comment.author.profile.profileImage}
-                                alt="Profile"
-                                className="w-8 h-8 rounded-full object-cover"
-                                onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
-                              />)
-                            : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
-                          }
-                        </div>
-                        <div className="flex-1 min-w-0 overflow-hidden">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Link
-                              to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                              className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
-                            >
-                              {comment.author.username}
-                            </Link>
-                            {comment.author.verified && <VerifiedBadge />}
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {formatPostDate(comment.createdAt)}
-                            </span>
-                            <EditedIndicator item={comment} />
-                            
-                            {(canEditDelete(comment.author?._id || comment.user) || canDeleteAsPostOwner()) && (
-                              <div className="relative ml-auto">
-                                <button
-                                  ref={el => (commentMenuRefs.current[comment._id] = el)}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    commentHook.setShowCommentMenus(prev => ({
-                                      ...Object.keys(prev).reduce((acc, key) => ({ ...acc, [key]: false }), {}),
-                                      [comment._id]: !prev[comment._id]
-                                    }));
-                                  }}
-                                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
-                                >
-                                  <FaEllipsisV size={10} />
-                                </button>
-                                <FloatingMenu
-                                  anchorRef={{ current: commentMenuRefs.current[comment._id] }}
-                                  open={!!commentHook.showCommentMenus[comment._id]}
-                                  onClose={() => commentHook.setShowCommentMenus(prev => ({ ...prev, [comment._id]: false }))}
-                                >
-                                  {canEditDelete(comment.author?._id || comment.user) && (
-                                    <button
-                                      onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        console.log('Edit comment button clicked:', comment._id);
-                                        commentHook.handleEditComment(comment._id, comment.content);
-                                        commentHook.setShowCommentMenus({});
-                                      }}
-                                      className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                                    >
-                                      <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
-                                    </button>
-                                  )}
-                                  <button
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      console.log('Delete comment button clicked:', comment._id);
-                                      commentHook.setShowCommentMenus({});
-                                      requestAnimationFrame(() => {
-                                        commentHook.handleDeleteComment(comment._id);
-                                      });
-                                    }}
-                                    className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                                  >
-                                    <FaTrash className="text-red-500 dark:text-red-400" /> Delete
-                                  </button>
-                                </FloatingMenu>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {commentHook.editingComment === comment._id ? (
-                            <div className="space-y-2 w-full max-w-full">
-                              <textarea
-                                value={commentHook.editCommentContent}
-                                onChange={e => commentHook.setEditCommentContent(e.target.value)}
-                                className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                rows="2"
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => commentHook.handleSaveCommentEdit(comment._id)}
-                                  className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                                >
-                                  <FaSave size={10} />
-                                </button>
-                                <button
-                                  onClick={commentHook.handleCancelCommentEdit}
-                                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                                >
-                                  <FaTimes size={10} />
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <p 
-                              className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full"
-                            >
-                              {renderHighlightedContent(comment.content)}
-                            </p>
-                          )}
-                          
-                          <div className="flex items-center gap-4 text-xs">
-                            <button
-                              onClick={() => setActiveReply(activeReply === comment._id ? null : comment._id)}
-                              className="text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 transition-colors"
-                            >
-                              Reply
-                            </button>
-                            
-                            <button
-                              onClick={() => commentHook.handleLikeComment(comment._id)}
-                              disabled={commentHook.loadingCommentLike[comment._id]}
-                              className={`flex items-center gap-1 transition-colors ${
-                                Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
-                                  ? 'text-red-500'
-                                  : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                              }`}
-                              aria-label="Like comment"
-                            >
-                              {Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
-                                ? <FaHeart /> 
-                                : <FaRegHeart />
-                              }
-                              <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
-                            </button>
-                          </div>
-                          
-                          {activeReply === comment._id && (
-                            <div className="mt-2 w-full max-w-full overflow-x-hidden">
-                              <ReplyInput
-                                onSubmit={handleReply}
-                                loading={replyHook.loadingReply[comment._id]}
-                                postId={localPost._id}
-                                commentId={comment._id}
-                                replyToUsername={comment.author.username}
-                              />
-                            </div>
-                          )}
-                          
-                          {comment.replies && comment.replies.length > 0 && (
-                            <div className="mt-2 w-full max-w-full overflow-x-hidden">
-                              {/* Reply toggle and navigation buttons */}
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <span
-                                  onClick={() => replyHook.toggleReplyExpansion(comment._id)}
-                                  className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 cursor-pointer transition-colors"
-                                >
-                                  {replyInfo.isExpanded 
-                                    ? `Hide replies (${replyInfo.totalReplies})`
-                                    : replyInfo.totalReplies > replyHook.repliesPerComment
-                                      ? `View all ${replyInfo.totalReplies} replies`
-                                      : `View ${replyInfo.totalReplies} ${replyInfo.totalReplies === 1 ? 'reply' : 'replies'}`
-                                  }
-                                </span>
-                                
-                                {/* Show current position when expanded */}
-                                {replyInfo.isExpanded && replyInfo.totalReplies > replyHook.repliesPerComment && (
-                                  <span className="text-xs text-gray-400">
-                                    (showing replies {replyInfo.startIndex + 1}-{Math.min(replyInfo.endIndex, replyInfo.totalReplies)} of {replyInfo.totalReplies})
-                                  </span>
-                                )}
-                              </div>
-                              
-                              {/* Navigation controls when expanded */}
-                              {replyInfo.isExpanded && (replyInfo.showLoadPrevious || replyInfo.showLoadMore) && (
-                                <div className="flex items-center gap-2 mb-2">
-                                  {replyInfo.showLoadPrevious && (
-                                    <button
-                                      onClick={() => replyHook.loadPreviousReplies(comment._id)}
-                                      disabled={replyHook.loadingMoreReplies[comment._id]}
-                                      className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded"
-                                    >
-                                      {replyHook.loadingMoreReplies[comment._id] ? 'Loading...' : '← Previous'}
-                                    </button>
-                                  )}
-                                  
-                                  {replyInfo.showLoadMore && (
-                                    <button
-                                      onClick={() => replyHook.loadMoreReplies(comment._id)}
-                                      disabled={replyHook.loadingMoreReplies[comment._id]}
-                                      className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded"
-                                    >
-                                      {replyHook.loadingMoreReplies[comment._id] ? 'Loading...' : 'Next →'}
-                                    </button>
-                                  )}
-                                  
-                                  {/* Show all option */}
-                                  {replyInfo.totalReplies > replyHook.repliesPerComment && (
-                                    <button
-                                      onClick={() => {
-                                        setTimeout(() => replyHook.showAllReplies(comment._id), 100);
-                                      }}
-                                      className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded"
-                                    >
-                                      Show All
-                                    </button>
-                                  )}
-                                </div>
-                              )}
-                              
-                              {/* Display replies - only when explicitly expanded */}
-                              {replyInfo.isExpanded && (
-                                <div className="space-y-3 w-full max-w-full overflow-x-hidden">
-  {displayedReplies.map((reply, index) => (
-    <div 
-      key={reply._id} 
-      data-reply-id={reply._id} 
-      className="w-full max-w-full overflow-x-hidden transition-all duration-300 ease-in-out"
-    >
-      <div className="flex items-center gap-2 mb-1 flex-wrap">
-        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden">
-          {reply.author?.profile?.profileImage ? (
-            <img
-              src={reply.author.profile.profileImage}
-              alt="Profile"
-              className="w-8 h-8 rounded-full object-cover"
-              onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
-            />
-          ) : (
-            <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-          )}
-        </div>
-        <Link
-          to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-          className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
-        >
-          {reply.author.username}
-        </Link>
-        {reply.author.verified && <VerifiedBadge />}
-        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-          {formatPostDate(reply.createdAt)}
-        </span>
-        <EditedIndicator item={reply} />
-        
-        {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
-          <div className="relative ml-auto flex-shrink-0">
-            <button
-              ref={el => (replyMenuRefs.current[`${comment._id}-${reply._id}`] = el)}
-              onClick={() => replyHook.setShowReplyMenus(prev => ({ 
-                ...prev, 
-                [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] 
-              }))}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
-            >
-              <FaEllipsisV size={10} />
-            </button>
-            <FloatingMenu
-              anchorRef={{ current: replyMenuRefs.current[`${comment._id}-${reply._id}`] }}
-              open={!!replyHook.showReplyMenus[`${comment._id}-${reply._id}`]}
-              onClose={() => replyHook.setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }))}
-            >
-              {canEditDelete(reply.author?._id || reply.user) && (
-                <button
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Edit reply button clicked:', reply._id);
-                    replyHook.handleEditReply(comment._id, reply._id, reply.content);
-                    replyHook.setShowReplyMenus({});
-                  }}
-                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                >
-                  <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
-                </button>
-              )}
-              <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('Delete reply button clicked:', reply._id);
-                  replyHook.setShowReplyMenus({});
-                  requestAnimationFrame(() => {
-                    replyHook.handleDeleteReply(comment._id, reply._id);
-                  });
-                }}
-                className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-              >
-                <FaTrash className="text-red-500 dark:text-red-400" /> Delete
-              </button>
-            </FloatingMenu>
-          </div>
-        )}
-      </div>
-      
-      {replyHook.editingReply === `${comment._id}-${reply._id}` ? (
-        <div className="space-y-2 w-full max-w-full">
-          <textarea
-            value={replyHook.editReplyContent}
-            onChange={e => replyHook.setEditReplyContent(e.target.value)}
-            className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            rows="2"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={() => replyHook.handleSaveReplyEdit(comment._id, reply._id)}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-            >
-              <FaSave size={10} />
-            </button>
-            <button
-              onClick={replyHook.handleCancelReplyEdit}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-            >
-              <FaTimes size={10} />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <p className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full">
-            {renderHighlightedContent(reply.content)}
-          </p>
-          <div className="flex items-center gap-4 text-xs">
-            <button
-              onClick={() => replyHook.handleLikeReply(comment._id, reply._id)}
-              disabled={replyHook.loadingReplyLike && replyHook.loadingReplyLike[`${comment._id}-${reply._id}`]}
-              className={`flex items-center gap-1 transition-colors ${
-                Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                  ? 'text-red-500'
-                  : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-              }`}
-              aria-label="Like reply"
-            >
-              {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                ? <FaHeart />
-                : <FaRegHeart />
-              }
-              <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  ))}
-</div>
-
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {displayedComments.map((comment) => (
+                  <PostComment
+                    key={comment._id}
+                    comment={comment}
+                    currentUserId={currentUserId}
+                    canEditDelete={canEditDelete}
+                    canDeleteAsPostOwner={canDeleteAsPostOwner}
+                    commentHook={commentHook}
+                    replyHook={replyHook}
+                    replyMenuRefs={replyMenuRefs} // <-- Pass down
+                    activeReply={activeReply}
+                    setActiveReply={setActiveReply}
+                    localPost={localPost}
+                    setZoomProfile={setZoomProfile}
+                    renderHighlightedContent={renderHighlightedContent}
+                    handleReply={handleReply}
+                    ReplyInput={ReplyInput}
+                    CommentReplies={CommentReplies}
+                  />
+                ))}
               </div>
             </div>
           )}
@@ -1329,18 +988,4 @@ export default function ChatPost({
   );
 }
 
-/* Add this to your global CSS (e.g., index.css or App.css):
-.fixed-mobile-media {
-  position: relative;
-  left: 50%;
-  right: 50%;
-  transform: translateX(-50%);
-}
-.mobile-media-container {
-  max-width: 100vw;
-  width: 100vw;
-  margin-left: 0;
-  margin-right: 0;
-  overflow-x: hidden;
-}
-*/
+
