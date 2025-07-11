@@ -219,20 +219,18 @@ export const useReplies = (localPost, setLocalPost, currentUserId, currentUserna
 
   // Handle delete reply
   const handleDeleteReply = useCallback(async (commentId, replyId) => {
-    if (window.confirm('Are you sure you want to delete this reply?')) {
-      try {
-        const response = await deleteReply(localPost._id, commentId, replyId);
-        
-        if (response && !response.error && response._id) {
-          setLocalPost(response);
-        } else {
-          console.error('Failed to delete reply:', response?.error || 'Unknown error');
-          alert('Failed to delete reply. Please try again.');
-        }
-      } catch (error) {
-        console.error('Failed to delete reply:', error);
+    try {
+      const response = await deleteReply(localPost._id, commentId, replyId);
+      
+      if (response && !response.error && response._id) {
+        setLocalPost(response);
+      } else {
+        console.error('Failed to delete reply:', response?.error || 'Unknown error');
         alert('Failed to delete reply. Please try again.');
       }
+    } catch (error) {
+      console.error('Failed to delete reply:', error);
+      alert('Failed to delete reply. Please try again.');
     }
   }, [localPost._id, setLocalPost]);
 

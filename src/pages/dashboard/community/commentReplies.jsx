@@ -8,6 +8,7 @@ import { FaUser, FaEdit, FaTrash, FaHeart, FaRegHeart, FaSave, FaTimes, FaEllips
 import FloatingMenu from "../../../components/common/FloatingMenu";
 import VerifiedBadge from "../../../components/VerifiedBadge";
 import { formatPostDate } from "../../../utils/formatDate";
+import ConfirmModal from '../../../components/common/ConfirmModal';
 
 function isContentEdited(item) {
   if (item.editedAt) return true;
@@ -43,6 +44,8 @@ export default function CommentReplies({
 }) {
   // Pagination state: page per comment
   const [replyPage, setReplyPage] = useState({});
+  // Modal state for reply deletion
+  const [deleteReplyModal, setDeleteReplyModal] = useState({ open: false, commentId: null, replyId: null });
   // Use the full array of replies for pagination
   const replies = (replyInfo && Array.isArray(replyInfo.replies)) ? replyInfo.replies : (Array.isArray(comment.replies) ? comment.replies : []);
   const repliesPerPage = 5;
@@ -63,6 +66,22 @@ export default function CommentReplies({
 
   return (
     <div className="mt-2 w-full">
+      {/* Delete Reply Confirmation Modal */}
+      <ConfirmModal
+        open={deleteReplyModal.open}
+        title="Delete Reply"
+        description="Are you sure you want to delete this reply? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmColor="red"
+        onClose={() => setDeleteReplyModal({ open: false, commentId: null, replyId: null })}
+        onConfirm={() => {
+          if (deleteReplyModal.commentId && deleteReplyModal.replyId) {
+            replyHook.handleDeleteReply(deleteReplyModal.commentId, deleteReplyModal.replyId);
+          }
+          setDeleteReplyModal({ open: false, commentId: null, replyId: null });
+        }}
+      />
       {totalPages > 1 && (
         <div className="flex items-center justify-start gap-2 mb-2">
           <button
@@ -152,9 +171,7 @@ export default function CommentReplies({
                             e.preventDefault();
                             e.stopPropagation();
                             replyHook.setShowReplyMenus({});
-                            requestAnimationFrame(() => {
-                              replyHook.handleDeleteReply(comment._id, reply._id);
-                            });
+                            setDeleteReplyModal({ open: true, commentId: comment._id, replyId: reply._id });
                           }}
                           className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
                         >

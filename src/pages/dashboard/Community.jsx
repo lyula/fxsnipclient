@@ -580,7 +580,9 @@ useEffect(() => {
           return { ...source, ...target };
         }
         // Merge post author
-        if (optimisticPost && postData.author) {
+        if (postData.author && user && (postData.author._id === user._id || postData.author._id === user.id) && !postData.author.profileImage) {
+          postData.author = { ...postData.author, ...user };
+        } else if (optimisticPost && postData.author) {
           postData.author = mergeAuthor(postData.author, optimisticPost.author);
         }
         // Merge comments' authors (match by content and createdAt, not index)
@@ -608,6 +610,13 @@ useEffect(() => {
                       return false;
                     });
                   }
+                  // Merge current user's profile image into reply if missing
+                  if (r.author && user && (r.author._id === user._id || r.author._id === user.id) && !r.author.profileImage) {
+                    return {
+                      ...r,
+                      author: { ...r.author, ...user }
+                    };
+                  }
                   if (optimisticReply && r.author) {
                     return {
                       ...r,
@@ -632,6 +641,13 @@ useEffect(() => {
                       return false;
                     });
                   }
+                  // Merge current user's profile image into reply if missing
+                  if (r.author && user && (r.author._id === user._id || r.author._id === user.id) && !r.author.profileImage) {
+                    return {
+                      ...r,
+                      author: { ...r.author, ...user }
+                    };
+                  }
                   if (optimisticReply && r.author) {
                     return {
                       ...r,
@@ -640,6 +656,21 @@ useEffect(() => {
                   }
                   return r;
                 }) : c.replies
+              };
+            }
+            // Fallback: still merge current user's profile image into reply if missing
+            if (Array.isArray(c.replies)) {
+              return {
+                ...c,
+                replies: c.replies.map((r) => {
+                  if (r.author && user && (r.author._id === user._id || r.author._id === user.id) && !r.author.profileImage) {
+                    return {
+                      ...r,
+                      author: { ...r.author, ...user }
+                    };
+                  }
+                  return r;
+                })
               };
             }
             return c;
@@ -681,25 +712,18 @@ useEffect(() => {
 
   const handleReply = useCallback(async (postId, replyContent, commentId) => {
     const originalPostId = getOriginalPostId(postId);
-    
     try {
-      console.log('Adding reply to comment:', commentId, 'on post:', originalPostId);
-      
       const res = await fetch(`${API_BASE}/posts/${originalPostId}/comments/${commentId}/replies`, {
         method: "POST",
         headers: authHeaders,
         body: JSON.stringify({ content: replyContent }),
       });
-      
       if (res.ok) {
         const updatedPost = await res.json();
-        console.log('Reply added successfully:', updatedPost);
-        
-        updatePost(postId, { 
-          ...updatedPost, 
-          _id: postId,
-          _originalId: originalPostId 
-        });
+        // Immediate update for UI
+        updatePost(postId, { ...updatedPost, _id: postId, _originalId: originalPostId });
+        // Ensure silent refresh happens AFTER UI update
+        setTimeout(() => fetchSinglePost(originalPostId, postId), 0);
         return updatedPost;
       } else {
         const errorData = await res.json();
@@ -710,7 +734,7 @@ useEffect(() => {
       console.error("Error adding reply:", error);
       return null;
     }
-  }, [API_BASE, authHeaders, updatePost]);
+  }, [API_BASE, authHeaders, fetchSinglePost, updatePost]);
 
   const handleLike = useCallback(async (postId) => {
     const originalPostId = getOriginalPostId(postId);
@@ -933,6 +957,25 @@ useEffect(() => {
       return () => clearTimeout(timeoutId);
     }
   }, [getCurrentContainer, communityPosts.length, followingPosts.length]);
+
+  const handleDeleteComment = useCallback(async (postId, commentId) => {
+    const originalPostId = getOriginalPostId(postId);
+    try {
+      const res = await fetch(`${API_BASE}/posts/${originalPostId}/comments/${commentId}`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+      if (res.ok) {
+        // After deletion, fetch the updated post and refresh all profile images
+        fetchSinglePost(originalPostId, postId);
+      } else {
+        const errorData = await res.json();
+        console.error("Failed to delete comment:", errorData);
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+    }
+  }, [API_BASE, authHeaders, fetchSinglePost]);
 
   return (
     <div 
