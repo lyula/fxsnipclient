@@ -90,6 +90,9 @@ export default function UserProfile() {
     setLoading(true);
     setButtonLoading(true);
 
+    // Always clear cache for this user before fetching to ensure fresh data
+    profileCache.delete(cacheKey);
+
     // Check cache first
     const cached = getCachedProfile();
     if (cached) {
@@ -117,7 +120,7 @@ export default function UserProfile() {
       if (profileRes.ok) {
         profileData = await profileRes.json();
         setProfile(profileData);
-        
+        console.log('[UserProfile DEBUG] profileData:', profileData); // DEBUG LOG
         // Track profile view
         if (profileData?._id) {
           trackProfileView(profileData._id);
@@ -429,15 +432,30 @@ export default function UserProfile() {
     <div style={{ backgroundColor: "inherit" }} className="w-full max-w-full overflow-x-hidden">
       <div className="max-w-2xl mx-auto p-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2 mb-4" style={{ marginTop: "12px" }}>
-          <div className="flex items-center gap-4 justify-start w-full">
-            <div className="cursor-pointer" onClick={() => navigate(-1)}>
+          {/* Top row: Arrow | Avatar | Username+Badge */}
+          <div className="flex gap-8">
+            {/* Arrow on the left */}
+            <span className="flex items-center cursor-pointer" onClick={() => navigate(-1)}>
               <FaArrowLeft className="text-xl text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition" />
+            </span>
+            {/* Avatar next to arrow */}
+            <div className="flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {profile.profile?.profileImage ? (
+                  <img
+                    src={profile.profile.profileImage}
+                    alt={profile.username + "'s profile"}
+                    className="w-full h-full object-cover rounded-full"
+                    style={{ minWidth: 0, minHeight: 0 }}
+                  />
+                ) : (
+                  <FaUser className="text-3xl text-gray-400 dark:text-gray-500" />
+                )}
+              </div>
             </div>
-            <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-              <FaUser className="text-3xl text-gray-400 dark:text-gray-500" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xl text-gray-900 dark:text-white break-all">
+            {/* Username+Badge to the right of avatar */}
+            <div className="flex flex-col justify-center flex-grow">
+              <span className="flex items-center gap-2 font-bold text-xl text-gray-900 dark:text-white break-all">
                 {profile.username}
                 {profile.verified && <VerifiedBadge />}
               </span>
