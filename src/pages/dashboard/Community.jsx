@@ -495,7 +495,7 @@ useEffect(() => {
   // Pull-to-refresh state for top of feed
   const [pullDistance, setPullDistance] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-  const pullThreshold = 60; // px to trigger refresh
+  const pullThreshold = 100; // px to trigger refresh (was 60, now less sensitive)
 
   // Pull-to-refresh handlers for forYou tab
   const handleFeedTouchStart = (e) => {
@@ -513,7 +513,7 @@ useEffect(() => {
       e.preventDefault();
       setScrollUpDistance(0); // prevent load new posts button
       setShowLoadNewButton(false);
-      setPullDistance(distance > 120 ? 120 : distance);
+      setPullDistance(distance > 140 ? 140 : distance); // allow a bit more drag, but not too much
     }
   };
   const handleFeedTouchEnd = async (e) => {
@@ -597,6 +597,8 @@ useEffect(() => {
         // Remove the optimistic post and add the real post at the top
         deletePost(tempId); // Remove optimistic post
         addPostOptimistically({ ...newPost, sending: false, isOptimistic: false }); // Add real post
+        // Immediately refresh the post to get all profile images and correct timestamps
+        fetchSinglePost(newPost._id, tempId);
         console.log('Post created successfully:', newPost);
       } else {
         const errorData = await res.json();
@@ -1072,7 +1074,7 @@ useEffect(() => {
         onTouchEnd={handleFeedTouchEnd}
       >
         {/* Pull-to-refresh spinner */}
-        {activeTab === 'forYou' && (pullDistance > 0 || isPullRefreshing) && (
+        {activeTab === 'forYou' && (pullDistance > 40 || isPullRefreshing) && (
           <div className="w-full flex justify-center items-center pt-2 pb-1" style={{ minHeight: 32 }}>
             <div className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${isPullRefreshing ? '' : 'opacity-60'}`}></div>
           </div>
