@@ -586,22 +586,43 @@ useEffect(() => {
         // Merge comments' authors (match by content and createdAt, not index)
         if (optimisticPost && Array.isArray(postData.comments)) {
           postData.comments = postData.comments.map((c) => {
-            // Try to find a matching optimistic comment by content and createdAt (or temp _id)
             let optimisticComment = null;
             if (optimisticPost.comments) {
               optimisticComment = optimisticPost.comments.find(oc => {
-                // Match by temp _id if present
                 if (oc._id && oc._id.startsWith('temp-') && c.content === oc.content) return true;
-                // Otherwise, match by content and close createdAt
                 if (c.content === oc.content && Math.abs(new Date(c.createdAt) - new Date(oc.createdAt)) < 10000) return true;
                 return false;
               });
             }
+            // If backend comment's author is current user and missing profile image, merge in current user's profile
+            if (c.author && user && (c.author._id === user._id || c.author._id === user.id) && !c.author.profileImage) {
+              return {
+                ...c,
+                author: { ...c.author, ...user },
+                replies: Array.isArray(c.replies) ? c.replies.map((r) => {
+                  let optimisticReply = null;
+                  if (optimisticComment && optimisticComment.replies) {
+                    optimisticReply = optimisticComment.replies.find(or => {
+                      if (or._id && or._id.startsWith('temp-') && r.content === or.content) return true;
+                      if (r.content === or.content && Math.abs(new Date(r.createdAt) - new Date(or.createdAt)) < 10000) return true;
+                      return false;
+                    });
+                  }
+                  if (optimisticReply && r.author) {
+                    return {
+                      ...r,
+                      author: mergeAuthor(r.author, optimisticReply.author)
+                    };
+                  }
+                  return r;
+                }) : c.replies
+              };
+            }
+            // Otherwise, merge with optimistic comment if available
             if (optimisticComment && c.author) {
               return {
                 ...c,
                 author: mergeAuthor(c.author, optimisticComment.author),
-                // Merge replies' authors (match by content and createdAt)
                 replies: Array.isArray(c.replies) ? c.replies.map((r) => {
                   let optimisticReply = null;
                   if (optimisticComment.replies) {
