@@ -319,9 +319,17 @@ export default function Dashboard() {
         {/* Profile Section */}
         <div className={`flex flex-col items-center py-6 border-b border-blue-100 dark:border-gray-800 ${sidebarCollapsed ? "px-0" : "px-4"}`}>
           <div className="flex flex-col items-center w-full">
-            <div className="bg-[#a99d6b] text-white rounded-full p-3 mb-2">
-              <FaUser className="text-2xl" />
-            </div>
+            {user?.profile?.profileImage ? (
+              <img
+                src={user.profile.profileImage}
+                alt="Profile"
+                className="rounded-full w-12 h-12 object-cover mb-2 border border-gray-300 dark:border-gray-700"
+              />
+            ) : (
+              <div className="bg-[#a99d6b] text-white rounded-full p-3 mb-2">
+                <FaUser className="text-2xl" />
+              </div>
+            )}
             {!sidebarCollapsed ? (
               <div
                 className="w-full cursor-pointer"

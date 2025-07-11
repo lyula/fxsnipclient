@@ -3,12 +3,19 @@ import { getProfile, updateProfile, getLatestBadgePayment } from "../../utils/ap
 import { useAuth } from "../../context/auth";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import BlueBadgeModal from "../../components/BlueBadgeModal";
+import { uploadToCloudinary } from "../../utils/cloudinaryUpload";
 
 export default function Profile() {
   const { refreshUser } = useAuth();
   const [user, setUser] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({ username: "", email: "" });
+  const [profileForm, setProfileForm] = useState({
+    bio: "",
+    profileImage: "",
+    website: "",
+    location: ""
+  });
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [followers, setFollowers] = useState([]);
@@ -60,6 +67,13 @@ export default function Profile() {
         if (data && data.username) {
           setUser(data);
           setForm({ username: data.username, email: data.email });
+          // Set profile form fields from nested profile object
+          setProfileForm({
+            bio: data.profile?.bio || "",
+            profileImage: data.profile?.profileImage || "",
+            website: data.profile?.website || "",
+            location: data.profile?.location || ""
+          });
           fetchFollowerCounts(data.username);
           // Fetch badge expiry if verified
           if (data.verified) {
@@ -112,16 +126,52 @@ export default function Profile() {
     setMessage("");
   };
 
+  const handleProfileChange = (e) => {
+    setProfileForm({ ...profileForm, [e.target.name]: e.target.value });
+    setMessage("");
+  };
+
   const handleEdit = () => {
     setEditMode(true);
     setForm({ username: user.username, email: user.email });
+    setProfileForm({
+      bio: user.profile?.bio || "",
+      profileImage: user.profile?.profileImage || "",
+      website: user.profile?.website || "",
+      location: user.profile?.location || ""
+    });
     setMessage("");
   };
 
   const handleCancel = () => {
     setEditMode(false);
     setForm({ username: user.username, email: user.email });
+    setProfileForm({
+      bio: user.profile?.bio || "",
+      profileImage: user.profile?.profileImage || "",
+      website: user.profile?.website || "",
+      location: user.profile?.location || ""
+    });
     setMessage("");
+  };
+
+  // Cloudinary upload handler
+  const handleProfileImageUpload = async (file) => {
+    if (!file) return;
+    setMessage("Uploading image...");
+    // Use the Cloudinary utility and specify folder
+    const result = await uploadToCloudinary(file, { folder: "profile_pictures" });
+    if (result.success && result.url) {
+      setProfileForm((prev) => ({
+        ...prev,
+        profileImage: result.url,
+        profileImagePublicId: result.publicId
+      }));
+      setEditMode(true);
+      setMessage("Image uploaded. Click Save to update profile.");
+    } else {
+      setMessage("Image upload failed.");
+    }
   };
 
   const handleSave = async (e) => {
@@ -129,7 +179,12 @@ export default function Profile() {
     setMessage("");
 
     // Check if username is the same as current username
-    if (form.username === user.username && form.email === user.email) {
+    if (form.username === user.username && form.email === user.email && JSON.stringify(profileForm) === JSON.stringify({
+      bio: user.profile?.bio || "",
+      profileImage: user.profile?.profileImage || "",
+      website: user.profile?.website || "",
+      location: user.profile?.location || ""
+    })) {
       setMessage("No changes to save.");
       return;
     }
@@ -152,13 +207,24 @@ export default function Profile() {
     }
 
     try {
-      const res = await updateProfile(form);
+      // Optimistically update UI before API call
+      setUser({
+        ...user,
+        username: form.username,
+        email: form.email,
+        profile: { ...user.profile, ...profileForm }
+      });
+      setEditMode(false);
+      setMessage("Saving...");
+      const res = await updateProfile({
+        username: form.username,
+        email: form.email,
+        profile: profileForm
+      });
       if (res.username && res.email) {
-        setUser({ ...user, username: res.username, email: res.email });
-        setEditMode(false);
+        setUser({ ...user, username: res.username, email: res.email, profile: res.profile });
         setMessage("Profile updated!");
-        refreshUser(); // Refresh global user data
-        // If username changed, refetch follower counts
+        refreshUser();
         if (res.username !== user.username) {
           fetchFollowerCounts(res.username);
         }
@@ -193,8 +259,42 @@ export default function Profile() {
     <div className="max-w-md flex-1 min-h-0 mx-auto bg-white dark:bg-gray-800 rounded-xl shadow p-6 mt-8 mb-8">
       {/* IG-style profile image and stats */}
       <div className="flex flex-col items-center mb-6">
-        <div className="w-24 h-24 rounded-full bg-[#a99d6b] flex items-center justify-center text-white text-4xl font-bold mb-3 select-none">
-          {user.username?.charAt(0).toUpperCase()}
+        {/* Profile image and edit button */}
+        <div className="relative w-24 h-24 mb-3">
+          {user.profile?.profileImage ? (
+            <img
+              src={user.profile.profileImage}
+              alt="Profile"
+              className="w-24 h-24 rounded-full object-cover border border-gray-300 dark:border-gray-700"
+            />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-[#a99d6b] flex items-center justify-center text-white text-4xl font-bold select-none">
+              {user.username?.charAt(0).toUpperCase()}
+            </div>
+          )}
+          {/* Edit profile image button and file input */}
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            id="profile-image-upload"
+            onChange={e => {
+              const file = e.target.files[0];
+              if (file) handleProfileImageUpload(file);
+            }}
+            ref={input => (window.profileImageInput = input)}
+          />
+          <button
+            type="button"
+            className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-2 shadow hover:bg-blue-700 focus:outline-none"
+            title="Edit profile picture"
+            onClick={() => window.profileImageInput && window.profileImageInput.click()}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2a2.828 2.828 0 11-4-4 2.828 2.828 0 014 4z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25V19.5a2.25 2.25 0 01-2.25 2.25h-10.5A2.25 2.25 0 014.5 19.5v-10.5A2.25 2.25 0 016.75 6.75h5.25" />
+            </svg>
+          </button>
         </div>
         <div className="flex items-center justify-center gap-2 w-full mb-2">
           <span className="block text-[#1E3A8A] dark:text-white font-semibold text-base text-center truncate w-full" title={user?.username}>
@@ -268,6 +368,60 @@ export default function Profile() {
           ) : (
             <span className="text-gray-600 dark:text-gray-300">
               {user.email}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="font-semibold text-gray-700 dark:text-gray-200 w-32">
+            Bio:
+          </span>
+          {editMode ? (
+            <input
+              type="text"
+              name="bio"
+              value={profileForm.bio}
+              onChange={handleProfileChange}
+              className="border rounded px-2 py-1 flex-1 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white"
+            />
+          ) : (
+            <span className="text-gray-600 dark:text-gray-300">
+              {user.profile?.bio || "Not set"}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="font-semibold text-gray-700 dark:text-gray-200 w-32">
+            Website:
+          </span>
+          {editMode ? (
+            <input
+              type="text"
+              name="website"
+              value={profileForm.website}
+              onChange={handleProfileChange}
+              className="border rounded px-2 py-1 flex-1 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white"
+            />
+          ) : (
+            <span className="text-gray-600 dark:text-gray-300">
+              {user.profile?.website || "Not set"}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="font-semibold text-gray-700 dark:text-gray-200 w-32">
+            Location:
+          </span>
+          {editMode ? (
+            <input
+              type="text"
+              name="location"
+              value={profileForm.location}
+              onChange={handleProfileChange}
+              className="border rounded px-2 py-1 flex-1 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white"
+            />
+          ) : (
+            <span className="text-gray-600 dark:text-gray-300">
+              {user.profile?.location || "Not set"}
             </span>
           )}
         </div>

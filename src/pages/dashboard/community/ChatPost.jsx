@@ -168,6 +168,7 @@ export default function ChatPost({
   const [showLikes, setShowLikes] = useState(false);
   const [likesUsers, setLikesUsers] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
+  const [showProfileZoom, setShowProfileZoom] = useState(false);
   
   const postContainerRef = useRef(null);
   const commentsRef = useRef(null);
@@ -460,8 +461,35 @@ export default function ChatPost({
     }
   }, [highlightedCommentId, highlightedReplyId, localPost.comments]);
 
+  // Log post author profile image only once on mount
+  useEffect(() => {
+    console.log('Post author:', post.author);
+    console.log('Post author profileImage:', post.author?.profile?.profileImage);
+  }, []);
+
   return (
     <>
+      {/* Profile Image Zoom Modal */}
+      {showProfileZoom && post.author?.profile?.profileImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 transition-opacity">
+          <div className="relative max-w-xs w-full flex flex-col items-center">
+            <button
+              className="absolute top-2 right-2 text-white text-2xl font-bold bg-black bg-opacity-40 rounded-full p-1 hover:bg-opacity-70 transition-colors"
+              onClick={() => setShowProfileZoom(false)}
+              aria-label="Close profile image zoom"
+            >
+              ×
+            </button>
+            <img
+              src={post.author.profile.profileImage}
+              alt="Profile Zoom"
+              className="rounded-full shadow-lg max-w-full max-h-[80vh] border-4 border-white"
+              style={{ background: '#fff' }}
+            />
+          </div>
+        </div>
+      )}
+
       {floatingHearts.map(heart => (
         <FloatingHeart
           key={heart.id}
@@ -486,8 +514,19 @@ export default function ChatPost({
             <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
             <div className="pt-0.5 pb-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
-                  <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
+                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer"
+                  onClick={() => post.author?.profile?.profileImage && setShowProfileZoom(true)}
+                  title="View profile picture"
+                >
+                  {post.author?.profile?.profileImage
+                    ? (<img
+                        src={post.author.profile.profileImage}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover"
+                        onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+                      />)
+                    : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
+                  }
                 </div>
                 <Link
                   to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
@@ -608,13 +647,21 @@ export default function ChatPost({
         >
           {!(post.image || post.video) && (
             <div className="flex items-center p-2 gap-3">
-              <Link 
-                to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-                className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0"
+              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer"
+                onClick={() => post.author?.profile?.profileImage && setShowProfileZoom(true)}
+                title="View profile picture"
               >
-                <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-              </Link>
-              <Link
+                {post.author?.profile?.profileImage
+                  ? (<img
+                      src={post.author.profile.profileImage}
+                      alt="Profile"
+                      className="w-10 h-10 rounded-full object-cover"
+                      onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+                    />)
+                  : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
+                }
+              </div>
+              <Link 
                 to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
                 className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
               >
@@ -956,12 +1003,18 @@ export default function ChatPost({
                   return (
                     <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
                       <div className="flex items-start gap-3 w-full min-w-0">
-                        <Link
-                          to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                          className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0"
-                        >
-                          <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-                        </Link>
+                        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden">
+                          {comment.author?.profileImage ? (
+                            <img
+                              src={comment.author.profileImage}
+                              alt="Profile"
+                              className="w-8 h-8 rounded-full object-cover"
+                              onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+                            />
+                          ) : (
+                            <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0 overflow-hidden">
                           <div className="flex items-center gap-2 mb-1">
                             <Link
@@ -1162,128 +1215,139 @@ export default function ChatPost({
                               {/* Display replies - only when explicitly expanded */}
                               {replyInfo.isExpanded && (
                                 <div className="space-y-3 w-full max-w-full overflow-x-hidden">
-                                  {displayedReplies.map((reply, index) => (
-                                    <div 
-                                      key={reply._id} 
-                                      data-reply-id={reply._id} 
-                                      className="w-full max-w-full overflow-x-hidden transition-all duration-300 ease-in-out"
-                                    >
-                                      <div className="flex-1 min-w-0 max-w-full overflow-x-hidden">
-                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                          <Link
-                                            to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                                            className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
-                                          >
-                                            {reply.author.username}
-                                          </Link>
-                                          {reply.author.verified && <VerifiedBadge />}
-                                          <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                                            {formatPostDate(reply.createdAt)}
-                                          </span>
-                                          <EditedIndicator item={reply} />
-                                          
-                                          {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
-                                            <div className="relative ml-auto flex-shrink-0">
-                                              <button
-                                                ref={el => (replyMenuRefs.current[`${comment._id}-${reply._id}`] = el)}
-                                                onClick={() => replyHook.setShowReplyMenus(prev => ({ 
-                                                  ...prev, 
-                                                  [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] 
-                                                }))}
-                                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
-                                              >
-                                                <FaEllipsisV size={10} />
-                                              </button>
-                                              <FloatingMenu
-                                                anchorRef={{ current: replyMenuRefs.current[`${comment._id}-${reply._id}`] }}
-                                                open={!!replyHook.showReplyMenus[`${comment._id}-${reply._id}`]}
-                                                onClose={() => replyHook.setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }))}
-                                              >
-                                                {canEditDelete(reply.author?._id || reply.user) && (
-                                                  <button
-                                                    onMouseDown={(e) => {
-                                                      e.preventDefault();
-                                                      e.stopPropagation();
-                                                      console.log('Edit reply button clicked:', reply._id);
-                                                      replyHook.handleEditReply(comment._id, reply._id, reply.content);
-                                                      replyHook.setShowReplyMenus({});
-                                                    }}
-                                                    className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                                                  >
-                                                    <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
-                                                  </button>
-                                                )}
-                                                <button
-                                                  onMouseDown={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    console.log('Delete reply button clicked:', reply._id);
-                                                    replyHook.setShowReplyMenus({});
-                                                    requestAnimationFrame(() => {
-                                                      replyHook.handleDeleteReply(comment._id, reply._id);
-                                                    });
-                                                  }}
-                                                  className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                                                >
-                                                  <FaTrash className="text-red-500 dark:text-red-400" /> Delete
-                                                </button>
-                                              </FloatingMenu>
-                                            </div>
-                                          )}
-                                        </div>
-                                        
-                                        {replyHook.editingReply === `${comment._id}-${reply._id}` ? (
-                                          <div className="space-y-2 w-full max-w-full">
-                                            <textarea
-                                              value={replyHook.editReplyContent}
-                                              onChange={e => replyHook.setEditReplyContent(e.target.value)}
-                                              className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-                                              rows="2"
-                                            />
-                                            <div className="flex gap-2">
-                                              <button
-                                                onClick={() => replyHook.handleSaveReplyEdit(comment._id, reply._id)}
-                                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                                              >
-                                                <FaSave size={10} />
-                                              </button>
-                                              <button
-                                                onClick={replyHook.handleCancelReplyEdit}
-                                                className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
-                                              >
-                                                <FaTimes size={10} />
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <>
-                                            <p className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full">
-                                              {renderHighlightedContent(reply.content)}
-                                            </p>
-                                            <div className="flex items-center gap-4 text-xs">
-                                              <button
-                                                onClick={() => replyHook.handleLikeReply(comment._id, reply._id)}
-                                                disabled={replyHook.loadingReplyLike && replyHook.loadingReplyLike[`${comment._id}-${reply._id}`]}
-                                                className={`flex items-center gap-1 transition-colors ${
-                                                  Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                                    ? 'text-red-500'
-                                                    : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
-                                                }`}
-                                                aria-label="Like reply"
-                                              >
-                                                {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
-                                                  ? <FaHeart />
-                                                  : <FaRegHeart />
-                                                }
-                                                <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
-                                              </button>
-                                            </div>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
+  {displayedReplies.map((reply, index) => (
+    <div 
+      key={reply._id} 
+      data-reply-id={reply._id} 
+      className="w-full max-w-full overflow-x-hidden transition-all duration-300 ease-in-out"
+    >
+      <div className="flex items-center gap-2 mb-1 flex-wrap">
+        <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden">
+          {reply.author?.profileImage ? (
+            <img
+              src={reply.author.profileImage}
+              alt="Profile"
+              className="w-8 h-8 rounded-full object-cover"
+              onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+            />
+          ) : (
+            <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
+          )}
+        </div>
+        <Link
+          to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
+          className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
+        >
+          {reply.author.username}
+        </Link>
+        {reply.author.verified && <VerifiedBadge />}
+        <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+          {formatPostDate(reply.createdAt)}
+        </span>
+        <EditedIndicator item={reply} />
+        
+        {(canEditDelete(reply.author?._id || reply.user) || canDeleteAsPostOwner()) && (
+          <div className="relative ml-auto flex-shrink-0">
+            <button
+              ref={el => (replyMenuRefs.current[`${comment._id}-${reply._id}`] = el)}
+              onClick={() => replyHook.setShowReplyMenus(prev => ({ 
+                ...prev, 
+                [`${comment._id}-${reply._id}`]: !prev[`${comment._id}-${reply._id}`] 
+              }))}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded transition-colors"
+            >
+              <FaEllipsisV size={10} />
+            </button>
+            <FloatingMenu
+              anchorRef={{ current: replyMenuRefs.current[`${comment._id}-${reply._id}`] }}
+              open={!!replyHook.showReplyMenus[`${comment._id}-${reply._id}`]}
+              onClose={() => replyHook.setShowReplyMenus(prev => ({ ...prev, [`${comment._id}-${reply._id}`]: false }))}
+            >
+              {canEditDelete(reply.author?._id || reply.user) && (
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Edit reply button clicked:', reply._id);
+                    replyHook.handleEditReply(comment._id, reply._id, reply.content);
+                    replyHook.setShowReplyMenus({});
+                  }}
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                >
+                  <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit
+                </button>
+              )}
+              <button
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Delete reply button clicked:', reply._id);
+                  replyHook.setShowReplyMenus({});
+                  requestAnimationFrame(() => {
+                    replyHook.handleDeleteReply(comment._id, reply._id);
+                  });
+                }}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+              >
+                <FaTrash className="text-red-500 dark:text-red-400" /> Delete
+              </button>
+            </FloatingMenu>
+          </div>
+        )}
+      </div>
+      
+      {replyHook.editingReply === `${comment._id}-${reply._id}` ? (
+        <div className="space-y-2 w-full max-w-full">
+          <textarea
+            value={replyHook.editReplyContent}
+            onChange={e => replyHook.setEditReplyContent(e.target.value)}
+            className="w-full max-w-full p-2 border border-gray-300 dark:border-gray-600 rounded resize-none text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            rows="2"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => replyHook.handleSaveReplyEdit(comment._id, reply._id)}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
+            >
+              <FaSave size={10} />
+            </button>
+            <button
+              onClick={replyHook.handleCancelReplyEdit}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors flex-shrink-0"
+            >
+              <FaTimes size={10} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full">
+            {renderHighlightedContent(reply.content)}
+          </p>
+          <div className="flex items-center gap-4 text-xs">
+            <button
+              onClick={() => replyHook.handleLikeReply(comment._id, reply._id)}
+              disabled={replyHook.loadingReplyLike && replyHook.loadingReplyLike[`${comment._id}-${reply._id}`]}
+              className={`flex items-center gap-1 transition-colors ${
+                Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                  ? 'text-red-500'
+                  : 'text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400'
+              }`}
+              aria-label="Like reply"
+            >
+              {Array.isArray(reply.likes) && currentUserId && reply.likes.map(String).includes(String(currentUserId))
+                ? <FaHeart />
+                : <FaRegHeart />
+              }
+              <span>{Array.isArray(reply.likes) ? reply.likes.length : 0}</span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  ))}
+</div>
+
                               )}
                             </div>
                           )}
