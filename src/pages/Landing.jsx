@@ -13,7 +13,7 @@ export default function Landing() {
 
   return (
     <section
-      className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-screen w-full flex flex-col overflow-x-hidden pt-20"
+      className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-screen w-full flex flex-col overflow-x-hidden pt-20 hide-scrollbar"
     >
       <div className="w-full max-w-2xl md:max-w-4xl lg:max-w-5xl flex flex-col items-center justify-center px-2 sm:px-4 py-8 sm:py-12 mx-auto">
         {/* Hero Section */}

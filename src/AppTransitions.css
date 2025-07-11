@@ -1,0 +1,23 @@
+.fade-enter {
+  opacity: 0;
+  z-index: 1;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms;
+}
+.fade-exit {
+  opacity: 1;
+}
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms;
+}
+
+/* Prevent white flash by always having a background */
+.app-content {
+  background-color: #fff;
+}
+.dark .app-content {
+  background-color: #18181b;
+}

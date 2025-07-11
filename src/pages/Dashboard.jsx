@@ -129,7 +129,13 @@ export default function Dashboard() {
 
   // --- Remember last dashboard route in localStorage ---
   useEffect(() => {
-    if (location.pathname.startsWith("/dashboard")) {
+    // Only store dashboard routes, never /, /login, /register, etc.
+    if (
+      location.pathname.startsWith("/dashboard") ||
+      location.pathname.startsWith("/tsr") ||
+      location.pathname.startsWith("/stats") ||
+      location.pathname.startsWith("/user-profile")
+    ) {
       localStorage.setItem("lastDashboardRoute", location.pathname + location.search);
     }
   }, [location]);

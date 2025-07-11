@@ -18,7 +18,12 @@ export default function usePWARouting() {
     const currentPath = location.pathname;
 
     // If user is authenticated and on login/register/landing, redirect to dashboard
-    if (user && token && ['/login', '/register', '/'].includes(currentPath)) {
+    // Only redirect if NOT coming from a login redirect (i.e., no router state)
+    if (
+      user && token &&
+      ['/login', '/register', '/'].includes(currentPath) &&
+      !location.state // Only redirect if there is no router state at all
+    ) {
       const lastRoute = localStorage.getItem('lastDashboardRoute') || '/dashboard';
       navigate(lastRoute, { replace: true });
       return;
@@ -34,7 +39,7 @@ export default function usePWARouting() {
     if (currentPath === '/' && !user) {
       navigate('/login', { replace: true });
     }
-  }, [user, isStandalone, location.pathname, navigate]);
+  }, [user, isStandalone, location, navigate]);
 
   return { isStandalone };
 }

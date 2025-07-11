@@ -46,38 +46,36 @@ function AppRoutes({ isMobile }) {
   }, [location.pathname, syncUserIdFromStorage]);
 
   return (
-    <PWARouteGuard>
-      <DesktopPWALayout>
-        <DesktopPWATitleBar />
-        <div className="app-content">
-          <Routes>
-            <Route path="/terms" element={<Terms />} />
-            <Route element={<PublicLayout />}>
-              <Route path="/" element={<Landing />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/news" element={<News />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/markets" element={<Markets />} />
-            </Route>
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/dashboard/community/post/:postId" element={<PostNotificationView />} />
-            <Route path="/dashboard/*" element={<Dashboard />} />
-            <Route element={<PrivateLayout />}>
-              <Route path="/tsr" element={<Placeholder title="TSR" />} />
-              <Route path="/stats" element={<Placeholder title="Stats" />} />
-              <Route
-                path="/user-profile"
-                element={isMobile ? <MobileUserProfile /> : <UserProfile />}
-              />
-            </Route>
-          </Routes>
-        </div>
-        <PWAUpdateNotification />
-        <PWAInstallPrompt />
-        <DesktopPWANotifications />
-      </DesktopPWALayout>
-    </PWARouteGuard>
+    <DesktopPWALayout>
+      <DesktopPWATitleBar />
+      <div className="app-content">
+        <Routes>
+          <Route path="/terms" element={<Terms />} />
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/markets" element={<Markets />} />
+          </Route>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard/community/post/:postId" element={<PWARouteGuard><PostNotificationView /></PWARouteGuard>} />
+          <Route path="/dashboard/*" element={<PWARouteGuard><Dashboard /></PWARouteGuard>} />
+          <Route element={<PrivateLayout />}>
+            <Route path="/tsr" element={<PWARouteGuard><Placeholder title="TSR" /></PWARouteGuard>} />
+            <Route path="/stats" element={<PWARouteGuard><Placeholder title="Stats" /></PWARouteGuard>} />
+            <Route
+              path="/user-profile"
+              element={<PWARouteGuard>{isMobile ? <MobileUserProfile /> : <UserProfile />}</PWARouteGuard>}
+            />
+          </Route>
+        </Routes>
+      </div>
+      <PWAUpdateNotification />
+      <PWAInstallPrompt />
+      <DesktopPWANotifications />
+    </DesktopPWALayout>
   );
 }
 

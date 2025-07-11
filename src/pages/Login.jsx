@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useTheme } from "../hooks/useTheme";
 import { loginUser } from "../utils/api";
 import { jwtDecode } from "jwt-decode";
@@ -18,6 +18,7 @@ export default function Login() {
   const [loggingIn, setLoggingIn] = useState(false);
   const [dotCount, setDotCount] = useState(1);
   const navigate = useNavigate();
+  const location = useLocation();
   const [darkMode, setDarkMode] = useTheme();
   const { deferredPrompt, isStandalone } = usePWAInstallPrompt();
 
@@ -85,8 +86,27 @@ export default function Login() {
           }
         }
         await refreshUser(); // fetch and set user profile
-        const lastRoute = localStorage.getItem("lastDashboardRoute") || "/dashboard";
-        navigate(lastRoute, { replace: true });
+        // Determine where to redirect after login
+        let redirectTo = "/dashboard";
+        if (
+          location.state &&
+          location.state.from &&
+          location.state.from.pathname &&
+          location.state.from.pathname !== "/"
+        ) {
+          redirectTo = location.state.from.pathname;
+        }
+        let lastRoute = localStorage.getItem("lastDashboardRoute");
+        // Never allow "/" as a valid dashboard route
+        if (
+          lastRoute &&
+          lastRoute !== "/" &&
+          redirectTo === "/dashboard"
+        ) {
+          redirectTo = lastRoute;
+        }
+        console.log("[LOGIN REDIRECT] redirectTo:", redirectTo, "location.state:", location.state, "lastRoute:", lastRoute);
+        navigate(redirectTo, { replace: true });
       } else {
         setError(result.message || "Login failed.");
       }

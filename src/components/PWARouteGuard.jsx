@@ -1,10 +1,12 @@
 // client/src/components/PWARouteGuard.jsx
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/auth';
 import usePWARouting from '../hooks/usePWARouting';
 
 export default function PWARouteGuard({ children }) {
-  const { isLoading } = useAuth();
+  const { isLoading, user } = useAuth();
   const { isStandalone } = usePWARouting();
+  const location = useLocation();
 
   // Show loading state while auth is being determined in PWA mode
   if (isStandalone && isLoading) {
@@ -16,6 +18,11 @@ export default function PWARouteGuard({ children }) {
         </div>
       </div>
     );
+  }
+
+  // If not authenticated, redirect to login and save intended route
+  if (!isLoading && !user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;
