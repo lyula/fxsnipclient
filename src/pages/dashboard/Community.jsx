@@ -496,6 +496,7 @@ useEffect(() => {
   // Rest of your existing handlers (handleNewPost, handleComment, handleReply, etc.)
   const handleNewPost = async (content, image, video) => {
     const tempId = `temp-${Date.now()}`;
+    // Add current user to likes for optimistic post
     const optimisticPost = {
       _id: tempId,
       content,
@@ -507,7 +508,7 @@ useEffect(() => {
         verified: user.verified,
         countryFlag: user.countryFlag
       },
-      likes: [],
+      likes: [], // Do not fill like button for author
       comments: [],
       views: 0,
       createdAt: new Date().toISOString(),
@@ -531,17 +532,12 @@ useEffect(() => {
       });
       
       if (res.ok) {
-  const newPost = await res.json();
-  // Keep the temp ID for the update, but merge in the server response
-  updatePost(tempId, { 
-    ...newPost, 
-    _id: tempId, // Keep the temp ID that React is tracking
-    _originalId: newPost._id, // Store the real server ID
-    sending: false, 
-    isOptimistic: false 
-  });
-  console.log('Post created successfully:', newPost);
-} else {
+        const newPost = await res.json();
+        // Remove the optimistic post and add the real post at the top
+        deletePost(tempId); // Remove optimistic post
+        addPostOptimistically({ ...newPost, sending: false, isOptimistic: false }); // Add real post
+        console.log('Post created successfully:', newPost);
+      } else {
         const errorData = await res.json();
         console.error("Failed to create post:", errorData);
         updatePost(tempId, { 
@@ -630,6 +626,8 @@ useEffect(() => {
 
   const handleLike = useCallback(async (postId) => {
     const originalPostId = getOriginalPostId(postId);
+    // Prevent liking a post that is not yet saved to the backend
+    if (!originalPostId) return;
     
     // Find the post in either collection
     const currentPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
