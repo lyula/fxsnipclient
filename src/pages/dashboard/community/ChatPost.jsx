@@ -168,7 +168,7 @@ export default function ChatPost({
   const [showLikes, setShowLikes] = useState(false);
   const [likesUsers, setLikesUsers] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
-  const [showProfileZoom, setShowProfileZoom] = useState(false);
+  const [zoomProfile, setZoomProfile] = useState(null);
   
   const postContainerRef = useRef(null);
   const commentsRef = useRef(null);
@@ -425,22 +425,25 @@ export default function ChatPost({
   return (
     <>
       {/* Profile Image Zoom Modal */}
-      {showProfileZoom && post.author?.profile?.profileImage && (
+      {zoomProfile && zoomProfile.profileImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 transition-opacity">
           <div className="relative max-w-xs w-full flex flex-col items-center">
-            <button
-              className="absolute top-2 right-2 text-white text-2xl font-bold bg-black bg-opacity-40 rounded-full p-1 hover:bg-opacity-70 transition-colors"
-              onClick={() => setShowProfileZoom(false)}
-              aria-label="Close profile image zoom"
-            >
-              ×
-            </button>
             <img
-              src={post.author.profile.profileImage}
+              src={zoomProfile.profileImage}
               alt="Profile Zoom"
               className="rounded-full shadow-lg border-4 border-white"
               style={{ background: '#fff', borderRadius: '50%', width: '300px', height: '300px', objectFit: 'cover', aspectRatio: '1 / 1', maxWidth: '80vw', maxHeight: '80vw' }}
             />
+            <div className="mt-2 flex items-center gap-2 text-white font-semibold text-lg text-center truncate max-w-xs">
+              <span className="font-bold">{zoomProfile.username}</span>
+              <button
+                className="text-white text-2xl font-bold bg-black bg-opacity-40 rounded-full p-1 hover:bg-opacity-70 transition-colors ml-2"
+                onClick={() => setZoomProfile(null)}
+                aria-label="Close profile image zoom"
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -470,7 +473,7 @@ export default function ChatPost({
             <div className="pt-0.5 pb-2">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer"
-                  onClick={() => post.author?.profile?.profileImage && setShowProfileZoom(true)}
+                  onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
                   title="View profile picture"
                 >
                   {post.author?.profile?.profileImage
@@ -603,7 +606,7 @@ export default function ChatPost({
           {!(post.image || post.video) && (
             <div className="flex items-center p-2 gap-3">
               <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer"
-                onClick={() => post.author?.profile?.profileImage && setShowProfileZoom(true)}
+                onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
                 title="View profile picture"
               >
                 {post.author?.profile?.profileImage
@@ -963,7 +966,7 @@ export default function ChatPost({
                     <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden">
                       <div className="flex items-start gap-3 w-full min-w-0">
                         <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden cursor-pointer"
-                          onClick={() => (comment.author?.profile?.profileImage) && setShowProfileZoom(true)}
+                          onClick={() => (comment.author?.profile?.profileImage) && setZoomProfile({ profileImage: comment.author.profile.profileImage, username: comment.author.username })}
                           title="View profile picture"
                         >
                           {comment.author?.profile?.profileImage
