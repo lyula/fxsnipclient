@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { getConversation } from "../../utils/api";
+import { getConversation, getProfileImages } from "../../utils/api";
 import { debounce } from "lodash";
 import { useDashboard } from "../../context/dashboard";
 import { Link, useNavigate } from "react-router-dom";
@@ -51,6 +51,21 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [replyToMessageId, setReplyToMessageId] = useState(null);
   const clearReply = () => setReplyToMessageId(null);
   const navigate = useNavigate();
+  const [avatarUrl, setAvatarUrl] = useState(selectedUser.avatar || '');
+
+  // Fetch profile image for selectedUser
+  useEffect(() => {
+    if (!selectedUser || !selectedUser._id) return;
+    getProfileImages({ userIds: [selectedUser._id] }).then(res => {
+      if (res && res.images && res.images[selectedUser._id]) {
+        setAvatarUrl(res.images[selectedUser._id]);
+      } else {
+        setAvatarUrl(`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedUser.username)}`);
+      }
+    }).catch(() => {
+      setAvatarUrl(`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedUser.username)}`);
+    });
+  }, [selectedUser]);
 
   // Keep localSelectedUser in sync with selectedUser prop (when switching chats)
   useEffect(() => {
@@ -529,7 +544,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             className="hover:opacity-80 transition-opacity mr-3"
           >
             <div className="relative">
-              <img src={selectedUser.avatar} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
+              <img src={avatarUrl} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
             </div>
           </Link>
           <div className="flex-1 flex flex-col">

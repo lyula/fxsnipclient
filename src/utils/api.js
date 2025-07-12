@@ -333,3 +333,16 @@ export function fetchWithAuth(url, options = {}) {
     // do NOT set credentials: 'include' for JWT in header
   });
 }
+
+// Get profile images for a list of user IDs or usernames
+export async function getProfileImages({ userIds = [], usernames = [] }) {
+  const res = await fetch(`${API_BASE}/user/profile-images`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+    body: JSON.stringify({ userIds, usernames }),
+  });
+  return res.json();
+}

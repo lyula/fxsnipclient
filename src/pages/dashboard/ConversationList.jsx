@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import VerifiedBadge from "../../components/VerifiedBadge";
 import { useDashboard } from "../../context/dashboard";
+import { getProfileImages } from '../../utils/api';
 
 // Utility to truncate message preview
 const truncateMessage = (text, isMobile = false) => {
@@ -31,6 +32,7 @@ const TypingDots = () => (
 const ConversationList = ({ selectedUser, onSelect }) => {
   const { conversations: rawConversations, fetchConversations, updateConversation, onlineUsers, typingUsers, userId, getConversationId } = useDashboard();
   const [localConversations, setLocalConversations] = useState([]);
+  const [profileImages, setProfileImages] = useState({});
   const conversations = Array.isArray(localConversations.length ? localConversations : rawConversations) ? (localConversations.length ? localConversations : rawConversations) : [];
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -75,6 +77,28 @@ const ConversationList = ({ selectedUser, onSelect }) => {
     };
   }, [search]);
 
+  // Fetch profile images for all conversation users
+  useEffect(() => {
+    const users = (localConversations.length ? localConversations : rawConversations).filter(Boolean);
+    if (!users.length) return;
+    const userIds = users.map(u => u._id).filter(Boolean);
+    if (!userIds.length) return;
+    // Log userIds only once per fetch
+    console.log('[ConversationList] Fetching profile images for userIds:', userIds);
+    getProfileImages({ userIds }).then(res => {
+      console.log('[ConversationList] Profile images response:', res);
+      if (res && res.images) {
+        console.log('[ConversationList] Profile images mapping:', res.images);
+        setProfileImages(res.images);
+      } else {
+        console.warn('[ConversationList] No images mapping returned:', res);
+      }
+    }).catch((err) => {
+      console.error('[ConversationList] Error fetching profile images:', err);
+      setProfileImages({});
+    });
+  }, [localConversations, rawConversations]);
+
   // Handle conversation selection: update URL and call onSelect
   const handleSelect = (user) => {
     // Optimistically set unreadCount to 0 for this conversation (local)
@@ -88,6 +112,68 @@ const ConversationList = ({ selectedUser, onSelect }) => {
     navigate(`/dashboard/inbox?chat=${encodeURIComponent(user.username)}`);
     onSelect(fullUser || user);
   };
+
+  let hasLogged = false;
+  conversations.filter(Boolean).map((user, idx) => {
+    if (!user || !user._id) return null;
+    // Use global onlineUsers Set for online status
+    const isOnline = onlineUsers && onlineUsers.has ? onlineUsers.has(user._id) : false;
+    // Typing indicator logic
+    let showTyping = false;
+    let conversationId = null;
+    if (userId && user._id) {
+      conversationId = getConversationId(userId, user._id);
+      const typingArr = typingUsers && typingUsers[conversationId];
+      // Show typing if someone else (not me) is typing in this conversation
+      showTyping = Array.isArray(typingArr) && typingArr.some(id => id !== userId);
+    }
+    return (
+      <button
+        key={user._id}
+        className={`w-full flex items-center p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-150 ${
+          selectedUser && selectedUser._id === user._id ? 'bg-gray-50 dark:bg-gray-800' : ''
+        }`}
+        onClick={() => handleSelect(user)}
+      >
+        <div className="relative mr-3">
+          {/* Online dot */}
+          {isOnline && (
+            <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full z-20"></span>
+          )}
+          {user.unreadCount > 0 && (
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center z-10">
+              {user.unreadCount > 99 ? '99+' : user.unreadCount}
+            </div>
+          )}
+          <img
+            src={profileImages[user._id] || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`}
+            alt={user.username}
+            className="w-12 h-12 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
+            onError={e => {
+              e.target.onerror = null;
+              e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`;
+            }}
+          />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center">
+              <span className={`font-medium truncate ${user.unreadCount > 0 ? 'font-bold text-gray-900 dark:text-white' : 'text-gray-900 dark:text-white'}`}>
+                {user.username}
+              </span>
+              {user.verified && <VerifiedBadge />}
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+              {user.lastTime}
+            </span>
+          </div>
+          <div className={`text-sm truncate ${user.unreadCount > 0 ? 'font-medium text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+            {showTyping ? <TypingDots /> : truncateMessage(user.lastMessage || '', window.innerWidth < 768)}
+          </div>
+        </div>
+      </button>
+    );
+  });
 
   return (
     <>
@@ -193,7 +279,15 @@ const ConversationList = ({ selectedUser, onSelect }) => {
                       {user.unreadCount > 99 ? '99+' : user.unreadCount}
                     </div>
                   )}
-                  <img src={user.avatar} alt={user.username} className="w-12 h-12 rounded-full" />
+                  <img
+                    src={profileImages[user._id] || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`}
+                    alt={user.username}
+                    className="w-12 h-12 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
+                    onError={e => {
+                      e.target.onerror = null;
+                      e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`;
+                    }}
+                  />
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <div className="flex items-center justify-between mb-1">
