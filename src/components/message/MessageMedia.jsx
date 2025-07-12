@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 
 /**
  * MessageMedia component handles rendering and preview of media files (image, video, or file link)
@@ -73,5 +73,77 @@ const MessageMedia = ({ mediaUrl, mediaFile, mediaPreview, onRemove, className =
 
   return null;
 };
+
+// --- Audio Recorder Hook ---
+export function useAudioRecorder() {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [mediaRecorder, setMediaRecorder] = useState(null);
+  const [recordedAudio, setRecordedAudio] = useState(null); // { blob, url }
+  const recordingIntervalRef = useRef(null);
+
+  const startRecording = async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error('Audio recording is not supported in this browser.');
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new window.MediaRecorder(stream);
+    let chunks = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const url = URL.createObjectURL(blob);
+      setRecordedAudio({ blob, url });
+      setIsRecording(false);
+      setRecordingTime(0);
+      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+    };
+    recorder.start();
+    setMediaRecorder(recorder);
+    setIsRecording(true);
+    setRecordingTime(0);
+    recordingIntervalRef.current = setInterval(() => {
+      setRecordingTime((t) => t + 1);
+    }, 1000);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      setMediaRecorder(null);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorder) {
+      mediaRecorder.stop();
+      setMediaRecorder(null);
+    }
+    setIsRecording(false);
+    setRecordingTime(0);
+    setRecordedAudio(null);
+    if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+  };
+
+  const resetRecording = () => {
+    setRecordedAudio(null);
+    setRecordingTime(0);
+    setIsRecording(false);
+    setMediaRecorder(null);
+    if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
+  };
+
+  return {
+    isRecording,
+    recordingTime,
+    recordedAudio,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+    resetRecording,
+  };
+}
 
 export default MessageMedia;

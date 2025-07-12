@@ -10,7 +10,7 @@ import './emoji-picker-minimalist.css';
 import UserStatus from '../../components/UserStatus';
 import { getReplyPreview, findMessageById } from '../../utils/replyUtils.jsx';
 import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
-import MessageMedia from '../../components/message/MessageMedia';
+import MessageMedia, { useAudioRecorder } from '../../components/message/MessageMedia';
 
 // Helper to generate a unique conversationId for 1:1 chats
 function getConversationId(userId1, userId2) {
@@ -57,6 +57,21 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [mediaPreview, setMediaPreview] = useState(null);
   const [mediaFile, setMediaFile] = useState(null);
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState(null);
+
+  // --- Audio recorder state ---
+  const {
+    isRecording,
+    audioBlob,
+    audioUrl,
+    recordingTime,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+    resetRecording,
+    isPreviewing,
+    setIsPreviewing
+  } = useAudioRecorder();
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
 
   // --- Media remove handler ---
   const handleRemoveMedia = () => {
@@ -276,6 +291,40 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     } catch (err) {
       setIsSending(false);
       setError("An error occurred while sending the message.");
+    }
+  };
+
+  // --- Send audio message ---
+  const handleSendAudio = async () => {
+    if (!audioBlob || !conversationId) return;
+    setIsUploadingAudio(true);
+    try {
+      // Convert blob to File for upload
+      const audioFile = new File([audioBlob], `voice-note-${Date.now()}.webm`, { type: audioBlob.type });
+      const uploadResult = await uploadToCloudinary(audioFile);
+      if (uploadResult.success) {
+        sendMessage(
+          conversationId,
+          '', // No text for voice note
+          selectedUser?._id,
+          {
+            mediaUrl: uploadResult.url,
+            mediaPublicId: uploadResult.publicId,
+            mediaType: 'audio',
+            replyTo: replyToMessageId
+          }
+        );
+        resetRecording();
+        setIsUploadingAudio(false);
+        setReplyToMessageId(null);
+        sendStopTyping(conversationId, selectedUser?._id);
+      } else {
+        setError('Failed to upload audio.');
+        setIsUploadingAudio(false);
+      }
+    } catch (err) {
+      setError('An error occurred while sending the audio.');
+      setIsUploadingAudio(false);
     }
   };
 
@@ -872,7 +921,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             )}
             {/* Media preview above input */}
             <MessageMedia mediaFile={mediaFile} mediaPreview={mediaPreview} onRemove={handleRemoveMedia} />
-            {/* Caption input should appear below the media preview */}
+            {/* Audio recording UI (caption input mode) */}
             {mediaFile && (
               <div className="mt-2 flex items-center gap-2">
                 {/* Emoji icon to the left of input */}
@@ -917,15 +966,72 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                     </svg>
                   </button>
                 </div>
-                {/* Send/Mic button to the right of input */}
+                {/* Recording UI */}
+                {isRecording && (
+                  <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900 px-3 py-1 rounded-full">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2" />
+                    <span className="font-mono text-sm text-red-700 dark:text-red-200">{recordingTime}</span>
+                    <button
+                      type="button"
+                      className="ml-2 p-2 rounded-full bg-red-500 text-white hover:bg-red-600"
+                      onClick={stopRecording}
+                      disabled={isUploadingAudio}
+                      title="Stop recording"
+                    >
+                      {/* Stop icon */}
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><rect x="5" y="5" width="10" height="10" rx="2" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="ml-1 p-2 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      onClick={cancelRecording}
+                      disabled={isUploadingAudio}
+                      title="Cancel recording"
+                    >
+                      {/* Close icon */}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                )}
+                {/* Audio preview UI (show after recording stops, until send/cancel) */}
+                {audioBlob && !isRecording && (
+                  <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900 px-3 py-1 rounded-full">
+                    <audio src={audioUrl} controls style={{ height: 32 }} onPlay={() => setIsPreviewing(true)} onPause={() => setIsPreviewing(false)} />
+                    <button
+                      type="button"
+                      className="ml-2 p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                      onClick={handleSendAudio}
+                      disabled={isUploadingAudio}
+                      title="Send voice note"
+                    >
+                      {/* Send icon */}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="ml-1 p-2 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      onClick={resetRecording}
+                      disabled={isUploadingAudio}
+                      title="Cancel voice note"
+                    >
+                      {/* Close icon */}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                )}
+                {/* Only one rightmost button: send or mic */}
                 <button
-                  type={input.trim() || mediaFile ? "submit" : "button"}
+                  type={input.trim() || mediaFile || (audioBlob && !isRecording) ? "submit" : "button"}
                   disabled={isSending}
-                  className={`ml-2 p-2 rounded-full transition ${((input.trim() || mediaFile) && !isSending) ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-500 bg-gray-200 dark:bg-gray-700'}`}
+                  className={`ml-2 p-2 rounded-full transition ${((input.trim() || mediaFile || (audioBlob && !isRecording)) && !isSending) ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-500 bg-gray-200 dark:bg-gray-700'}`}
                   style={{ flexShrink: 0 }}
-                  onClick={input.trim() || mediaFile ? undefined : () => {/* mic action here if needed */}}
+                  onClick={
+                    input.trim() || mediaFile || (audioBlob && !isRecording)
+                      ? undefined
+                      : (!isRecording && !audioBlob ? startRecording : undefined)
+                  }
                 >
-                  {(input.trim() || mediaFile) ? (
+                  {(input.trim() || mediaFile || (audioBlob && !isRecording)) ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
@@ -984,15 +1090,72 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                     </svg>
                   </button>
                 </div>
-                {/* Send/Mic button to the right of input */}
+                {/* Recording UI */}
+                {isRecording && (
+                  <div className="flex items-center gap-2 bg-red-50 dark:bg-red-900 px-3 py-1 rounded-full">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2" />
+                    <span className="font-mono text-sm text-red-700 dark:text-red-200">{recordingTime}</span>
+                    <button
+                      type="button"
+                      className="ml-2 p-2 rounded-full bg-red-500 text-white hover:bg-red-600"
+                      onClick={stopRecording}
+                      disabled={isUploadingAudio}
+                      title="Stop recording"
+                    >
+                      {/* Stop icon */}
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><rect x="5" y="5" width="10" height="10" rx="2" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="ml-1 p-2 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      onClick={cancelRecording}
+                      disabled={isUploadingAudio}
+                      title="Cancel recording"
+                    >
+                      {/* Close icon */}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                )}
+                {/* Audio preview UI */}
+                {audioBlob && !isRecording && (
+                  <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900 px-3 py-1 rounded-full">
+                    <audio src={audioUrl} controls style={{ height: 32 }} onPlay={() => setIsPreviewing(true)} onPause={() => setIsPreviewing(false)} />
+                    <button
+                      type="button"
+                      className="ml-2 p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                      onClick={handleSendAudio}
+                      disabled={isUploadingAudio}
+                      title="Send voice note"
+                    >
+                      {/* Send icon */}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="ml-1 p-2 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                      onClick={resetRecording}
+                      disabled={isUploadingAudio}
+                      title="Cancel voice note"
+                    >
+                      {/* Close icon */}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    </button>
+                  </div>
+                )}
+                {/* Only one rightmost button: send or mic */}
                 <button
-                  type={input.trim() || mediaFile ? "submit" : "button"}
+                  type={input.trim() || mediaFile || (audioBlob && !isRecording) ? "submit" : "button"}
                   disabled={isSending}
-                  className={`ml-2 p-2 rounded-full transition ${((input.trim() || mediaFile) && !isSending) ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-500 bg-gray-200 dark:bg-gray-700'}`}
+                  className={`ml-2 p-2 rounded-full transition ${((input.trim() || mediaFile || (audioBlob && !isRecording)) && !isSending) ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-500 bg-gray-200 dark:bg-gray-700'}`}
                   style={{ flexShrink: 0 }}
-                  onClick={input.trim() || mediaFile ? undefined : () => {/* mic action here if needed */}}
+                  onClick={
+                    input.trim() || mediaFile || (audioBlob && !isRecording)
+                      ? undefined
+                      : (!isRecording && !audioBlob ? startRecording : undefined)
+                  }
                 >
-                  {(input.trim() || mediaFile) ? (
+                  {(input.trim() || mediaFile || (audioBlob && !isRecording)) ? (
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
