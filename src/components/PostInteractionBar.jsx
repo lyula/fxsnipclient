@@ -1,5 +1,6 @@
 import React from "react";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar } from "react-icons/fa";
+import { LuShare2 } from "react-icons/lu";
 
 export default function PostInteractionBar({
   liked,
@@ -80,6 +81,14 @@ export default function PostInteractionBar({
             0
           ) || 0}
         </span>
+      </button>
+      {/* Share button */}
+      <button
+        className="flex items-center gap-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-all duration-300 hover:scale-105 active:scale-95"
+        aria-label="Share"
+      >
+        <LuShare2 className="transition-transform duration-200 hover:scale-110" />
+        <span className="font-semibold">{localPost.shares || 0}</span>
       </button>
       <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 ml-auto">
         <FaChartBar className="transition-transform duration-200 hover:scale-110" />
