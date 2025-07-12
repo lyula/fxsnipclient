@@ -214,6 +214,7 @@ export default function ChatPost({
   const postContainerRef = useRef(null);
   const postRef = useRef(null); // Fix: define postRef for media container
   const previousContentRef = useRef(); // Fix: define previousContentRef
+  const commentsRef = useRef(null); // Add this near other refs
 
   // Fix: get search from useLocation
   const { search } = useLocation();
