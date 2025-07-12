@@ -142,6 +142,20 @@ function extractUserIdsFromLikes(likes) {
   );
 }
 
+// Utility to render hashtags as blue, non-clickable links
+function renderHashtagsBlue(text) {
+  if (!text) return text;
+  // Regex: match #hashtags (letters, numbers, underscores, min 1 char, not just #)
+  return text.split(/(#[\w\d_]+)/g).map((part, i) => {
+    if (/^#[\w\d_]+$/.test(part)) {
+      return (
+        <span key={i} className="text-blue-600 dark:text-blue-400 font-medium cursor-default select-text">{part}</span>
+      );
+    }
+    return part;
+  });
+}
+
 export default function ChatPost({
   post,
   onReply,
@@ -829,7 +843,7 @@ export default function ChatPost({
                 {hasMoreThanThreeLines(localPost.content || '') && !showFullContent ? (
                   <> 
                     <span>
-                      {renderHighlightedContent(getFirstLine(localPost.content || ''))}
+                      {renderHashtagsBlue(getFirstLine(localPost.content || ''))}
                     </span>
                     <button
                       onClick={() => setShowFullContent(true)}
@@ -841,7 +855,7 @@ export default function ChatPost({
                 ) : (
                   <>
                     <span>
-                      {renderHighlightedContent(localPost.content || '')}
+                      {renderHashtagsBlue(localPost.content || '')}
                     </span>
                     {hasMoreThanThreeLines(localPost.content || '') && showFullContent && (
                       <button
