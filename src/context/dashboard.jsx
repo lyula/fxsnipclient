@@ -252,6 +252,8 @@ export function DashboardProvider({ children }) {
     // Always emit with correct conversationId and recipient
     const payload = { to: recipientUserId, text, conversationId };
     if (options.replyTo) payload.replyTo = options.replyTo;
+    if (options.mediaUrl) payload.mediaUrl = options.mediaUrl;
+    if (options.mediaPublicId) payload.mediaPublicId = options.mediaPublicId;
     socketRef.current.emit("sendMessage", payload);
   }, [userId]);
 

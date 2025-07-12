@@ -9,6 +9,8 @@ import EmojiPicker from 'emoji-picker-react';
 import './emoji-picker-minimalist.css';
 import UserStatus from '../../components/UserStatus';
 import { getReplyPreview, findMessageById } from '../../utils/replyUtils.jsx';
+import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
+import MessageMedia from '../../components/message/MessageMedia';
 
 // Helper to generate a unique conversationId for 1:1 chats
 function getConversationId(userId1, userId2) {
@@ -52,6 +54,36 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const clearReply = () => setReplyToMessageId(null);
   const navigate = useNavigate();
   const [avatarUrl, setAvatarUrl] = useState(selectedUser.avatar || '');
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [mediaFile, setMediaFile] = useState(null);
+
+  // --- Media remove handler ---
+  const handleRemoveMedia = () => {
+    setMediaPreview(null);
+    setMediaFile(null);
+  };
+
+  // --- Media file select handler ---
+  const handleFileSelect = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setMediaFile(file);
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target && ev.target.result) {
+          setMediaPreview(ev.target.result);
+        } else {
+          setMediaPreview(null);
+        }
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setMediaPreview(file.name);
+    }
+    // Reset file input value so selecting the same file again triggers onChange
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   // Fetch profile image for selectedUser
   useEffect(() => {
@@ -87,7 +119,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         },
       })
         .then(res => res.json())
-        .then(data => {
+        .then (data => {
           console.log('lastSeen fetch result (on open):', data);
           if (data && data.lastSeen) {
             setLocalSelectedUser(u => {
@@ -204,14 +236,38 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // --- Send message using context ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !conversationId) {
+    if ((!input.trim() && !mediaFile) || !conversationId) {
       return;
     }
     setIsSending(true);
     try {
+      let mediaUrl = null;
+      let mediaPublicId = null;
+      if (mediaFile) {
+        const uploadResult = await uploadToCloudinary(mediaFile);
+        if (uploadResult.success) {
+          mediaUrl = uploadResult.url;
+          mediaPublicId = uploadResult.publicId;
+        } else {
+          setError('Failed to upload media.');
+          setIsSending(false);
+          return;
+        }
+      }
       // Pass replyToMessageId as metadata
-      sendMessage(conversationId, input, selectedUser?._id, { replyTo: replyToMessageId });
+      sendMessage(
+        conversationId,
+        input,
+        selectedUser?._id,
+        {
+          replyTo: replyToMessageId,
+          mediaUrl,
+          mediaPublicId
+        }
+      );
       setInput("");
+      setMediaPreview(null);
+      setMediaFile(null);
       setIsSending(false);
       setError(null);
       setReplyToMessageId(null); // Clear reply after sending
@@ -654,7 +710,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                               <div
                                 className={`px-4 py-2 text-sm break-words relative whatsapp-bubble ${isOwn ? 'sent' : 'received'} ${isOwn ? message.failed ? 'bg-red-500 text-white' : message.isOptimistic ? 'bg-blue-400 text-white opacity-80' : 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
                                 style={{
-                                  borderRadius: '0.45em', // All corners equally less round
+                                  borderRadius: '0.45em',
                                   boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                                   minWidth: '40px',
                                   maxWidth: '100%',
@@ -689,20 +745,25 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                                     </div>
                                   </div>
                                 )}
-                                {/* Main message text */}
-                                <div className="mb-1">
-                                  {(() => {
-                                    const { textContent, urls } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
-                                    return (
-                                      <>
-                                        <div className="mb-1">{textContent}</div>
-                                        {urls.map((url, index) => (
-                                          <span key={`${message._id}-${index}-${url}`}>{url}</span>
-                                        ))}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
+                                {/* Media first, then caption below if both exist */}
+                                {message.mediaUrl && <MessageMedia mediaUrl={message.mediaUrl} />}
+                                {message.mediaUrl && message.text && (
+                                  <div className="mt-2 whitespace-pre-line break-words">
+                                    {(() => {
+                                      const { textContent } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
+                                      return textContent;
+                                    })()}
+                                  </div>
+                                )}
+                                {/* If only text and no media, render text as before */}
+                                {!message.mediaUrl && message.text && (
+                                  <div className="mb-1">
+                                    {(() => {
+                                      const { textContent } = renderMessageWithLinksAndPreviews(message.text, isOwn, message._id);
+                                      return textContent;
+                                    })()}
+                                  </div>
+                                )}
                                 <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
                                   {formatExactTime(message.createdAt)}
                                 </div>
@@ -743,6 +804,14 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         )}
         <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <form onSubmit={handleSendMessage} className="p-4">
+            {/* Hidden file input for media selection */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+              accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.7z,.mp3,.wav,.ogg,.csv,.json,.xml,.html,.md,.js,.ts,.jsx,.tsx,.py,.java,.c,.cpp,.h,.hpp,.php,.rb,.go,.sh,.bat,.ps1,.apk,.exe,.msi,.dmg,.iso"
+            />
             {/* Reply preview above input */}
             {replyToMessage && (
               <div className="mb-2 relative">
@@ -774,103 +843,142 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                 </div>
               </div>
             )}
-            <div className="flex items-end space-x-3 relative">
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <rect x="3" y="5" width="18" height="14" rx="3" strokeWidth="2" stroke="currentColor" />
-                  <circle cx="8.5" cy="12.5" r="1.5" strokeWidth="2" stroke="currentColor" />
-                  <path d="M21 15l-5-5-4 4-7-7" strokeWidth="2" stroke="currentColor" />
-                </svg>
-              </button>
-              <div className="flex-1 relative">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white pr-10"
-                  placeholder="Type a message..."
-                  disabled={isSending}
-                  onFocus={() => setShowEmojiPicker(false)}
-                  style={{ paddingRight: '2.5rem' }}
-                />
+            {/* Media preview above input */}
+            <MessageMedia mediaFile={mediaFile} mediaPreview={mediaPreview} onRemove={handleRemoveMedia} />
+            {/* Caption input should appear below the media preview */}
+            {mediaFile && (
+              <div className="mt-2 flex items-center gap-2">
+                {/* Emoji icon to the left of input */}
                 <button
                   type="button"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400 focus:outline-none"
+                  onClick={() => setShowEmojiPicker((v) => !v)}
+                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 emoji-picker-trigger"
                   tabIndex={-1}
-                  aria-label="Record voice note"
-                  style={{ pointerEvents: 'auto' }}
+                  style={{ flexShrink: 0 }}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <rect x="9" y="2" width="6" height="12" rx="3" strokeWidth="2" stroke="currentColor" />
-                    <path d="M5 10v2a7 7 0 0014 0v-2" strokeWidth="2" stroke="currentColor" />
-                    <line x1="12" y1="22" x2="12" y2="18" strokeWidth="2" stroke="currentColor" />
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" stroke="currentColor" />
+                    <path d="M8 15s1.5 2 4 2 4-2 4-2" strokeWidth="2" stroke="currentColor" strokeLinecap="round" />
+                    <circle cx="9" cy="10" r="1" fill="currentColor" />
+                    <circle cx="15" cy="10" r="1" fill="currentColor" />
                   </svg>
                 </button>
-                {showEmojiPicker && (
-                  <div
-                    ref={emojiPickerRef}
-                    className="absolute left-1/2 -translate-x-1/2 bottom-12 z-20 emoji-picker-minimalist-wrapper"
-                    style={{ minWidth: 320 }}
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white pr-10"
+                    placeholder="Add a caption..."
+                    disabled={isSending}
+                    onFocus={() => setShowEmojiPicker(false)}
+                    style={{ paddingRight: '2.5rem' }}
+                  />
+                  {/* Media picker icon inside input, right-aligned */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-transparent border-none focus:outline-none"
+                    tabIndex={-1}
+                    style={{ lineHeight: 0 }}
                   >
-                    <button
-                      className="absolute top-2 right-2 z-30 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
-                      style={{ fontSize: 18, lineHeight: 1, background: 'transparent', border: 'none', cursor: 'pointer' }}
-                      onClick={() => setShowEmojiPicker(false)}
-                      aria-label="Close emoji picker"
-                      type="button"
-                    >
-                      ×
-                    </button>
-                    <EmojiPicker
-                      onEmojiClick={handleEmojiClick}
-                      theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
-                      searchDisabled={false}
-                      skinTonesDisabled={true}
-                      previewConfig={{ showPreview: false }}
-                      height={320}
-                      width={320}
-                      lazyLoadEmojis={false}
-                      emojiStyle="native"
-                      className="emoji-picker-minimalist"
-                      autoFocusSearch={false}
-                    />
-                  </div>
-                )}
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="3" y="5" width="18" height="14" rx="3" strokeWidth="2" stroke="currentColor" />
+                      <circle cx="8.5" cy="12.5" r="1.5" strokeWidth="2" stroke="currentColor" />
+                      <path d="M21 15l-5-5-4 4-7-7" strokeWidth="2" stroke="currentColor" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Send/Mic button to the right of input */}
+                <button
+                  type={input.trim() || mediaFile ? "submit" : "button"}
+                  disabled={isSending}
+                  className={`ml-2 p-2 rounded-full transition ${((input.trim() || mediaFile) && !isSending) ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-500 bg-gray-200 dark:bg-gray-700'}`}
+                  style={{ flexShrink: 0 }}
+                  onClick={input.trim() || mediaFile ? undefined : () => {/* mic action here if needed */}}
+                >
+                  {(input.trim() || mediaFile) ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="9" y="2" width="6" height="12" rx="3" strokeWidth="2" stroke="currentColor" />
+                      <path d="M5 10v2a7 7 0 0014 0v-2" strokeWidth="2" stroke="currentColor" />
+                      <line x1="12" y1="22" x2="12" y2="18" strokeWidth="2" stroke="currentColor" />
+                    </svg>
+                  )}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((v) => !v)}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 emoji-picker-trigger"
-                tabIndex={-1}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10" strokeWidth="2" stroke="currentColor" />
-                  <path d="M8 15s1.5 2 4 2 4-2 4-2" strokeWidth="2" stroke="currentColor" strokeLinecap="round" />
-                  <circle cx="9" cy="10" r="1" fill="currentColor" />
-                  <circle cx="15" cy="10" r="1" fill="currentColor" />
-                </svg>
-              </button>
-              <button type="submit" disabled={!input.trim() || isSending} className={`p-2 rounded-full transition ${input.trim() && !isSending ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-400 cursor-not-allowed'}`}>
-                {isSending ? (
-                  <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
+            )}
+            {/* Only show the main input if not sending media */}
+            {!mediaFile && (
+              <div className="flex items-center gap-2">
+                {/* Emoji icon to the left of input */}
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((v) => !v)}
+                  className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 emoji-picker-trigger"
+                  tabIndex={-1}
+                  style={{ flexShrink: 0 }}
+                >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    <circle cx="12" cy="12" r="10" strokeWidth="2" stroke="currentColor" />
+                    <path d="M8 15s1.5 2 4 2 4-2 4-2" strokeWidth="2" stroke="currentColor" strokeLinecap="round" />
+                    <circle cx="9" cy="10" r="1" fill="currentColor" />
+                    <circle cx="15" cy="10" r="1" fill="currentColor" />
                   </svg>
-                )}
-              </button>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*,application/pdf"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
+                </button>
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 text-sm rounded-full border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 dark:text-white pr-10"
+                    placeholder="Type a message..."
+                    disabled={isSending}
+                    onFocus={() => setShowEmojiPicker(false)}
+                    style={{ paddingRight: '2.5rem' }}
+                  />
+                  {/* Media picker icon inside input, right-aligned */}
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-transparent border-none focus:outline-none"
+                    tabIndex={-1}
+                    style={{ lineHeight: 0 }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="3" y="5" width="18" height="14" rx="3" strokeWidth="2" stroke="currentColor" />
+                      <circle cx="8.5" cy="12.5" r="1.5" strokeWidth="2" stroke="currentColor" />
+                      <path d="M21 15l-5-5-4 4-7-7" strokeWidth="2" stroke="currentColor" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Send/Mic button to the right of input */}
+                <button
+                  type={input.trim() || mediaFile ? "submit" : "button"}
+                  disabled={isSending}
+                  className={`ml-2 p-2 rounded-full transition ${((input.trim() || mediaFile) && !isSending) ? 'bg-blue-500 text-white hover:bg-blue-600' : 'text-gray-500 bg-gray-200 dark:bg-gray-700'}`}
+                  style={{ flexShrink: 0 }}
+                  onClick={input.trim() || mediaFile ? undefined : () => {/* mic action here if needed */}}
+                >
+                  {(input.trim() || mediaFile) ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <rect x="9" y="2" width="6" height="12" rx="3" strokeWidth="2" stroke="currentColor" />
+                      <path d="M5 10v2a7 7 0 0014 0v-2" strokeWidth="2" stroke="currentColor" />
+                      <line x1="12" y1="22" x2="12" y2="18" strokeWidth="2" stroke="currentColor" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>
@@ -879,14 +987,4 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
 };
 
 export default ChatBox;
-
-// Helper functions should be above export default
-const handleFileSelect = (e) => {
-  const files = Array.from(e.target.files || []);
-  console.log('Selected files:', files);
-};
-
-const handleRetryMessage = (message) => {
-  console.log('Retrying message:', message);
-};
 
