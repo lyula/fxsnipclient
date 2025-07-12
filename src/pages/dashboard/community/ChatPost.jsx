@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
-import VerifiedBadge from "../../../components/VerifiedBadge";
+import { getConversations, addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers } from "../../../utils/api";
+import VerifiedBadge from '../../../components/VerifiedBadge';
 import MediaDisplay from '../../../components/media/MediaDisplay';
-import { addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers } from "../../../utils/api";
 import { formatPostDate } from '../../../utils/formatDate';
 import MentionInput from "../../../components/common/MentionInput";
 import { usePostViewTracking } from '../../../hooks/usePostViewTracking'; 
@@ -13,6 +13,7 @@ import { renderHighlightedContent } from '../../../utils/renderHighlight.jsx';
 import PostComment from "./postComment";
 import CommentReplies from "./commentReplies";
 import PostInteractionBar from '../../../components/PostInteractionBar';
+import SharePostModal from '../../../components/SharePostModal';
 
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
@@ -202,13 +203,77 @@ export default function ChatPost({
   const [likesUsers, setLikesUsers] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
   const [zoomProfile, setZoomProfile] = useState(null);
-  // Add state for comment editing
-  
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [topPeople, setTopPeople] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+
+  // Fix: define postContainerRef
   const postContainerRef = useRef(null);
-  const commentsRef = useRef(null);
-  const postRef = useRef(null);
-  const previousContentRef = useRef(post.content);
+  const postRef = useRef(null); // Fix: define postRef for media container
+  const previousContentRef = useRef(); // Fix: define previousContentRef
+
+  // Fix: get search from useLocation
   const { search } = useLocation();
+
+  // Example: get top 4 people from your conversation list (replace with real data)
+  useEffect(() => {
+    async function fetchConversations() {
+      setLoadingConversations(true);
+      try {
+        const data = await getConversations();
+        // Assume data is an array of conversations, each with a 'user' object
+        // Pick top 4 by recent activity or any logic you want
+        const people = (data.conversations || data || []).map(conv => {
+          const user = conv.user || conv.otherUser || conv;
+          return {
+            _id: user._id,
+            username: user.username,
+            profileImage: user.profileImage || user.profile?.profileImage,
+            verified: user.verified || false,
+          };
+        }).slice(0, 4);
+        setTopPeople(people);
+      } catch (e) {
+        setTopPeople([]);
+      } finally {
+        setLoadingConversations(false);
+      }
+    }
+    fetchConversations();
+  }, []);
+
+  // Search handler for SharePostModal
+  const handleUserSearch = async (query) => {
+    setSearching(true);
+    setSearchQuery(query);
+    try {
+      const res = await searchUsers(query);
+      setSearchResults(res.users || res || []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // The link to share (customize as needed)
+  const postLink = `${window.location.origin}/dashboard/community/post/${localPost._id}`;
+
+  // Handler for sharing to a person
+  const handleSendToPerson = (person) => {
+    // Implement your send message logic here
+    // e.g., open chat with person and prefill with postLink
+    alert(`Send post link to ${person.username}: ${postLink}`);
+    setShowShareModal(false);
+  };
+
+  // Handler for share button in interaction bar
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
 
   // Normalize likes to always be array of user IDs
   const normalizedLikes = extractUserIdsFromLikes(localPost.likes);
@@ -889,6 +954,7 @@ export default function ChatPost({
             currentUserId={currentUserId}
             currentUsername={currentUsername}
             currentUserVerified={currentUserVerified}
+            onShare={handleShare}
           />
 
           {/* Likes Display */}
@@ -1082,6 +1148,20 @@ export default function ChatPost({
             </div>
           )}
         </div>
+
+        {showShareModal && (
+          <SharePostModal
+            postLink={postLink}
+            topPeople={topPeople}
+            loadingConversations={loadingConversations}
+            searchResults={searchResults}
+            searching={searching}
+            onUserSearch={handleUserSearch}
+            searchQuery={searchQuery}
+            onSendToPerson={handleSendToPerson}
+            onClose={() => setShowShareModal(false)}
+          />
+        )}
       </div>
     </>
   );

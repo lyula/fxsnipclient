@@ -18,6 +18,7 @@ export default function PostInteractionBar({
   currentUserId,
   currentUsername,
   currentUserVerified,
+  onShare, // <-- new prop
   ...props
 }) {
   return (
@@ -84,6 +85,7 @@ export default function PostInteractionBar({
       </button>
       {/* Share button */}
       <button
+        onClick={onShare}
         className="flex items-center gap-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-all duration-300 hover:scale-105 active:scale-95"
         aria-label="Share"
       >
