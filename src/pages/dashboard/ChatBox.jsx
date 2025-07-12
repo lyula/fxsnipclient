@@ -56,6 +56,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const [avatarUrl, setAvatarUrl] = useState(selectedUser.avatar || '');
   const [mediaPreview, setMediaPreview] = useState(null);
   const [mediaFile, setMediaFile] = useState(null);
+  const [fullscreenImageUrl, setFullscreenImageUrl] = useState(null);
 
   // --- Media remove handler ---
   const handleRemoveMedia = () => {
@@ -578,6 +579,26 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         />
       </div>
       <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full">
+        {/* Fullscreen image modal */}
+        {fullscreenImageUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90" style={{backdropFilter: 'blur(2px)'}}>
+            <button
+              className="absolute bottom-6 left-6 bg-white/80 hover:bg-white text-gray-900 rounded-full px-4 py-2 shadow-lg text-base font-semibold transition"
+              onClick={() => setFullscreenImageUrl(null)}
+              style={{zIndex: 60}}
+            >
+              <svg className="inline-block w-5 h-5 mr-2 align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+              Back
+            </button>
+            <img
+              src={fullscreenImageUrl}
+              alt="Full"
+              className="max-h-[90vh] max-w-[95vw] object-contain rounded-xl shadow-2xl border border-white/20"
+              style={{boxShadow: '0 8px 32px 0 rgba(0,0,0,0.4)'}}
+              onClick={() => setFullscreenImageUrl(null)}
+            />
+          </div>
+        )}
         <div
           className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
           style={{
@@ -708,16 +729,20 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                                 </button>
                               )}
                               <div
-                                className={`px-4 py-2 text-sm break-words relative whatsapp-bubble ${isOwn ? 'sent' : 'received'} ${isOwn ? message.failed ? 'bg-red-500 text-white' : message.isOptimistic ? 'bg-blue-400 text-white opacity-80' : 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'}`}
+                                className={`px-2 py-2 text-sm break-words rounded-lg ${isOwn ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'} whatsapp-bubble`}
                                 style={{
-                                  borderRadius: '0.45em',
-                                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                                   minWidth: '40px',
                                   maxWidth: '100%',
                                   wordBreak: 'break-word',
+                                  marginBottom: '2px',
+                                  position: 'relative',
+                                  boxShadow: 'none',
+                                  borderRadius: '0.5rem', // Less rounded than before
+                                  marginRight: isOwn ? '12px' : undefined,
+                                  marginLeft: !isOwn ? '12px' : undefined,
                                 }}
                               >
-                                {/* Reply preview in bubble (INSIDE the bubble, not above) */}
+                                {/* Reply message rendering logic (if needed) */}
                                 {repliedMsg && (
                                   <div className="mb-1">
                                     <div
@@ -746,7 +771,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                                   </div>
                                 )}
                                 {/* Media first, then caption below if both exist */}
-                                {message.mediaUrl && <MessageMedia mediaUrl={message.mediaUrl} />}
+                                {message.mediaUrl && (
+                                  <MessageMedia mediaUrl={message.mediaUrl} onClick={() => setFullscreenImageUrl(message.mediaUrl)} />
+                                )}
                                 {message.mediaUrl && message.text && (
                                   <div className="mt-2 whitespace-pre-line break-words">
                                     {(() => {
@@ -764,7 +791,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                                     })()}
                                   </div>
                                 )}
-                                <div className={`text-xs ${isOwn ? 'text-blue-100 dark:text-blue-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <div className={`text-xs ${isOwn ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
                                   {formatExactTime(message.createdAt)}
                                 </div>
                                 {message.failed && (

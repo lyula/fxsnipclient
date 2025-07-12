@@ -11,7 +11,7 @@ import React from 'react';
  * - onRemove: function (optional, for removing selected media)
  * - className: string (optional, for styling)
  */
-const MessageMedia = ({ mediaUrl, mediaFile, mediaPreview, onRemove, className = '' }) => {
+const MessageMedia = ({ mediaUrl, mediaFile, mediaPreview, onRemove, className = '', onClick }) => {
   // Render preview for local file before upload
   if (mediaPreview && mediaFile) {
     if (mediaFile.type.startsWith('image')) {
@@ -55,7 +55,15 @@ const MessageMedia = ({ mediaUrl, mediaFile, mediaPreview, onRemove, className =
   // Render media from a URL (already uploaded)
   if (mediaUrl) {
     if (mediaUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-      return <img src={mediaUrl} alt="media" className={`max-h-64 rounded shadow ${className}`} />;
+      return (
+        <img
+          src={mediaUrl}
+          alt="media"
+          className={`max-h-64 rounded shadow cursor-pointer ${className}`}
+          onClick={onClick}
+          style={onClick ? { cursor: 'zoom-in' } : {}}
+        />
+      );
     }
     if (mediaUrl.match(/\.(mp4|webm|ogg)$/i)) {
       return <video src={mediaUrl} controls className={`max-h-64 rounded shadow ${className}`} />;
