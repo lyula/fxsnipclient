@@ -155,7 +155,8 @@ export default function ChatPost({
   showComments: forceShowComments = false,
   highlightedCommentId = null,
   highlightedReplyId = null,
-  scrollable = false // NEW PROP: only true in notification post view
+  scrollable = false, // NEW PROP: only true in notification post view
+  loading = false // <-- NEW PROP
 }) {
   // Move localPost state to the very top before any hooks that use it
   const [localPost, setLocalPost] = useState(post);
@@ -535,6 +536,26 @@ export default function ChatPost({
     console.log('Post author profileImage:', post.author?.profile?.profileImage);
   }, []);
 
+  // Show spinner if loading
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] py-12">
+        <FaSpinner className="animate-spin text-3xl text-gray-400 mb-4" />
+        <span className="text-lg text-gray-600 dark:text-gray-300 font-medium">Loading posts...</span>
+      </div>
+    );
+  }
+
+  // Add loading spinner if post is not loaded
+  if (!post || !post._id) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[200px] w-full py-10">
+        <FaSpinner className="animate-spin text-3xl text-blue-500 mb-3" />
+        <span className="text-lg text-gray-700 dark:text-gray-200 font-semibold">Loading posts...</span>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Profile Image Zoom Modal */}
@@ -769,7 +790,7 @@ export default function ChatPost({
                         className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
                       >
                         <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
-                      </button>
+                        </button>
                     </div>
                   )}
                 </div>

@@ -24,6 +24,7 @@ export default function UserProfile() {
   const [activeTab, setActiveTab] = useState(location.state?.defaultTab || "posts");
   const [posts, setPosts] = useState([]);
   const [buttonLoading, setButtonLoading] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(false);
 
   // Use Auth context for current user
   const { user: currentUser } = useAuth();
@@ -160,7 +161,7 @@ export default function UserProfile() {
   // Fetch posts for this user with abort controller
   const fetchPosts = useCallback(async (profileId, signal) => {
     if (!profileId) return;
-    
+    setLoadingPosts(true);
     try {
       const res = await fetch(`${API_BASE}/posts/by-userid/${profileId}`, { signal });
       if (res.ok && !signal.aborted) {
@@ -171,6 +172,8 @@ export default function UserProfile() {
       if (error.name !== 'AbortError') {
         console.error("Error fetching posts:", error);
       }
+    } finally {
+      setLoadingPosts(false);
     }
   }, [API_BASE]);
 
@@ -547,7 +550,13 @@ export default function UserProfile() {
             <div className="flex-1 overflow-y-auto hide-scrollbar w-full max-w-full overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 200px)' }}>
               {activeTab === "posts" && (
                 <>
-                  {posts.length === 0 ? (
+                  {loadingPosts ? (
+                    <div className="flex flex-col items-center justify-center min-h-[200px] py-12">
+                      <FaEnvelope className="hidden" /> {/* To ensure icon font loads if not already */}
+                      <svg className="animate-spin text-3xl text-gray-400 mb-4" style={{ width: '2em', height: '2em' }} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                      <span className="text-lg text-gray-600 dark:text-gray-300 font-medium">Loading posts...</span>
+                    </div>
+                  ) : posts.length === 0 ? (
                     <div className="text-gray-500 dark:text-gray-400 text-center py-8">No posts yet.</div>
                   ) : (
                     <div className="w-full max-w-full overflow-x-hidden">
