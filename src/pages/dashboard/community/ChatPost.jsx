@@ -12,6 +12,7 @@ import { useReplies } from '../../../hooks/useReplies';
 import { renderHighlightedContent } from '../../../utils/renderHighlight.jsx';
 import PostComment from "./postComment";
 import CommentReplies from "./commentReplies";
+import PostInteractionBar from '../../../components/PostInteractionBar';
 
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
@@ -872,75 +873,23 @@ export default function ChatPost({
           </div>
 
           {/* Interaction Bar */}
-          <div className={`flex items-center gap-3 sm:gap-6 text-base mb-4 ${post.image || post.video ? 'w-full max-w-full px-2' : 'px-2 sm:px-4'} py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300 overflow-x-hidden`}>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleLike}
-                className={`transition-all duration-300 hover:scale-110 active:scale-95 ${
-                  likeAnimating ? 'scale-110' : ''
-                } ${
-                  liked ? "text-red-500" : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-                }`}
-                aria-label="Like"
-              >
-                {liked ? (
-                  <FaHeart className="text-red-500 drop-shadow-sm" />
-                ) : (
-                  <FaRegHeart className="transition-transform duration-200 hover:scale-110" />
-                )}
-              </button>
-              
-              <button
-                className={`font-semibold hover:underline transition-colors ${liked ? "text-red-500" : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  const likesCount = normalizedLikes.length;
-                  if (likesCount > 0) {
-                    setShowLikes(!showLikes);
-                    
-                    if (!showLikes && likesUsers.length === 0) {
-                      setLoadingLikes(true);
-                      try {
-                        const response = await getPostLikes(localPost._id, 100);
-                        if (response.likes) {
-                          setLikesUsers(response.likes);
-                        }
-                      } catch (error) {
-                        console.error('Error fetching likes:', error);
-                      } finally {
-                        setLoadingLikes(false);
-                      }
-                    }
-                  }
-                }}
-                disabled={normalizedLikes.length === 0}
-              >
-                {normalizedLikes.length}
-              </button>
-            </div>
-
-            <button
-              onClick={() => {
-                setShowLikes(false);
-                setShowComments((prev) => !prev);
-              }}
-              className="flex items-center gap-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 active:scale-95"
-            >
-              <FaRegCommentDots className="transition-transform duration-200 hover:scale-110" />
-              <span className="font-semibold">
-                {localPost.comments?.reduce(
-                  (total, comment) =>
-                    total + 1 + (Array.isArray(comment.replies) ? comment.replies.length : 0),
-                  0
-                ) || 0}
-              </span>
-            </button>
-
-            <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 ml-auto">
-              <FaChartBar className="transition-transform duration-200 hover:scale-110" />
-              <span className="font-semibold">{localPost.views || 0}</span>
-            </div>
-          </div>
+          <PostInteractionBar
+            liked={liked}
+            likeAnimating={likeAnimating}
+            handleLike={handleLike}
+            normalizedLikes={normalizedLikes}
+            likesUsers={likesUsers}
+            setShowLikes={setShowLikes}
+            showLikes={showLikes}
+            setShowComments={setShowComments}
+            localPost={localPost}
+            loadingLikes={loadingLikes}
+            getPostLikes={getPostLikes}
+            setLikesUsers={setLikesUsers}
+            currentUserId={currentUserId}
+            currentUsername={currentUsername}
+            currentUserVerified={currentUserVerified}
+          />
 
           {/* Likes Display */}
           {showLikes && (
