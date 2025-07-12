@@ -172,12 +172,12 @@ export default function PostComment({
       <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden relative">
         <div className="flex items-start gap-3 w-full min-w-0">
           <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden cursor-pointer"
-            onClick={() => (comment.author?.profile?.profileImage) && setZoomProfile({ profileImage: comment.author.profile.profileImage, username: comment.author.username })}
+            onClick={() => (comment.author?.profile?.profileImage || comment.author?.profileImage) && setZoomProfile({ profileImage: comment.author.profile?.profileImage || comment.author.profileImage, username: comment.author.username })}
             title="View profile picture"
           >
-            {comment.author?.profile?.profileImage
+            {comment.author?.profile?.profileImage || comment.author?.profileImage
               ? (<img
-                  src={comment.author.profile.profileImage}
+                  src={comment.author.profile?.profileImage || comment.author.profileImage}
                   alt="Profile"
                   className="w-8 h-8 rounded-full object-cover"
                   onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}

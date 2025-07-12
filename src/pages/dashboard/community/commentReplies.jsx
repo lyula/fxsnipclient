@@ -112,9 +112,9 @@ export default function CommentReplies({
           >
             <div className="flex items-start gap-2 mb-1 flex-nowrap">
               <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden mt-1">
-                {reply.author?.profile?.profileImage ? (
+                {reply.author?.profile?.profileImage || reply.author?.profileImage ? (
                   <img
-                    src={reply.author.profile.profileImage}
+                    src={reply.author.profile?.profileImage || reply.author.profileImage}
                     alt="Profile"
                     className="w-8 h-8 rounded-full object-cover"
                     onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}

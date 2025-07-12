@@ -209,75 +209,51 @@ export default function UserProfile() {
   }, [profile, currentUser]);
 
   // Like handler with debugging
-  const handleLike = useCallback(async (postId) => {
-    console.log('handleLike called with postId:', postId);
-    
-    // Extract original ID if it's a cycled post
-    const originalPostId = postId.includes('_cycle_') ? postId.split('_cycle_')[0] : postId;
-    console.log('originalPostId:', originalPostId);
-    
-    // Check if currently liked
-    const currentPost = posts.find(post => post._id === postId);
-    const currentUserId = currentUser._id || currentUser.id;
-    const isCurrentlyLiked = currentPost?.likes?.some(likeId => String(likeId) === String(currentUserId));
-    
-    console.log('currentPost likes:', currentPost?.likes);
-    console.log('currentUserId:', currentUserId);
-    console.log('isCurrentlyLiked:', isCurrentlyLiked);
-    
-    // Optimistic update - toggle the like
+  const handleLike = useCallback(async (postId, newLiked) => {
+    // Only update the like button and count optimistically
     setPosts(prevPosts =>
       prevPosts.map(post =>
-        post._id === postId 
-          ? { 
-              ...post, 
-              likes: isCurrentlyLiked 
-                ? (post.likes || []).filter(likeId => String(likeId) !== String(currentUserId))
-                : [...(post.likes || []), currentUserId]
+        post._id === postId
+          ? {
+              ...post,
+              likes: newLiked
+                ? [...(post.likes || []), currentUser._id || currentUser.id]
+                : (post.likes || []).filter(likeId => String(likeId) !== String(currentUser._id || currentUser.id))
             }
           : post
       )
     );
-
     try {
-      const url = `${API_BASE}/posts/${originalPostId}/like`;
+      const url = `${API_BASE}/posts/${postId}/like`;
       const response = await fetchWithAuth(url, { method: "POST" });
-      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+        throw new Error("Failed to update like");
       }
-
-      // Get the updated post data from server
       const updatedPost = await response.json();
-      
-      // Update with server response
+      // Only update likes from server response
       setPosts(prevPosts =>
         prevPosts.map(post =>
-          post._id === postId 
+          post._id === postId
             ? { ...post, likes: updatedPost.likes }
             : post
         )
       );
-
     } catch (error) {
-      console.error("Full error details:", error);
       // Revert optimistic update on error
       setPosts(prevPosts =>
         prevPosts.map(post =>
-          post._id === postId 
-            ? { 
-                ...post, 
-                likes: isCurrentlyLiked
-                  ? [...(post.likes || []), currentUserId]  // Revert: add back if was liked
-                  : (post.likes || []).filter(likeId => String(likeId) !== String(currentUserId)) // Revert: remove if wasn't liked
+          post._id === postId
+            ? {
+                ...post,
+                likes: !newLiked
+                  ? [...(post.likes || []), currentUser._id || currentUser.id]
+                  : (post.likes || []).filter(likeId => String(likeId) !== String(currentUser._id || currentUser.id))
               }
             : post
         )
       );
     }
-  }, [API_BASE, fetchWithAuth, currentUser, posts]);
+  }, [API_BASE, fetchWithAuth, currentUser]);
 
   // Comment handler
   const handleComment = useCallback(async (postId, content) => {
@@ -407,6 +383,31 @@ export default function UserProfile() {
   const handleDeletePost = useCallback(async (postId) => {
     setPosts(prevPosts => prevPosts.filter(post => post._id !== postId));
   }, []);
+
+  // Add debug logs for post, comment, and reply author profile images
+  useEffect(() => {
+    if (posts && posts.length > 0) {
+      posts.forEach((post, i) => {
+        console.log(`[UserProfile DEBUG] Post[${i}] author:`, post.author);
+        console.log(`[UserProfile DEBUG] Post[${i}] author.profile:`, post.author?.profile);
+        console.log(`[UserProfile DEBUG] Post[${i}] author.profileImage:`, post.author?.profile?.profileImage);
+        if (post.comments && post.comments.length > 0) {
+          post.comments.forEach((comment, j) => {
+            console.log(`[UserProfile DEBUG] Post[${i}] Comment[${j}] author:`, comment.author);
+            console.log(`[UserProfile DEBUG] Post[${i}] Comment[${j}] author.profile:`, comment.author?.profile);
+            console.log(`[UserProfile DEBUG] Post[${i}] Comment[${j}] author.profileImage:`, comment.author?.profile?.profileImage);
+            if (comment.replies && comment.replies.length > 0) {
+              comment.replies.forEach((reply, k) => {
+                console.log(`[UserProfile DEBUG] Post[${i}] Comment[${j}] Reply[${k}] author:`, reply.author);
+                console.log(`[UserProfile DEBUG] Post[${i}] Comment[${j}] Reply[${k}] author.profile:`, reply.author?.profile);
+                console.log(`[UserProfile DEBUG] Post[${i}] Comment[${j}] Reply[${k}] author.profileImage:`, reply.author?.profile?.profileImage);
+              });
+            }
+          });
+        }
+      });
+    }
+  }, [posts]);
 
   const tabs = ["posts", "followers", "following"];
 

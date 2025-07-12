@@ -134,6 +134,14 @@ const FloatingHeart = ({ x, y, onAnimationEnd }) => {
   );
 };
 
+// Utility to extract user IDs from likes array (handles array of IDs or array of user objects)
+function extractUserIdsFromLikes(likes) {
+  if (!Array.isArray(likes)) return [];
+  return likes.map(like =>
+    typeof like === 'object' && like !== null && like._id ? String(like._id) : String(like)
+  );
+}
+
 export default function ChatPost({
   post,
   onReply,
@@ -186,9 +194,9 @@ export default function ChatPost({
   const previousContentRef = useRef(post.content);
   const { search } = useLocation();
 
-  const liked = Array.isArray(localPost.likes) && currentUserId
-    ? localPost.likes.map(String).includes(String(currentUserId))
-    : false;
+  // Normalize likes to always be array of user IDs
+  const normalizedLikes = extractUserIdsFromLikes(localPost.likes);
+  const liked = currentUserId ? normalizedLikes.includes(String(currentUserId)) : false;
 
   // Use hook functions and state
   const displayedComments = commentHook.getDisplayedComments(commentSortType, sortComments);
@@ -370,13 +378,16 @@ export default function ChatPost({
 
     const newLiked = !liked;
 
-    // Optimistically update likes
-    setLocalPost(prev => ({
-      ...prev,
-      likes: newLiked 
-        ? (Array.isArray(prev.likes) ? [...prev.likes, currentUserId] : [currentUserId])
-        : (Array.isArray(prev.likes) ? prev.likes.filter(id => String(id) !== String(currentUserId)) : [])
-    }));
+    // Optimistically update likes (as array of user IDs)
+    setLocalPost(prev => {
+      const prevLikes = extractUserIdsFromLikes(prev.likes);
+      return {
+        ...prev,
+        likes: newLiked 
+          ? [...prevLikes, String(currentUserId)]
+          : prevLikes.filter(id => String(id) !== String(currentUserId))
+      };
+    });
 
     // Optimistically update likers list if loaded
     if (likesUsers.length > 0) {
@@ -391,16 +402,21 @@ export default function ChatPost({
       const response = await onLike?.(localPost._id, newLiked);
       // If backend returns updated post, merge it into localPost
       if (response && response.post) {
-        setLocalPost(prev => ({ ...prev, ...response.post }));
+        // Normalize likes from backend response
+        const backendLikes = extractUserIdsFromLikes(response.post.likes);
+        setLocalPost(prev => ({ ...prev, ...response.post, likes: backendLikes }));
       }
     } catch (error) {
       // On error, revert optimistic update
-      setLocalPost(prev => ({
-        ...prev,
-        likes: liked
-          ? (Array.isArray(prev.likes) ? [...prev.likes, currentUserId] : [currentUserId])
-          : (Array.isArray(prev.likes) ? prev.likes.filter(id => String(id) !== String(currentUserId)) : [])
-      }));
+      setLocalPost(prev => {
+        const prevLikes = extractUserIdsFromLikes(prev.likes);
+        return {
+          ...prev,
+          likes: liked
+            ? [...prevLikes, String(currentUserId)]
+            : prevLikes.filter(id => String(id) !== String(currentUserId))
+        };
+      });
       setError('Failed to update like. Please try again.');
     }
   };
@@ -843,7 +859,7 @@ export default function ChatPost({
                 className={`font-semibold hover:underline transition-colors ${liked ? "text-red-500" : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
                 onClick={async (e) => {
                   e.stopPropagation();
-                  const likesCount = Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0;
+                  const likesCount = normalizedLikes.length;
                   if (likesCount > 0) {
                     setShowLikes(!showLikes);
                     
@@ -862,9 +878,9 @@ export default function ChatPost({
                     }
                   }
                 }}
-                disabled={Array.isArray(localPost.likes) ? localPost.likes.length === 0 : (localPost.likes || 0) === 0}
+                disabled={normalizedLikes.length === 0}
               >
-                {Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0}
+                {normalizedLikes.length}
               </button>
             </div>
 
