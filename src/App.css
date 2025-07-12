@@ -1592,6 +1592,15 @@ video {
   animation: slide-up 0.3s ease-out;
 }
 
+/* Slide up animation for mobile share modal */
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slideUp {
+  animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
 /* Ensure update notification is always on top */
 .pwa-update-notification {
   z-index: 9999 !important;

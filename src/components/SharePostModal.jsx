@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { FaWhatsapp, FaTelegramPlane, FaTwitter, FaFacebook, FaLinkedin, FaRedditAlien, FaSnapchatGhost, FaInstagram, FaShareAlt, FaUser } from "react-icons/fa";
 import VerifiedBadge from "./VerifiedBadge";
 
@@ -49,12 +49,14 @@ function isMobile() {
 export default function SharePostModal({ postLink, topPeople = [], loadingConversations, searchResults = [], searching, onUserSearch, searchQuery, onSendToPerson, onClose }) {
   // Native share available?
   const canNativeShare = typeof navigator !== 'undefined' && navigator.share;
+  const [copied, setCopied] = useState(false);
 
   // Only show WhatsApp/Telegram on mobile, others always
   const filteredApps = useMemo(() => {
     if (!isMobile()) return SOCIAL_APPS.filter(app => !app.mobileScheme);
     return SOCIAL_APPS;
   }, []);
+  const isMobileDevice = isMobile();
 
   const handleNativeShare = async () => {
     try {
@@ -65,8 +67,11 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-md relative">
+    <div className={`fixed inset-0 z-50 flex ${isMobileDevice ? 'items-end' : 'items-center'} justify-center bg-black bg-opacity-50`}>
+      <div
+        className={`bg-white dark:bg-gray-900 rounded-t-2xl rounded-b-xl shadow-xl p-6 w-full max-w-md relative transition-all duration-300 ${isMobileDevice ? 'mb-0 animate-slideUp' : ''}`}
+        style={isMobileDevice ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : {}}
+      >
         <button
           className="absolute top-2 right-2 text-gray-500 dark:text-gray-300 hover:text-red-500 text-2xl font-bold"
           onClick={onClose}
@@ -181,13 +186,22 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs mb-2"
           />
           <button
-            onClick={() => { navigator.clipboard.writeText(postLink); }}
-            className="w-full py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors"
+            onClick={() => {
+              navigator.clipboard.writeText(postLink);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+            className={`w-full py-2 ${copied ? 'bg-green-600' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-lg text-sm font-semibold transition-colors`}
           >
-            Copy Link
+            {copied ? 'Link Copied!' : 'Copy Link'}
           </button>
         </div>
       </div>
     </div>
   );
 }
+
+/* Add animation for mobile slide up */
+// In your global CSS (e.g., App.css or index.css), add:
+// @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+// .animate-slideUp { animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1); }
