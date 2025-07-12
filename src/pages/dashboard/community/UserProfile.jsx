@@ -552,8 +552,7 @@ export default function UserProfile() {
                 <>
                   {loadingPosts ? (
                     <div className="flex flex-col items-center justify-center min-h-[200px] py-12">
-                      <FaEnvelope className="hidden" /> {/* To ensure icon font loads if not already */}
-                      <svg className="animate-spin text-3xl text-gray-400 mb-4" style={{ width: '2em', height: '2em' }} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+                      <div className="w-12 h-12 mb-4 border-4 border-blue-400 border-t-transparent rounded-full animate-spin shadow-lg"></div>
                       <span className="text-lg text-gray-600 dark:text-gray-300 font-medium">Loading posts...</span>
                     </div>
                   ) : posts.length === 0 ? (
