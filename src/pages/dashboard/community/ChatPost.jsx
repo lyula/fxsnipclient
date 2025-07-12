@@ -912,9 +912,8 @@ export default function ChatPost({
             <div className="mt-4 relative w-full max-w-full overflow-x-hidden">
               <div className="flex justify-between items-center mb-3">
                 <div className="font-semibold text-sm text-red-600 dark:text-red-400">
-                  Liked by {Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0} {(Array.isArray(localPost.likes) ? localPost.likes.length : localPost.likes || 0) === 1 ? 'person' : 'people'}
+                  Liked by {normalizedLikes.length} {normalizedLikes.length === 1 ? 'person' : 'people'}
                 </div>
-                
                 <button
                   className="mobile-touch-target text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 text-xl font-bold px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                   onClick={() => setShowLikes(false)}
@@ -924,7 +923,6 @@ export default function ChatPost({
                   ×
                 </button>
               </div>
-              
               <div className="w-full max-w-full">
                 {loadingLikes ? (
                   <div className="flex items-center justify-center py-4">
@@ -938,8 +936,17 @@ export default function ChatPost({
                   <div className="space-y-2">
                     {likesUsers.map((user) => (
                       <div key={user._id} className="flex items-center gap-3 py-2 px-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
-                        <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0">
-                          <FaUser className="text-gray-600 dark:text-gray-400 text-sm" />
+                        <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {user.profile?.profileImage ? (
+                            <img
+                              src={user.profile.profileImage}
+                              alt={user.username + "'s profile"}
+                              className="w-8 h-8 rounded-full object-cover"
+                              onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+                            />
+                          ) : (
+                            <FaUser className="text-gray-600 dark:text-gray-400 text-sm" />
+                          )}
                         </div>
                         <div className="flex items-center gap-2 min-w-0">
                           <Link
