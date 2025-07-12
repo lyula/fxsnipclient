@@ -33,6 +33,7 @@ const ConversationList = ({ selectedUser, onSelect }) => {
   const { conversations: rawConversations, fetchConversations, updateConversation, onlineUsers, typingUsers, userId, getConversationId } = useDashboard();
   const [localConversations, setLocalConversations] = useState([]);
   const [profileImages, setProfileImages] = useState({});
+  const [zoomImg, setZoomImg] = useState(null);
   const conversations = Array.isArray(localConversations.length ? localConversations : rawConversations) ? (localConversations.length ? localConversations : rawConversations) : [];
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -91,6 +92,16 @@ const ConversationList = ({ selectedUser, onSelect }) => {
       setProfileImages({});
     });
   }, [localConversations, rawConversations]);
+
+  useEffect(() => {
+    if (zoomImg) {
+      const handleEsc = (e) => {
+        if (e.key === 'Escape') setZoomImg(null);
+      };
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [zoomImg]);
 
   // Handle conversation selection: update URL and call onSelect
   const handleSelect = (user) => {
@@ -170,6 +181,21 @@ const ConversationList = ({ selectedUser, onSelect }) => {
 
   return (
     <>
+      {/* Zoomed Profile Image Modal */}
+      {zoomImg && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 cursor-zoom-out"
+          onClick={() => setZoomImg(null)}
+        >
+          <img
+            src={zoomImg}
+            alt="Profile Zoom"
+            className="w-80 h-80 rounded-full shadow-2xl border-4 border-white dark:border-gray-800 object-cover"
+            style={{ objectFit: 'cover' }}
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700 w-full">
         <h1 className="text-xl font-bold text-gray-900 dark:text-white w-full">Messages</h1>
@@ -262,7 +288,7 @@ const ConversationList = ({ selectedUser, onSelect }) => {
                 }`}
                 onClick={() => handleSelect(user)}
               >
-                <div className="relative mr-3">
+                <div className="relative mr-3 group">
                   {/* Online dot */}
                   {isOnline && (
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full z-20"></span>
@@ -275,7 +301,11 @@ const ConversationList = ({ selectedUser, onSelect }) => {
                   <img
                     src={profileImages[user._id] || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`}
                     alt={user.username}
-                    className="w-12 h-12 rounded-full object-cover bg-gray-200 dark:bg-gray-700"
+                    className="w-12 h-12 rounded-full object-cover bg-gray-200 dark:bg-gray-700 cursor-zoom-in group-hover:ring-2 group-hover:ring-blue-400"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setZoomImg(profileImages[user._id] || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`);
+                    }}
                     onError={e => {
                       e.target.onerror = null;
                       e.target.src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`;
