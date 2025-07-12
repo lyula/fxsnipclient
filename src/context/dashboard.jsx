@@ -1121,6 +1121,72 @@ export function DashboardProvider({ children }) {
     }
   }, [userId, socketConnected]);
 
+  // Auto-login from token in URL (for PWA shared links)
+  useEffect(() => {
+    // Only run on first mount
+    const url = new URL(window.location.href);
+    const tokenFromUrl = url.searchParams.get('token');
+    if (tokenFromUrl) {
+      // Store token in localStorage
+      localStorage.setItem('token', tokenFromUrl);
+      // Remove token from URL for cleanliness, but only if user is not already logged in
+      url.searchParams.delete('token');
+      window.history.replaceState({}, document.title, url.pathname + url.search);
+      // Fetch user info from backend (assumes /api/auth/me returns user info)
+      (async () => {
+        try {
+          const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
+          const res = await fetch(`${API_BASE}/auth/me`, {
+            headers: { Authorization: `Bearer ${tokenFromUrl}` },
+          });
+          if (res.ok) {
+            const user = await res.json();
+            if (user && user._id) {
+              localStorage.setItem('userId', user._id);
+              setUserId(user._id);
+            }
+          } else {
+            // Invalid token, clear it
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            setUserId(null);
+          }
+        } catch (e) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('userId');
+          setUserId(null);
+        }
+      })();
+    }
+  }, []);
+
+  // Prevent redirect to login page on refresh if user is already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    // If both exist, do not allow redirect to login
+    if (token && userId) {
+      // If router or app logic tries to redirect to /login, but user was on another page, restore their previous path
+      if (window.location.pathname === '/login') {
+        // Try to restore the last non-login path from sessionStorage
+        const lastPath = sessionStorage.getItem('lastPath');
+        if (lastPath && lastPath !== '/login') {
+          window.history.replaceState({}, document.title, lastPath);
+        } else {
+          window.history.replaceState({}, document.title, '/');
+        }
+      }
+    }
+  }, []);
+
+  // Track last non-login path for restoring after refresh
+  useEffect(() => {
+    const path = window.location.pathname + window.location.search + window.location.hash;
+    if (path !== '/login') {
+      sessionStorage.setItem('lastPath', path);
+    }
+  }, [window.location.pathname, window.location.search, window.location.hash]);
+
   return (
     <DashboardContext.Provider value={value}>
       {children}

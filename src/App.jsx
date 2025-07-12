@@ -21,6 +21,7 @@ import UserProfile from "./pages/dashboard/community/UserProfile";
 import MobileUserProfile from "./pages/dashboard/community/MobileUserProfile";
 import PostNotificationView from "./pages/dashboard/community/PostNotificationView";
 import AdCreation from "./pages/dashboard/AdCreation";
+import PublicPost from "./pages/PublicPost";
 import { useTheme } from "./hooks/useTheme";
 import { DashboardProvider, useDashboard } from "./context/dashboard";
 
@@ -58,6 +59,8 @@ function AppRoutes({ isMobile }) {
             <Route path="/contact" element={<Contact />} />
             <Route path="/markets" element={<Markets />} />
           </Route>
+          {/* Public post view route for sharing */}
+          <Route path="/post/:postId" element={<PublicPost />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard/community/post/:postId" element={<PWARouteGuard><PostNotificationView /></PWARouteGuard>} />
