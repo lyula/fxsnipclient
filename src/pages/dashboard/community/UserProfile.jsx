@@ -181,6 +181,16 @@ export default function UserProfile() {
     }
   }, [username, fetchProfileAndCounts]);
 
+  // Clear posts when username changes to prevent flash of previous user's posts
+  useEffect(() => {
+    setPosts([]);
+  }, [username]);
+
+  // Clear posts when profile changes (e.g., after switching users)
+  useEffect(() => {
+    setPosts([]);
+  }, [profile?._id]);
+
   // Fetch posts when profile is available
   useEffect(() => {
     const controller = new AbortController();
