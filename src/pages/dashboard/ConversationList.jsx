@@ -83,18 +83,11 @@ const ConversationList = ({ selectedUser, onSelect }) => {
     if (!users.length) return;
     const userIds = users.map(u => u._id).filter(Boolean);
     if (!userIds.length) return;
-    // Log userIds only once per fetch
-    console.log('[ConversationList] Fetching profile images for userIds:', userIds);
     getProfileImages({ userIds }).then(res => {
-      console.log('[ConversationList] Profile images response:', res);
       if (res && res.images) {
-        console.log('[ConversationList] Profile images mapping:', res.images);
         setProfileImages(res.images);
-      } else {
-        console.warn('[ConversationList] No images mapping returned:', res);
       }
     }).catch((err) => {
-      console.error('[ConversationList] Error fetching profile images:', err);
       setProfileImages({});
     });
   }, [localConversations, rawConversations]);
