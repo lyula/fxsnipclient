@@ -563,6 +563,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
           className="flex-1 overflow-y-auto overscroll-y-contain py-4 space-y-4 hide-scrollbar"
           style={{
             paddingTop: 72, // match header height (p-4 = 16px + avatar = 40px + margin)
+            minHeight: '200px', // prevent layout jump
           }}
         >
           {error ? (
@@ -571,6 +572,16 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                 <p className="text-red-500 mb-2">{error}</p>
                 <button onClick={() => fetchMessages(selectedUser && selectedUser._id, currentWeekStart)} className="text-blue-500 hover:underline">Try again</button>
               </div>
+            </div>
+          ) : !messagesFetched && messages.length === 0 ? (
+            // Skeleton loader while loading messages (faded)
+            <div className="flex flex-col gap-4 px-4 py-8 animate-pulse opacity-70 transition-opacity duration-300">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700" />
+                  <div className="flex-1 h-4 rounded bg-gray-200 dark:bg-gray-700" style={{ width: `${60 + Math.random() * 30}%` }} />
+                </div>
+              ))}
             </div>
           ) : messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
