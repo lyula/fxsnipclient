@@ -17,5 +17,13 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "description": "Your Forex Journal, always with you.",
+  "scope": "/",
+  "id": "/",
+  "display_override": ["standalone", "browser"],
+  "dark_mode": {
+    "theme_color": "#18181b",
+    "background_color": "#18181b"
+  }
 }

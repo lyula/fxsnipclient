@@ -176,8 +176,7 @@ const ConversationList = ({ selectedUser, onSelect }) => {
           </div>
         </div>
       </button>
-    );
-  });
+    )}); // properly close the map
 
   return (
     <>
@@ -299,9 +298,10 @@ const ConversationList = ({ selectedUser, onSelect }) => {
                     </div>
                   )}
                   <img
-                    src={profileImages[user._id] || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`}
+                    src={profileImages[user._id] === undefined ? undefined : (profileImages[user._id] || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`)}
                     alt={user.username}
                     className="w-12 h-12 rounded-full object-cover bg-gray-200 dark:bg-gray-700 cursor-zoom-in group-hover:ring-2 group-hover:ring-blue-400"
+                    style={{ visibility: profileImages[user._id] === undefined ? 'hidden' : 'visible' }}
                     onClick={e => {
                       e.stopPropagation();
                       setZoomImg(profileImages[user._id] || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.username)}`);

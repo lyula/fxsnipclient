@@ -8,6 +8,7 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true); // NEW: Loading state
 
   // Fetch user profile if token exists
+  // This ensures persistent login for PWA/mobile: if a valid token exists, user stays logged in until logout
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsLoading(true);
