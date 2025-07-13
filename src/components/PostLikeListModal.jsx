@@ -34,57 +34,36 @@ export default function PostLikeListModal({
     half: 'max-h-[80vh]',
     full: 'max-h-[100vh]'
   };
-
-  useEffect(() => {
-    if (open && postId && getPostLikes) {
-      setLoading(true);
-      getPostLikes(postId, maxLikers, search)
-        .then((res) => {
-          setLikers(res.likes || []);
-          setFiltered(res.likes || []);
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [open, postId, getPostLikes, maxLikers, search]);
-
-  useEffect(() => {
-    if (!search) {
-      setFiltered(likers);
-    } else {
-      setFiltered(
-        likers.filter((u) =>
-          u.username?.toLowerCase().includes(search.toLowerCase())
-        )
-      );
-    }
-  }, [search, likers]);
-
+  // Drag logic for snap points (touch and mouse)
   useEffect(() => {
     if (!open) return;
     const modal = modalRef.current;
     if (!modal) return;
     const dragHandle = modal.querySelector('.modal-drag-handle');
     let startY = null;
-    let lastSnap = modalSnap;
-    // Drag logic for snap points
+    let startSnap = modalSnap;
+    let moved = false;
     const handleTouchStart = (e) => {
       if (e.touches.length === 1) {
         startY = e.touches[0].clientY;
         setDragging(true);
+        moved = false;
       }
     };
     const handleTouchMove = (e) => {
       if (!dragging || startY === null) return;
       const deltaY = e.touches[0].clientY - startY;
       setDragOffset(deltaY);
+      moved = true;
     };
     const handleTouchEnd = () => {
       setDragging(false);
-      if (dragOffset < -60) {
+      if (!moved) { setDragOffset(0); startY = null; return; }
+      if (dragOffset < -40) {
         // Drag up
         if (modalSnap === 'default') setModalSnap('half');
         else if (modalSnap === 'half') setModalSnap('full');
-      } else if (dragOffset > 60) {
+      } else if (dragOffset > 40) {
         // Drag down
         if (modalSnap === 'full') setModalSnap('half');
         else if (modalSnap === 'half') setModalSnap('default');
@@ -93,33 +72,36 @@ export default function PostLikeListModal({
       setDragOffset(0);
       startY = null;
     };
+    // Mouse drag for desktop
     const handleMouseDown = (e) => {
-      dragStartY.current = e.clientY;
+      startY = e.clientY;
       setDragging(true);
+      moved = false;
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     };
     const handleMouseMove = (e) => {
-      if (!dragging || dragStartY.current === null) return;
-      const deltaY = e.clientY - dragStartY.current;
+      if (!dragging || startY === null) return;
+      const deltaY = e.clientY - startY;
       setDragOffset(deltaY);
-      if (deltaY > 80) {
-        setDragging(false);
-        setDragOffset(0);
-        onClose();
-        window.removeEventListener('mousemove', handleMouseMove);
-        window.removeEventListener('mouseup', handleMouseUp);
-      }
+      moved = true;
     };
     const handleMouseUp = () => {
       setDragging(false);
+      if (!moved) { setDragOffset(0); startY = null; window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); return; }
+      if (dragOffset < -40) {
+        if (modalSnap === 'default') setModalSnap('half');
+        else if (modalSnap === 'half') setModalSnap('full');
+      } else if (dragOffset > 40) {
+        if (modalSnap === 'full') setModalSnap('half');
+        else if (modalSnap === 'half') setModalSnap('default');
+        else if (modalSnap === 'default') onClose();
+      }
       setDragOffset(0);
-      dragStartY.current = null;
+      startY = null;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-
-    // Only attach drag events to the drag handle, not the whole modal
     if (dragHandle) {
       dragHandle.addEventListener('touchstart', handleTouchStart);
       dragHandle.addEventListener('touchmove', handleTouchMove);
@@ -169,6 +151,49 @@ export default function PostLikeListModal({
     setFollowStates(newStates);
   }, [likers, currentUserFollowingHashed, currentUser]);
 
+  // Update filtered list when search or likers change
+  useEffect(() => {
+    if (!search) {
+      setFiltered(likers);
+    } else {
+      setFiltered(
+        likers.filter(user =>
+          user.username && user.username.toLowerCase().includes(search.toLowerCase())
+        )
+      );
+    }
+  }, [search, likers]);
+
+  // Fetch likers when modal opens
+  useEffect(() => {
+    if (!open) return;
+    let isMounted = true;
+    async function fetchLikers() {
+      setLoading(true);
+      try {
+        let likes = initialLikes;
+        if (typeof getPostLikes === 'function' && postId) {
+          const response = await getPostLikes(postId, maxLikers);
+          likes = response.likes || [];
+        }
+        if (!Array.isArray(likes)) likes = [];
+        if (isMounted) {
+          setLikers(likes);
+          setFiltered(likes);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setLikers([]);
+          setFiltered([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    fetchLikers();
+    return () => { isMounted = false; };
+  }, [open, postId, getPostLikes, initialLikes, maxLikers]);
+
   // Follow/unfollow actions update likers' followersHashed for instant UI feedback
   const handleFollow = async (userId) => {
     setFollowLoading(fl => ({ ...fl, [userId]: true }));
@@ -198,6 +223,17 @@ export default function PostLikeListModal({
     } catch {}
     setFollowLoading(fl => ({ ...fl, [userId]: false }));
   };
+
+  // Debugging effect to log state when modal is opened
+  useEffect(() => {
+    if (open) {
+      console.log('[PostLikeListModal] Modal opened');
+      console.log('[PostLikeListModal] initialLikes:', initialLikes);
+      console.log('[PostLikeListModal] likers:', likers);
+      console.log('[PostLikeListModal] filtered:', filtered);
+      console.log('[PostLikeListModal] search:', search);
+    }
+  }, [open, initialLikes, likers, filtered, search]);
 
   if (!open) return null;
 
@@ -230,7 +266,7 @@ export default function PostLikeListModal({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search users..."
-          className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-base mb-2 font-medium"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm mb-2 font-medium"
         />
         <div className="overflow-y-auto flex-1 min-h-0 hide-scrollbar">
           {loading ? (
@@ -246,15 +282,15 @@ export default function PostLikeListModal({
               {filtered.slice(0, maxLikers).map((user) => (
                 <li
                   key={user._id}
-                  className="flex items-center gap-4 py-4 px-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors justify-between text-lg"
+                  className="flex items-center gap-3 py-3 px-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors justify-between text-base"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {/* Use the same logic as comments for profile image */}
                     {user.profile?.profileImage || user.profileImage ? (
                       <img
                         src={user.profile?.profileImage || user.profileImage}
                         alt={user.username}
-                        className="w-12 h-12 rounded-full object-cover cursor-zoom-in border-2 border-gray-300 dark:border-gray-700"
+                        className="w-10 h-10 rounded-full object-cover cursor-zoom-in border-2 border-gray-300 dark:border-gray-700"
                         onClick={() => setZoomImg({ ...user, profileImage: user.profile?.profileImage || user.profileImage })}
                         onError={(e) => {
                           e.target.onerror = null;
@@ -262,13 +298,13 @@ export default function PostLikeListModal({
                         }}
                       />
                     ) : (
-                      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
-                        <FaUser className="text-gray-500 dark:text-gray-300" size={28} />
+                      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                        <FaUser className="text-gray-500 dark:text-gray-300" size={22} />
                       </div>
                     )}
                     <Link
                       to={`/dashboard/community/user/${encodeURIComponent(user.username)}`}
-                      className="font-semibold text-gray-900 dark:text-gray-100 flex items-center hover:underline text-lg"
+                      className="font-semibold text-gray-900 dark:text-gray-100 flex items-center hover:underline text-base"
                       target="_blank"
                       rel="noopener noreferrer"
                       tabIndex={0}
@@ -281,7 +317,7 @@ export default function PostLikeListModal({
                   {currentUser && user._id && String(currentUser._id) !== String(user._id) && (
                     followStates[user._id] ? (
                       <button
-                        className="px-6 py-2 rounded-full bg-gray-400 text-white text-base font-semibold hover:bg-gray-500 transition"
+                        className="px-4 py-1 rounded-full bg-gray-400 text-white text-xs font-semibold hover:bg-gray-500 transition"
                         disabled={followLoading[user._id]}
                         onClick={() => handleUnfollow(user._id)}
                       >
@@ -289,7 +325,7 @@ export default function PostLikeListModal({
                       </button>
                     ) : (
                       <button
-                        className="px-6 py-2 rounded-full bg-blue-600 text-white text-base font-semibold hover:bg-blue-700 transition"
+                        className="px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition"
                         disabled={followLoading[user._id]}
                         onClick={() => handleFollow(user._id)}
                       >
