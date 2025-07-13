@@ -483,6 +483,18 @@ export function DashboardProvider({ children }) {
     await fetchCommunityPosts(true);
   }, [fetchCommunityPosts]);
 
+  // Mark all notifications as read (frontend and backend)
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      // Optionally call backend endpoint here if available
+      // await markNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (e) {
+      // fallback: just update local state
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
+  }, []);
+
   // Start polling for real-time updates
   const startPolling = useCallback(() => {
     if (pollingInterval) return;
@@ -1008,18 +1020,6 @@ export function DashboardProvider({ children }) {
   }, [userId]);
 
   // Remove any duplicate or legacy heartbeat/online status intervals/effects below this point
-
-  // Mark all notifications as read (frontend and backend)
-  const markAllNotificationsRead = useCallback(async () => {
-    try {
-      // Optionally call backend endpoint here if available
-      // await markNotificationsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch (e) {
-      // fallback: just update local state
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    }
-  }, []);
 
   // Context value
   const value = useMemo(() => ({
