@@ -6,6 +6,7 @@ html, body, #root {
   height: 100vh;
   min-height: 100vh;
   overflow-x: hidden !important;
+  overflow-y: hidden !important;
   margin: 0 !important; /* Remove any default margins */
   padding: 0 !important; /* Remove any default padding */
   /* Add safe area inset for PWA (iOS/Android) */
@@ -17,12 +18,14 @@ html, body, #root {
 
 body {
   overflow-x: hidden !important;
+  overflow-y: hidden !important;
 }
 
 #root {
   width: 100%;
   min-width: 0;
   overflow-x: hidden !important;
+  overflow-y: hidden !important;
 }
 
 @media (prefers-color-scheme: dark) {
