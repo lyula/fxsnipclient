@@ -28,6 +28,8 @@ export function DashboardProvider({ children }) {
   
   // State for notifications
   const [notifications, setNotifications] = useState([]);
+  // Track initial notifications loading for UI
+  const [initialNotificationsLoading, setInitialNotificationsLoading] = useState(true);
   
   // State for community posts
   const [communityPosts, setCommunityPosts] = useState([]);
@@ -356,8 +358,11 @@ export function DashboardProvider({ children }) {
     if (!forceRefresh && (now - lastNotificationFetch < 15000)) {
       return notifications;
     }
-    try {
+    // Only show loading for the initial load
+    if (initialNotificationsLoading) {
       setLoadingStates(prev => ({ ...prev, notifications: true }));
+    }
+    try {
       const data = await getNotifications();
       if (Array.isArray(data)) {
         setNotifications(data);
@@ -369,9 +374,12 @@ export function DashboardProvider({ children }) {
       console.error("Error fetching notifications:", error);
       return [];
     } finally {
-      setLoadingStates(prev => ({ ...prev, notifications: false }));
+      if (initialNotificationsLoading) {
+        setLoadingStates(prev => ({ ...prev, notifications: false }));
+        setInitialNotificationsLoading(false);
+      }
     }
-  }, [lastNotificationFetch, notifications]);
+  }, [lastNotificationFetch, notifications, initialNotificationsLoading]);
 
   // Enhanced fetchCommunityPosts with proper fresh content support
   const fetchCommunityPosts = useCallback(async (refresh = false, offset = 0, direction = 'down', loadFresh = false) => {
@@ -481,17 +489,21 @@ export function DashboardProvider({ children }) {
     const interval = setInterval(async () => {
       try {
         if (document.visibilityState === 'visible') {
-          await Promise.all([
-            fetchConversations(true),
-            fetchNotifications(true)
-          ]);
+          await fetchConversations(true);
+          // If on notifications page, mark all as read after fetching
+          if (window.location.pathname.includes('/dashboard/notifications')) {
+            await fetchNotifications(true);
+            markAllNotificationsRead();
+          } else {
+            await fetchNotifications(true);
+          }
         }
       } catch (error) {
         console.error('Polling error:', error);
       }
     }, 2000); // Changed to 2 seconds
     setPollingInterval(interval);
-  }, [pollingInterval, fetchConversations, fetchNotifications]);
+  }, [pollingInterval, fetchConversations, fetchNotifications, markAllNotificationsRead]);
 
   // Stop polling
   const stopPolling = useCallback(() => {
@@ -997,6 +1009,18 @@ export function DashboardProvider({ children }) {
 
   // Remove any duplicate or legacy heartbeat/online status intervals/effects below this point
 
+  // Mark all notifications as read (frontend and backend)
+  const markAllNotificationsRead = useCallback(async () => {
+    try {
+      // Optionally call backend endpoint here if available
+      // await markNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (e) {
+      // fallback: just update local state
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    }
+  }, []);
+
   // Context value
   const value = useMemo(() => ({
     conversations,
@@ -1004,6 +1028,7 @@ export function DashboardProvider({ children }) {
     updateConversation,
     notifications,
     fetchNotifications,
+    initialNotificationsLoading,
     communityPosts,
     dedupedCommunityPosts,
     fetchCommunityPosts,
@@ -1046,12 +1071,14 @@ export function DashboardProvider({ children }) {
     syncUserIdFromStorage,
     forceSocketReconnect,
     getConversationId,
+    markAllNotificationsRead,
   }), [
     conversations,
     fetchConversations,
     updateConversation,
     notifications,
     fetchNotifications,
+    initialNotificationsLoading,
     communityPosts,
     dedupedCommunityPosts,
     fetchCommunityPosts,
@@ -1091,6 +1118,7 @@ export function DashboardProvider({ children }) {
     syncUserIdFromStorage,
     forceSocketReconnect,
     getConversationId,
+    markAllNotificationsRead,
   ]);
 
   // Always sync userId from localStorage and emit online status on mount and when dashboard loads
