@@ -1,7 +1,7 @@
 {
   "name": "Journalyze",
   "short_name": "Journalyze",
-  "start_url": ".",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#a99d6b",
