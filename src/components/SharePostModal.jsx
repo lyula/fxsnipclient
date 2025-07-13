@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { FaWhatsapp, FaTelegramPlane, FaTwitter, FaFacebook, FaLinkedin, FaRedditAlien, FaSnapchatGhost, FaInstagram, FaShareAlt, FaUser } from "react-icons/fa";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FaWhatsapp, FaTelegramPlane, FaTwitter, FaFacebook, FaLinkedin, FaRedditAlien, FaSnapchatGhost, FaInstagram, FaShareAlt, FaUser, FaGripLines } from "react-icons/fa";
 import VerifiedBadge from "./VerifiedBadge";
 
 const SOCIAL_APPS = [
@@ -50,6 +50,11 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
   // Native share available?
   const canNativeShare = typeof navigator !== 'undefined' && navigator.share;
   const [copied, setCopied] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const modalRef = useRef(null);
+  const dragStartY = useRef(null);
+  // Drag state for modal
+  const [dragOffset, setDragOffset] = useState(0);
 
   // Only show WhatsApp/Telegram on mobile, others always
   const filteredApps = useMemo(() => {
@@ -66,12 +71,86 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
     }
   };
 
+  // Enhanced touch/mouse drag handlers for draggable modal
+  useEffect(() => {
+    if (!open) return;
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    // Touch events
+    const handleTouchStart = (e) => {
+      if (e.touches.length === 1) {
+        dragStartY.current = e.touches[0].clientY;
+        setDragging(true);
+      }
+    };
+    const handleTouchMove = (e) => {
+      if (!dragging || dragStartY.current === null) return;
+      const deltaY = e.touches[0].clientY - dragStartY.current;
+      if (deltaY > 0) setDragOffset(deltaY);
+      if (deltaY > 80) {
+        setDragging(false);
+        setDragOffset(0);
+        onClose();
+      }
+    };
+    const handleTouchEnd = () => {
+      setDragging(false);
+      setDragOffset(0);
+      dragStartY.current = null;
+    };
+    // Mouse events for desktop
+    const handleMouseDown = (e) => {
+      dragStartY.current = e.clientY;
+      setDragging(true);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    };
+    const handleMouseMove = (e) => {
+      if (!dragging || dragStartY.current === null) return;
+      const deltaY = e.clientY - dragStartY.current;
+      if (deltaY > 0) setDragOffset(deltaY);
+      if (deltaY > 80) {
+        setDragging(false);
+        setDragOffset(0);
+        onClose();
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      }
+    };
+    const handleMouseUp = () => {
+      setDragging(false);
+      setDragOffset(0);
+      dragStartY.current = null;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+    // Attach events
+    modal.addEventListener('touchstart', handleTouchStart);
+    modal.addEventListener('touchmove', handleTouchMove);
+    modal.addEventListener('touchend', handleTouchEnd);
+    modal.querySelector('.modal-drag-handle')?.addEventListener('mousedown', handleMouseDown);
+    return () => {
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
+      modal.querySelector('.modal-drag-handle')?.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [open, dragging, onClose]);
+
   return (
     <div className={`fixed inset-0 z-50 flex ${isMobileDevice ? 'items-end' : 'items-center'} justify-center bg-black bg-opacity-50`}>
       <div
-        className={`bg-white dark:bg-gray-900 rounded-t-2xl rounded-b-xl shadow-xl p-6 w-full max-w-md relative transition-all duration-300 ${isMobileDevice ? 'mb-0 animate-slideUp' : ''}`}
-        style={isMobileDevice ? { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 } : {}}
+        ref={modalRef}
+        style={{ transform: dragOffset ? `translateY(${dragOffset}px)` : undefined, transition: dragging ? 'none' : 'transform 0.2s' }}
+        className="bg-white dark:bg-gray-900 rounded-t-2xl rounded-b-xl shadow-xl p-6 w-full max-w-md relative transition-all duration-300 animate-slideUp"
       >
+        {/* Drag handle for swipe down */}
+        <div className="flex justify-center items-center mb-2 modal-drag-handle cursor-grab active:cursor-grabbing select-none" style={{touchAction:'none'}}>
+          <div className="w-12 h-1 rounded-full bg-gray-300 dark:bg-gray-600 mt-1 mb-2" style={{marginTop: 2}} />
+        </div>
         <button
           className="absolute top-2 right-2 text-gray-500 dark:text-gray-300 hover:text-red-500 text-2xl font-bold"
           onClick={onClose}
