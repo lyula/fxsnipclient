@@ -3,9 +3,31 @@
 html, body, #root {
   width: 100vw;
   max-width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
   overflow-x: hidden !important;
   margin: 0 !important; /* Remove any default margins */
   padding: 0 !important; /* Remove any default padding */
+  /* Add safe area inset for PWA (iOS/Android) */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #fff;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body, #root {
+    background: #18181b !important;
+    color: #fff !important;
+  }
+}
+
+/* PWA splash screen text color fix for dark mode */
+@media (prefers-color-scheme: dark) {
+  body::before {
+    content: '';
+    color: #fff !important;
+  }
 }
 
 /* App.css or a global CSS file */
