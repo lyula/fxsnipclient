@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
-import { getConversations, addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers, sendMessage } from "../../../utils/api";
+import { getConversations, addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers, sendMessage, incrementPostShareCount } from "../../../utils/api";
 import VerifiedBadge from '../../../components/VerifiedBadge';
 import MediaDisplay from '../../../components/media/MediaDisplay';
 import { formatPostDate } from '../../../utils/formatDate';
@@ -271,6 +271,14 @@ export default function ChatPost({
   const handleSendToPerson = async (person) => {
     try {
       await sendMessage(person._id, postLink);
+      // Increment share count in DB
+      try {
+        const res = await incrementPostShareCount(localPost._id);
+        console.log('[SHARE] incrementPostShareCount (sendToPerson) response:', res);
+        setLocalPost(prev => ({ ...prev, shareCount: res.shareCount }));
+      } catch (err) {
+        console.error('[SHARE] Error incrementing share count (sendToPerson):', err);
+      }
       // No alert, notification handled in SharePostModal
     } catch (e) {
       // Optionally handle error silently or with in-app toast only
@@ -279,8 +287,18 @@ export default function ChatPost({
   };
 
   // Handler for share button in interaction bar
-  const handleShare = () => {
+  const handleShare = async () => {
     setShowShareModal(true);
+    console.log('[SHARE] handleShare called for post', localPost._id);
+    // Increment share count in DB (for generic share, e.g. copy link)
+    try {
+      const res = await incrementPostShareCount(localPost._id);
+      console.log('[SHARE] incrementPostShareCount response:', res);
+      // Optionally update local share count
+      setLocalPost(prev => ({ ...prev, shareCount: res.shareCount }));
+    } catch (err) {
+      console.error('[SHARE] Error incrementing share count:', err);
+    }
   };
 
   // Normalize likes to always be array of user IDs
@@ -878,7 +896,7 @@ export default function ChatPost({
                         className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
                       >
                         <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
-                        </button>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -962,7 +980,7 @@ export default function ChatPost({
             }}
             showLikes={showLikes}
             setShowComments={setShowComments}
-            localPost={localPost}
+            localPost={{ ...localPost, shares: localPost.shareCount || localPost.shares || 0 }}
             loadingLikes={loadingLikes}
             getPostLikes={getPostLikes}
             setLikesUsers={setLikesUsers}

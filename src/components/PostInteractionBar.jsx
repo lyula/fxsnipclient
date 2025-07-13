@@ -90,7 +90,7 @@ export default function PostInteractionBar({
         aria-label="Share"
       >
         <LuShare2 className="transition-transform duration-200 hover:scale-110" />
-        <span className="font-semibold">{localPost.shares || 0}</span>
+        <span className="font-semibold">{localPost.shares ?? 0}</span>
       </button>
       <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 ml-auto">
         <FaChartBar className="transition-transform duration-200 hover:scale-110" />

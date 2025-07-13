@@ -346,3 +346,13 @@ export async function getProfileImages({ userIds = [], usernames = [] }) {
   });
   return res.json();
 }
+
+// Increment share count for a post
+export async function incrementPostShareCount(postId) {
+  const res = await fetch(`${API_BASE}/posts/${postId}/share`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw new Error("Failed to increment share count");
+  return res.json();
+}
