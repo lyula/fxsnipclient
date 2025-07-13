@@ -29,12 +29,6 @@ export default function usePWARouting() {
       return;
     }
 
-    // If user is not authenticated and not on login/register, redirect to login
-    if (!user && !['/login', '/register'].includes(currentPath)) {
-      navigate('/login', { replace: true });
-      return;
-    }
-
     // If on landing page and no user, redirect to login (PWA should skip landing)
     if (currentPath === '/' && !user) {
       navigate('/login', { replace: true });

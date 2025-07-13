@@ -120,12 +120,12 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (user === null || user === undefined) {
-      navigate('/login', { replace: true });
-    }
-  }, [user, navigate]);
+  // Removed forced redirect to login. All routes are accessible. Restrict features in UI only for unauthenticated users.
+  // useEffect(() => {
+  //   if (user === null || user === undefined) {
+  //     navigate('/login', { replace: true });
+  //   }
+  // }, [user, navigate]);
 
   // --- Remember last dashboard route in localStorage ---
   useEffect(() => {

@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import React, { useEffect, useState } from "react";
 import PublicLayout from "./components/layout/PublicLayout";
 import PrivateLayout from "./components/layout/PrivateLayout";
-import PWARouteGuard from "./components/PWARouteGuard";
 import PWAUpdateNotification from "./components/PWAUpdateNotification";
 import PWAInstallPrompt from "./components/PWAInstallPrompt";
 import DesktopPWATitleBar from "./components/DesktopPWATitleBar";
@@ -63,14 +62,14 @@ function AppRoutes({ isMobile }) {
           <Route path="/post/:postId" element={<PublicPost />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/dashboard/community/post/:postId" element={<PWARouteGuard><PostNotificationView /></PWARouteGuard>} />
-          <Route path="/dashboard/*" element={<PWARouteGuard><Dashboard /></PWARouteGuard>} />
+          <Route path="/dashboard/community/post/:postId" element={<PostNotificationView />} />
+          <Route path="/dashboard/*" element={<Dashboard />} />
           <Route element={<PrivateLayout />}>
-            <Route path="/tsr" element={<PWARouteGuard><Placeholder title="TSR" /></PWARouteGuard>} />
-            <Route path="/stats" element={<PWARouteGuard><Placeholder title="Stats" /></PWARouteGuard>} />
+            <Route path="/tsr" element={<Placeholder title="TSR" />} />
+            <Route path="/stats" element={<Placeholder title="Stats" />} />
             <Route
               path="/user-profile"
-              element={<PWARouteGuard>{isMobile ? <MobileUserProfile /> : <UserProfile />}</PWARouteGuard>}
+              element={isMobile ? <MobileUserProfile /> : <UserProfile />}
             />
           </Route>
         </Routes>

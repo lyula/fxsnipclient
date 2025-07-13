@@ -265,7 +265,7 @@ export default function ChatPost({
   };
 
   // The link to share (customize as needed)
-  const postLink = `${window.location.origin}/dashboard/community/post/${localPost._id}`;
+  const postLink = `${window.location.origin}/post/${localPost._id}`;
 
   // Handler for sharing to a person
   const handleSendToPerson = async (person) => {
@@ -980,7 +980,7 @@ export default function ChatPost({
                   Liked by {normalizedLikes.length} {normalizedLikes.length === 1 ? 'person' : 'people'}
                 </div>
                 <button
-                  className="mobile-touch-target text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 text-xl font-bold px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  className="mobile-touch-target text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 text-xl font-bold px-2 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-red-900 transition-colors"
                   onClick={() => setShowLikes(false)}
                   aria-label="Close likes"
                   type="button"
