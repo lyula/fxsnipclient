@@ -14,6 +14,7 @@ import PostComment from "./postComment";
 import CommentReplies from "./commentReplies";
 import PostInteractionBar from '../../../components/PostInteractionBar';
 import SharePostModal from '../../../components/SharePostModal';
+import PostLikeListModal from '../../../components/PostLikeListModal';
 
 function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = "" }) {
   const [replyText, setReplyText] = useState("");
@@ -209,6 +210,9 @@ export default function ChatPost({
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(true);
+  // Add state for like modal
+  const [showLikeListModal, setShowLikeListModal] = useState(false);
+  const [likeListInitial, setLikeListInitial] = useState([]);
 
   // Fix: define postContainerRef
   const postContainerRef = useRef(null);
@@ -945,7 +949,14 @@ export default function ChatPost({
             handleLike={handleLike}
             normalizedLikes={normalizedLikes}
             likesUsers={likesUsers}
-            setShowLikes={setShowLikes}
+            setShowLikes={(val) => {
+              if (window.innerWidth <= 768) {
+                setShowLikeListModal(val);
+                if (val && post.likes) setLikeListInitial(post.likes);
+              } else {
+                setShowLikes(val);
+              }
+            }}
             showLikes={showLikes}
             setShowComments={setShowComments}
             localPost={localPost}
@@ -959,7 +970,7 @@ export default function ChatPost({
           />
 
           {/* Likes Display */}
-          {showLikes && (
+          {showLikes && window.innerWidth > 768 && (
             <div className="mt-4 relative w-full max-w-full overflow-x-hidden">
               <div className="flex justify-between items-center mb-3">
                 <div className="font-semibold text-sm text-red-600 dark:text-red-400">
@@ -1163,6 +1174,16 @@ export default function ChatPost({
             onClose={() => setShowShareModal(false)}
           />
         )}
+
+        {/* Like List Modal for mobile */}
+        <PostLikeListModal
+          open={showLikeListModal}
+          onClose={() => setShowLikeListModal(false)}
+          postId={post._id}
+          getPostLikes={getPostLikes}
+          initialLikes={likeListInitial}
+          maxLikers={100}
+        />
       </div>
     </>
   );
