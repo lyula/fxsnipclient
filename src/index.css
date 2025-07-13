@@ -5,17 +5,28 @@
 /* Prevent horizontal scroll and white space on mobile */
 /* index.css */
 html, body, #root {
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  min-width: 0;
   height: 100vh;
   min-height: 100vh;
   overflow-x: hidden !important;
   margin: 0 !important; /* Remove any default margins */
   padding: 0 !important; /* Remove any default padding */
+  box-sizing: border-box;
   /* Add safe area inset for PWA (iOS/Android) */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   background: #fff;
+}
+
+body {
+  overflow-x: hidden !important;
+}
+
+#root {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden !important;
 }
 
 /* Prevent overscroll bounce and page-level scrolling issues */
@@ -303,5 +314,12 @@ body, html, #root {
     margin-right: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  html, body, #root {
+    background: #18181b !important;
+    color: #fff !important;
   }
 }
