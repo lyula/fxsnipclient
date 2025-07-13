@@ -121,11 +121,13 @@ export default function UserProfile() {
       if (profileRes.ok) {
         profileData = await profileRes.json();
         setProfile(profileData);
-        console.log('[UserProfile DEBUG] profileData:', profileData); // DEBUG LOG
         // Track profile view
         if (profileData?._id) {
           trackProfileView(profileData._id);
         }
+      } else if (profileRes.status === 401 || profileRes.status === 403) {
+        // Do NOT log out, just show error or set profile to null
+        setProfile(null);
       } else {
         setProfile(null);
       }
