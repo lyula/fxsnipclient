@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
-import { getConversations, addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers } from "../../../utils/api";
+import { getConversations, addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers, sendMessage } from "../../../utils/api";
 import VerifiedBadge from '../../../components/VerifiedBadge';
 import MediaDisplay from '../../../components/media/MediaDisplay';
 import { formatPostDate } from '../../../utils/formatDate';
@@ -268,10 +268,13 @@ export default function ChatPost({
   const postLink = `${window.location.origin}/dashboard/community/post/${localPost._id}`;
 
   // Handler for sharing to a person
-  const handleSendToPerson = (person) => {
-    // Implement your send message logic here
-    // e.g., open chat with person and prefill with postLink
-    alert(`Send post link to ${person.username}: ${postLink}`);
+  const handleSendToPerson = async (person) => {
+    try {
+      await sendMessage(person._id, postLink);
+      // No alert, notification handled in SharePostModal
+    } catch (e) {
+      // Optionally handle error silently or with in-app toast only
+    }
     setShowShareModal(false);
   };
 

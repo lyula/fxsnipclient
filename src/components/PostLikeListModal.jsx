@@ -4,6 +4,7 @@ import VerifiedBadge from "./VerifiedBadge";
 import { followUser, unfollowUser } from "../utils/api";
 import { hashId } from "../utils/hash";
 import { useAuth } from "../context/auth";
+import { Link } from "react-router-dom";
 
 export default function PostLikeListModal({
   open,
@@ -55,6 +56,7 @@ export default function PostLikeListModal({
     if (!open) return;
     const modal = modalRef.current;
     if (!modal) return;
+    const dragHandle = modal.querySelector('.modal-drag-handle');
 
     const handleTouchStart = (e) => {
       if (e.touches.length === 1) {
@@ -103,15 +105,20 @@ export default function PostLikeListModal({
       window.removeEventListener('mouseup', handleMouseUp);
     };
 
-    modal.addEventListener('touchstart', handleTouchStart);
-    modal.addEventListener('touchmove', handleTouchMove);
-    modal.addEventListener('touchend', handleTouchEnd);
-    modal.querySelector('.modal-drag-handle')?.addEventListener('mousedown', handleMouseDown);
+    // Only attach drag events to the drag handle, not the whole modal
+    if (dragHandle) {
+      dragHandle.addEventListener('touchstart', handleTouchStart);
+      dragHandle.addEventListener('touchmove', handleTouchMove);
+      dragHandle.addEventListener('touchend', handleTouchEnd);
+      dragHandle.addEventListener('mousedown', handleMouseDown);
+    }
     return () => {
-      modal.removeEventListener('touchstart', handleTouchStart);
-      modal.removeEventListener('touchmove', handleTouchMove);
-      modal.removeEventListener('touchend', handleTouchEnd);
-      modal.querySelector('.modal-drag-handle')?.removeEventListener('mousedown', handleMouseDown);
+      if (dragHandle) {
+        dragHandle.removeEventListener('touchstart', handleTouchStart);
+        dragHandle.removeEventListener('touchmove', handleTouchMove);
+        dragHandle.removeEventListener('touchend', handleTouchEnd);
+        dragHandle.removeEventListener('mousedown', handleMouseDown);
+      }
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
@@ -245,10 +252,17 @@ export default function PostLikeListModal({
                         <FaUser className="text-gray-500 dark:text-gray-300" size={18} />
                       </div>
                     )}
-                    <span className="font-medium text-gray-900 dark:text-gray-100 flex items-center">
+                    <Link
+                      to={`/dashboard/community/user/${encodeURIComponent(user.username)}`}
+                      className="font-medium text-gray-900 dark:text-gray-100 flex items-center hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      tabIndex={0}
+                      onClick={e => e.stopPropagation()}
+                    >
                       {user.username}
                       {user.verified && <VerifiedBadge className="ml-1" />}
-                    </span>
+                    </Link>
                   </div>
                   {currentUser && user._id && String(currentUser._id) !== String(user._id) && (
                     followStates[user._id] ? (
@@ -276,30 +290,30 @@ export default function PostLikeListModal({
         </div>
       </div>
       {/* Zoom overlay for profile image */}
-      {zoomImg && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 animate-fadeIn"
-          onClick={() => setZoomImg(null)}
-        >
-          <div
-            className="flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl border-4 border-white dark:border-gray-800 relative"
-            style={{ minWidth: 260, minHeight: 260 }}
-            onClick={e => e.stopPropagation()}
-          >
+      {zoomImg && zoomImg.profileImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 transition-opacity" onClick={() => setZoomImg(null)}>
+          <div className="relative max-w-xs w-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
             <img
-              src={zoomImg.profileImage || zoomImg}
+              src={zoomImg.profileImage}
               alt="Profile Zoom"
-              className="w-32 h-32 rounded-full object-cover border-4 border-blue-500 mb-4"
-              style={{ objectFit: 'cover' }}
+              className="rounded-full shadow-lg border-4 border-white"
+              style={{ background: '#fff', borderRadius: '50%', width: '300px', height: '300px', objectFit: 'cover', aspectRatio: '1 / 1', maxWidth: '80vw', maxHeight: '80vw' }}
             />
-            <div className="flex items-center justify-center mb-2">
-              <span className="text-lg font-bold text-gray-900 dark:text-gray-100 mr-2">{zoomImg.username || ''}</span>
+            <div className="mt-2 flex items-center gap-2 text-white font-semibold text-lg text-center truncate max-w-xs">
+              <span className="font-bold">{zoomImg.username}</span>
               {zoomImg.verified && <VerifiedBadge />}
+              <button
+                className="text-white text-2xl font-bold bg-black bg-opacity-40 rounded-full p-1 hover:bg-opacity-70 transition-colors ml-2"
+                onClick={() => setZoomImg(null)}
+                aria-label="Close profile image zoom"
+              >
+                ×
+              </button>
             </div>
             {currentUser && zoomImg._id && String(currentUser._id) !== String(zoomImg._id) && (
               followStates[zoomImg._id] ? (
                 <button
-                  className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition mb-2"
+                  className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition mb-2 mt-2"
                   disabled={followLoading[zoomImg._id]}
                   onClick={() => handleUnfollow(zoomImg._id)}
                 >
@@ -307,7 +321,7 @@ export default function PostLikeListModal({
                 </button>
               ) : (
                 <button
-                  className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition mb-2"
+                  className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition mb-2 mt-2"
                   disabled={followLoading[zoomImg._id]}
                   onClick={() => handleFollow(zoomImg._id)}
                 >
@@ -315,13 +329,6 @@ export default function PostLikeListModal({
                 </button>
               )
             )}
-            <button
-              className="absolute top-2 right-2 text-gray-500 dark:text-gray-300 hover:text-red-500 text-2xl font-bold"
-              onClick={() => setZoomImg(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
           </div>
         </div>
       )}

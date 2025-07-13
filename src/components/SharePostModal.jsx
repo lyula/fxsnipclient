@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { FaWhatsapp, FaTelegramPlane, FaTwitter, FaFacebook, FaLinkedin, FaRedditAlien, FaSnapchatGhost, FaInstagram, FaShareAlt, FaUser, FaGripLines } from "react-icons/fa";
 import VerifiedBadge from "./VerifiedBadge";
+import { sendMessage } from "../utils/api";
 
 const SOCIAL_APPS = [
   {
@@ -51,6 +52,8 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
   const canNativeShare = typeof navigator !== 'undefined' && navigator.share;
   const [copied, setCopied] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [confirmUser, setConfirmUser] = useState(null);
+  const [showSentNotification, setShowSentNotification] = useState(false);
   const modalRef = useRef(null);
   const dragStartY = useRef(null);
   // Drag state for modal
@@ -192,7 +195,7 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
               {topPeople.map((person) => (
                 <button
                   key={person._id}
-                  onClick={() => onSendToPerson(person)}
+                  onClick={() => setConfirmUser(person)}
                   className="flex flex-col items-center gap-1 group hover:text-blue-600 dark:hover:text-red-400 transition-colors"
                 >
                   {person.profileImage ? (
@@ -230,7 +233,7 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
                 {searchResults.slice(0, 5).map(user => (
                   <button
                     key={user._id}
-                    onClick={() => onSendToPerson(user)}
+                    onClick={() => setConfirmUser(user)}
                     className="flex flex-col items-center gap-1 group hover:text-blue-600 dark:hover:text-red-400 transition-colors w-full"
                   >
                     {(user.profileImage || user.profile?.profileImage) ? (
@@ -276,6 +279,50 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
           </button>
         </div>
       </div>
+      {/* Confirmation Modal */}
+      {confirmUser && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-60">
+          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6 w-full max-w-xs flex flex-col items-center mb-8">
+            <div className="mb-4 text-center">
+              <div className="text-lg font-semibold mb-2">Send post to {confirmUser.username}?</div>
+              <div className="flex items-center justify-center gap-2">
+                {confirmUser.profileImage ? (
+                  <img src={confirmUser.profileImage} alt={confirmUser.username} className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <FaUser className="w-10 h-10 text-gray-400" />
+                )}
+                <span className="font-medium text-gray-900 dark:text-gray-100">{confirmUser.username}</span>
+                {confirmUser.verified && <VerifiedBadge />}
+              </div>
+            </div>
+            <div className="flex gap-4 w-full justify-center">
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold transition-colors"
+                onClick={async () => {
+                  await onSendToPerson(confirmUser);
+                  setConfirmUser(null);
+                  setTimeout(() => setShowSentNotification(true), 100); // show after modal closes
+                  setTimeout(() => setShowSentNotification(false), 1900);
+                }}
+              >
+                Send
+              </button>
+              <button
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded font-semibold transition-colors"
+                onClick={() => setConfirmUser(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Sent notification */}
+      {showSentNotification && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-full shadow-lg text-base font-semibold animate-fadeInOut">
+          Link sent!
+        </div>
+      )}
     </div>
   );
 }
