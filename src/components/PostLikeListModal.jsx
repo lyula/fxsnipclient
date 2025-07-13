@@ -41,17 +41,29 @@ export default function PostLikeListModal({
     if (!modal) return;
     const dragHandle = modal.querySelector('.modal-drag-handle');
     let startY = null;
-    let startSnap = modalSnap;
     let moved = false;
+    let lastSnap = modalSnap;
+    let lastOffset = 0;
+
+    const getNextSnap = (direction) => {
+      const snaps = ['default', 'half', 'full'];
+      let idx = snaps.indexOf(modalSnap);
+      if (direction === 'up' && idx < snaps.length - 1) return snaps[idx + 1];
+      if (direction === 'down' && idx > 0) return snaps[idx - 1];
+      return modalSnap;
+    };
+
     const handleTouchStart = (e) => {
       if (e.touches.length === 1) {
         startY = e.touches[0].clientY;
-        setDragging(true);
         moved = false;
+        lastSnap = modalSnap;
+        lastOffset = dragOffset;
+        setDragging(true);
       }
     };
     const handleTouchMove = (e) => {
-      if (!dragging || startY === null) return;
+      if (startY === null) return;
       const deltaY = e.touches[0].clientY - startY;
       setDragOffset(deltaY);
       moved = true;
@@ -61,13 +73,11 @@ export default function PostLikeListModal({
       if (!moved) { setDragOffset(0); startY = null; return; }
       if (dragOffset < -40) {
         // Drag up
-        if (modalSnap === 'default') setModalSnap('half');
-        else if (modalSnap === 'half') setModalSnap('full');
+        setModalSnap(getNextSnap('up'));
       } else if (dragOffset > 40) {
         // Drag down
-        if (modalSnap === 'full') setModalSnap('half');
-        else if (modalSnap === 'half') setModalSnap('default');
-        else if (modalSnap === 'default') onClose();
+        if (modalSnap === 'default') onClose();
+        else setModalSnap(getNextSnap('down'));
       }
       setDragOffset(0);
       startY = null;
@@ -75,13 +85,15 @@ export default function PostLikeListModal({
     // Mouse drag for desktop
     const handleMouseDown = (e) => {
       startY = e.clientY;
-      setDragging(true);
       moved = false;
+      lastSnap = modalSnap;
+      lastOffset = dragOffset;
+      setDragging(true);
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
     };
     const handleMouseMove = (e) => {
-      if (!dragging || startY === null) return;
+      if (startY === null) return;
       const deltaY = e.clientY - startY;
       setDragOffset(deltaY);
       moved = true;
@@ -90,12 +102,10 @@ export default function PostLikeListModal({
       setDragging(false);
       if (!moved) { setDragOffset(0); startY = null; window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); return; }
       if (dragOffset < -40) {
-        if (modalSnap === 'default') setModalSnap('half');
-        else if (modalSnap === 'half') setModalSnap('full');
+        setModalSnap(getNextSnap('up'));
       } else if (dragOffset > 40) {
-        if (modalSnap === 'full') setModalSnap('half');
-        else if (modalSnap === 'half') setModalSnap('default');
-        else if (modalSnap === 'default') onClose();
+        if (modalSnap === 'default') onClose();
+        else setModalSnap(getNextSnap('down'));
       }
       setDragOffset(0);
       startY = null;
@@ -118,7 +128,7 @@ export default function PostLikeListModal({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [open, dragging, dragOffset, modalSnap, onClose]);
+  }, [open, modalSnap, dragOffset, onClose]);
 
   // Fetch current user's following list for accurate follow state
   useEffect(() => {
@@ -223,17 +233,6 @@ export default function PostLikeListModal({
     } catch {}
     setFollowLoading(fl => ({ ...fl, [userId]: false }));
   };
-
-  // Debugging effect to log state when modal is opened
-  useEffect(() => {
-    if (open) {
-      console.log('[PostLikeListModal] Modal opened');
-      console.log('[PostLikeListModal] initialLikes:', initialLikes);
-      console.log('[PostLikeListModal] likers:', likers);
-      console.log('[PostLikeListModal] filtered:', filtered);
-      console.log('[PostLikeListModal] search:', search);
-    }
-  }, [open, initialLikes, likers, filtered, search]);
 
   if (!open) return null;
 

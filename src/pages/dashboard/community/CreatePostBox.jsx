@@ -24,6 +24,7 @@ export default function CreatePostBox({ onPost, onClose }) {
   const modalRef = useRef(null);
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
+  const [dragging, setDragging] = useState(false); // New state for dragging
 
   // Auto-scroll to cursor position when typing
   useEffect(() => {
@@ -386,26 +387,32 @@ export default function CreatePostBox({ onPost, onClose }) {
                   style={{
                     position: "relative",
                     zIndex: 2,
-                    color: "transparent",
+                    color: dragging ? "transparent" : "#222", // Always show text except when dragging highlight
                     caretColor: "#222",
                     background: "transparent",
                     fontFamily: "inherit",
                     fontSize: "16px", // Prevent zoom on iOS
                     lineHeight: "inherit",
                     letterSpacing: "inherit",
-                    fontWeight: "inherit"
+                    fontWeight: "inherit",
+                    WebkitTextFillColor: dragging ? "transparent" : undefined // For Safari
                   }}
+                  onMouseDown={() => setDragging(true)} // Set dragging true on mouse down
+                  onMouseUp={() => setDragging(false)} // Set dragging false on mouse up
+                  onTouchStart={() => setDragging(true)} // Set dragging true on touch start
+                  onTouchEnd={() => setDragging(false)} // Set dragging false on touch end
                 />
               </div>
 
               {/* Suggestions dropdown */}
               {showSuggestions && suggestions.length > 0 && (
-                <ul className="absolute z-70 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded shadow-lg mt-1 w-full max-h-40 overflow-y-auto">
+                <ul className="absolute z-70 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded shadow-lg mt-1 w-full max-h-40 overflow-y-auto" style={{top: '100%', left: 0, right: 0, minWidth: '180px'}}>
                   {suggestions.map((user) => (
                     <li
                       key={user._id}
-                      className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm"
+                      className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer text-sm text-gray-900 dark:text-gray-100"
                       onClick={() => handleSuggestionClick(user.username)}
+                      style={{zIndex: 1000}}
                     >
                       @{user.username}
                     </li>
