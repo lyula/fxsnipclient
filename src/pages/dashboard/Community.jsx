@@ -561,6 +561,11 @@ useEffect(() => {
     if (pullDistance > pullThreshold) {
       setIsPullRefreshing(true);
       setPullDistance(0);
+      // Clear search state and results when refreshing
+      if (searchQuery || searchResults) {
+        setSearchQuery("");
+        setSearchResults(null);
+      }
       // Try to fetch new posts
       let result;
       try {
