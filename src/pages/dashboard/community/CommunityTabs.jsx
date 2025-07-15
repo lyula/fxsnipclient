@@ -92,7 +92,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
               </div>
             ) : (
               <form
-                className="flex items-center w-full max-w-[180px] mx-auto"
+                className="flex items-center w-full max-w-[180px] pl-1.5"
                 onSubmit={e => {
                   e.preventDefault();
                   setSearchMode(false);
@@ -112,14 +112,14 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                   tabIndex={0}
                   autoFocus
                 />
-                {searchValue && (
-                  <button
-                    type="submit"
-                    className="ml-2 px-3 py-2 bg-[#d4af37] text-white rounded-full text-xs font-medium"
-                  >
-                    Go
-                  </button>
-                )}
+                <button
+                  type="submit"
+                  className="ml-2 px-3 py-2 bg-[#d4af37] text-white rounded-full text-xs font-medium"
+                  disabled={!searchValue}
+                  style={{ opacity: searchValue ? 1 : 0.5, cursor: searchValue ? 'pointer' : 'not-allowed' }}
+                >
+                  Go
+                </button>
                 <button
                   type="button"
                   className="ml-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-medium"
