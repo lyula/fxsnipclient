@@ -63,13 +63,14 @@ export default function VerifiedBadge() {
               );
             })}
           </g>
-          {/* Theme-adaptive checkmark */}
+          {/* Theme-adaptive checkmark: white on light, dark on dark */}
           <path
             d="M23 12.5L14.25 21.25L9 16"
-            stroke="currentColor"
+            className="stroke-white dark:stroke-gray-900"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            fill="none"
           />
         </g>
       </svg>
