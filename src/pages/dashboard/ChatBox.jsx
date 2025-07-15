@@ -627,7 +627,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
           autoFocusSearch={false}
         />
       </div>
-      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full">
+      <div className="flex-1 flex flex-col transition-all duration-300 ease-in-out overflow-hidden h-full"
+        style={{ fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif` }}>
         {/* Fullscreen image modal */}
         {fullscreenImageUrl && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90" style={{backdropFilter: 'blur(2px)'}}>

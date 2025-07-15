@@ -1115,7 +1115,8 @@ useEffect(() => {
         height: '100%',
         maxHeight: '100%',
         overflowY: 'hidden',
-        overscrollBehavior: 'none'
+        overscrollBehavior: 'none',
+        fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`
       }}
     >
       {/* Enhanced tabs container */}
