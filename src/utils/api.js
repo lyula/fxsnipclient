@@ -1,3 +1,4 @@
+
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 // Register
@@ -354,5 +355,18 @@ export async function incrementPostShareCount(postId) {
     headers: { "Content-Type": "application/json" },
   });
   if (!res.ok) throw new Error("Failed to increment share count");
+  return res.json();
+}
+
+// Search posts by content or author username
+export async function searchPosts(query, limit = 20, offset = 0) {
+  const res = await fetch(
+    `${API_BASE}/posts/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+    }
+  );
   return res.json();
 }

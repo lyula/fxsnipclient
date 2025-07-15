@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaSearch, FaPlus } from "react-icons/fa";
 
-export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, visible = true, newPostsCount = 0 }) {
+export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, visible = true, newPostsCount = 0, onSearch, onCancelSearch }) {
   const [touchStart, setTouchStart] = useState(0);
   const [searchMode, setSearchMode] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -95,6 +95,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                 className="flex items-center w-full max-w-[180px] pl-1.5"
                 onSubmit={e => {
                   e.preventDefault();
+                  if (searchValue && onSearch) onSearch(searchValue);
                   setSearchMode(false);
                   setSearchValue("");
                 }}
@@ -123,7 +124,11 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                 <button
                   type="button"
                   className="ml-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-medium"
-                  onClick={() => { setSearchMode(false); setSearchValue(""); }}
+                  onClick={() => {
+                    setSearchMode(false);
+                    setSearchValue("");
+                    if (onCancelSearch) onCancelSearch();
+                  }}
                 >
                   Cancel
                 </button>
@@ -165,6 +170,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
               className="flex items-center max-w-[180px] ml-2"
               onSubmit={e => {
                 e.preventDefault();
+                if (searchValue && onSearch) onSearch(searchValue);
                 setSearchMode(false);
                 setSearchValue("");
               }}
@@ -193,7 +199,11 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                   <button
                     type="button"
                     className="ml-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-medium"
-                    onClick={() => { setSearchMode(false); setSearchValue(""); }}
+                    onClick={() => {
+                      setSearchMode(false);
+                      setSearchValue("");
+                      if (onCancelSearch) onCancelSearch();
+                    }}
                   >
                     Cancel
                   </button>

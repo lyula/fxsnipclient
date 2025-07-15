@@ -1,16 +1,45 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { searchPosts } from "../../utils/api";
 import { useLocation } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
 import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
-import CreatePostBox from "./community/CreatePostBox";
-import UserSearch from "./community/UserSearch";
-import FollowingFeed from "./community/FollowingFeed";
+
 import { useDashboard } from "../../context/dashboard";
 import FloatingPlusButton from "../../components/common/FloatingPlusButton";
 
 export default function Community({ user }) {
+  // Search state (must be inside the component)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  // Tab state
   const [activeTab, setActiveTab] = useState("forYou");
+
+  // Handle search submit from CommunityTabs
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    setSearchLoading(true);
+    console.log('[Community] Search triggered:', query);
+    try {
+      const result = await searchPosts(query, 30, 0);
+      console.log('[Community] Search API result:', result);
+      setSearchResults(result.posts || []);
+    } catch (e) {
+      console.error('[Community] Search API error:', e);
+      setSearchResults([]);
+    }
+    setSearchLoading(false);
+  };
+
+  // Handle search cancel/clear
+  const handleCancelSearch = () => {
+    console.log('[Community] Search cancelled');
+    setSearchQuery("");
+    setSearchResults(null);
+    setSearchLoading(false);
+  };
+  // ...existing code...
   const [showCreate, setShowCreate] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -1095,6 +1124,8 @@ useEffect(() => {
             setActiveTab={setActiveTab}
             onCreatePost={() => setShowCreate(true)}
             visible={showTabs}
+            onSearch={handleSearch}
+            onCancelSearch={handleCancelSearch}
           />
         </div>
       </div>
@@ -1146,6 +1177,32 @@ useEffect(() => {
             onLoadFresh={handleLoadFreshFollowingPosts}
             isLoadingFresh={followingIsLoadingFresh}
           />
+        ) : searchQuery ? (
+          searchLoading ? (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              Searching posts...
+            </div>
+          ) : searchResults && searchResults.length > 0 ? (
+            <div className="w-full max-w-full overflow-x-hidden px-1 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
+              <ChatList
+                posts={searchResults}
+                postRefs={postRefs}
+                onReply={handleReply}
+                onComment={handleComment}
+                onLike={handleLike}
+                onView={handleView}
+                onDelete={handleDeletePost}
+                currentUserId={user?._id}
+                currentUsername={user?.username}
+                currentUserVerified={user?.verified}
+              />
+            </div>
+          ) : (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              No posts found for "{searchQuery}".
+            </div>
+          )
         ) : rotatedPosts.length === 0 ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             No posts yet. Be the first to share something!
