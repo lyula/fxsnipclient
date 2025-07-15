@@ -38,7 +38,7 @@ const suggestedRooms = [
 
 export default function Signals() {
   return (
-    <div className="w-full sm:max-w-3xl sm:mx-auto space-y-8">
+    <div className="w-full space-y-8">
       {/* Your Signal Rooms Section */}
       <div className="bg-white dark:bg-gray-800 sm:rounded-xl sm:shadow sm:p-4 p-0 rounded-none shadow-none">
         <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">Your Signal Rooms</h2>
