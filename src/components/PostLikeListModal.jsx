@@ -63,17 +63,23 @@ export default function PostLikeListModal({
     const handleTouchMove = (e) => {
       if (startY === null) return;
       const deltaY = e.touches[0].clientY - startY;
-      setDragOffset(deltaY);
-      moved = true;
+      if (deltaY > 0) {
+        setDragOffset(deltaY);
+        moved = true;
+      }
     };
     const handleTouchEnd = () => {
       setDragging(false);
       if (!moved) { setDragOffset(0); startY = null; return; }
       if (dragOffset > 40) {
-        // Drag down to close
-        onClose();
+        setDragOffset(400);
+        setTimeout(() => {
+          setDragOffset(0);
+          onClose();
+        }, 180);
+      } else {
+        setDragOffset(0);
       }
-      setDragOffset(0);
       startY = null;
     };
     // Mouse drag for desktop
@@ -89,17 +95,29 @@ export default function PostLikeListModal({
     const handleMouseMove = (e) => {
       if (startY === null) return;
       const deltaY = e.clientY - startY;
-      setDragOffset(deltaY);
-      moved = true;
+      if (deltaY > 0) {
+        setDragOffset(deltaY);
+        moved = true;
+      }
     };
     const handleMouseUp = () => {
       setDragging(false);
-      if (!moved) { setDragOffset(0); startY = null; window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); return; }
-      if (dragOffset > 40) {
-        // Drag down to close
-        onClose();
+      if (!moved) {
+        setDragOffset(0);
+        startY = null;
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        return;
       }
-      setDragOffset(0);
+      if (dragOffset > 40) {
+        setDragOffset(400);
+        setTimeout(() => {
+          setDragOffset(0);
+          onClose();
+        }, 180);
+      } else {
+        setDragOffset(0);
+      }
       startY = null;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
@@ -233,8 +251,8 @@ export default function PostLikeListModal({
       <div
         ref={modalRef}
         style={{
-          transform: dragOffset ? `translateY(${dragOffset}px)` : undefined,
-          transition: dragging ? 'none' : 'transform 0.2s'
+          transform: dragging || dragOffset ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragging ? 'none' : 'transform 0.2s',
         }}
         className={`w-full sm:w-[400px] max-w-full bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-xl shadow-xl p-4 pb-0 relative flex flex-col animate-slideUp ${snapHeights[modalSnap]}`}
       >
