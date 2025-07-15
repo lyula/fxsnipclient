@@ -39,24 +39,13 @@ export default function PostLikeListModal({
     if (!open) return;
     const modal = modalRef.current;
     if (!modal) return;
-    const dragHandle = modal.querySelector('.modal-drag-handle');
     let startY = null;
     let moved = false;
-    let lastSnap = modalSnap;
-    let lastOffset = 0;
-
-    // Only allow snap down (close), not up
-    const getNextSnap = (direction) => {
-      if (direction === 'down') return 'default';
-      return modalSnap;
-    };
 
     const handleTouchStart = (e) => {
       if (e.touches.length === 1) {
         startY = e.touches[0].clientY;
         moved = false;
-        lastSnap = modalSnap;
-        lastOffset = dragOffset;
         setDragging(true);
       }
     };
@@ -86,8 +75,6 @@ export default function PostLikeListModal({
     const handleMouseDown = (e) => {
       startY = e.clientY;
       moved = false;
-      lastSnap = modalSnap;
-      lastOffset = dragOffset;
       setDragging(true);
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
@@ -122,23 +109,20 @@ export default function PostLikeListModal({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-    if (dragHandle) {
-      dragHandle.addEventListener('touchstart', handleTouchStart);
-      dragHandle.addEventListener('touchmove', handleTouchMove);
-      dragHandle.addEventListener('touchend', handleTouchEnd);
-      dragHandle.addEventListener('mousedown', handleMouseDown);
-    }
+    // Attach to modal itself (not just handle)
+    modal.addEventListener('touchstart', handleTouchStart);
+    modal.addEventListener('touchmove', handleTouchMove);
+    modal.addEventListener('touchend', handleTouchEnd);
+    modal.addEventListener('mousedown', handleMouseDown);
     return () => {
-      if (dragHandle) {
-        dragHandle.removeEventListener('touchstart', handleTouchStart);
-        dragHandle.removeEventListener('touchmove', handleTouchMove);
-        dragHandle.removeEventListener('touchend', handleTouchEnd);
-        dragHandle.removeEventListener('mousedown', handleMouseDown);
-      }
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
+      modal.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [open, modalSnap, dragOffset, onClose]);
+  }, [open, dragOffset, onClose]);
 
   // Fetch current user's following list for accurate follow state
   useEffect(() => {
