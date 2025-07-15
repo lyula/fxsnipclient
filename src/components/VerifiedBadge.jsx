@@ -10,6 +10,7 @@ export default function VerifiedBadge() {
         height: "18px",
         display: "inline-flex",
         verticalAlign: "middle",
+        color: "inherit"
       }}
     >
       <svg
@@ -18,7 +19,7 @@ export default function VerifiedBadge() {
         viewBox="0 0 32 32"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ display: "block" }}
+        style={{ display: "block", color: "inherit" }}
       >
         {/* Spiked/ridged circle */}
         <g>
@@ -62,10 +63,10 @@ export default function VerifiedBadge() {
               );
             })}
           </g>
-          {/* White checkmark */}
+          {/* Theme-adaptive checkmark */}
           <path
             d="M23 12.5L14.25 21.25L9 16"
-            stroke="#fff"
+            stroke="currentColor"
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
