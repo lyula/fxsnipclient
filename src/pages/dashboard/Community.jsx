@@ -1016,6 +1016,11 @@ useEffect(() => {
       clearTimeout(buttonHideTimeout);
       setButtonHideTimeout(null);
     }
+    // Always reset search state so main feed is shown
+    if (searchQuery || searchResults) {
+      setSearchQuery("");
+      setSearchResults(null);
+    }
     try {
       // Always fetch the latest posts from the backend, even if there are no new posts
       const result = await loadFreshContent({ force: true });
@@ -1029,9 +1034,9 @@ useEffect(() => {
         }
         setRotatedPosts(communityPosts); // Reset rotation on new posts
       } else {
-        // No new posts available, rotate the feed so the top post changes
-        if (rotatedPosts.length > 1) {
-          setRotatedPosts(prev => [...prev.slice(1), prev[0]]);
+        // No new posts available, just scroll to the top of the feed
+        if (container) {
+          container.scrollTop = 0;
         }
         setHasMore(true);
       }
