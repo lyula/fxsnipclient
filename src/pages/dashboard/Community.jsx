@@ -9,6 +9,7 @@ import FollowingFeed from "./community/FollowingFeed";
 
 import { useDashboard } from "../../context/dashboard";
 import FloatingPlusButton from "../../components/common/FloatingPlusButton";
+import CreatePostBox from "../../pages/dashboard/community/CreatePostBox";
 
 export default function Community({ user }) {
   // Search state (must be inside the component)
