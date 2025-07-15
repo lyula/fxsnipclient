@@ -32,6 +32,11 @@ function Journal() {
     timeEntered: "",
     timeAfterPlayout: "",
   });
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const pageSize = 4;
+  const totalPages = Math.ceil(entries.length / pageSize);
+  const paginatedEntries = entries.slice((page - 1) * pageSize, page * pageSize);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -251,98 +256,132 @@ function Journal() {
           {entries.length === 0 ? (
             <p className="text-gray-700 dark:text-gray-200">No journal entries yet.</p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {entries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 flex flex-col gap-2"
-                >
-                  {/* ...existing code... */}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                      entry.type === "Buy"
-                        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
-                        : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200"
-                    }`}>
-                      {entry.type}
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                      entry.outcome === "Profit"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
-                        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200"
-                    }`}>
-                      {entry.outcome}
-                    </span>
-                  </div>
-                  {/* ...existing code... */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-gray-500 mb-1">
-                    <span>{entry.date}</span>
-                    {entry.timeEntered && (
-                      <span className="sm:ml-4">⏱️ <span className="font-semibold">Entered:</span> {entry.timeEntered.replace('T', ' ')}</span>
-                    )}
-                    {entry.timeAfterPlayout && (
-                      <span className="sm:ml-4">⏲️ <span className="font-semibold">After Playout:</span> {entry.timeAfterPlayout.replace('T', ' ')}</span>
-                    )}
-                  </div>
-                  {/* ...existing code... */}
-                  <div>
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">Strategy:</span>
-                    <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.strategy}</div>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">Emotions & Confluences:</span>
-                    <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.emotions}</div>
-                  </div>
-                  {entry.confluences && (
-                    <div>
-                      <span className="font-semibold text-gray-800 dark:text-gray-100">Confluences:</span>
-                      <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.confluences}</div>
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {paginatedEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 flex flex-col gap-2"
+                  >
+                    {/* ...existing code... */}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                        entry.type === "Buy"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
+                          : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200"
+                      }`}>
+                        {entry.type}
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                        entry.outcome === "Profit"
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200"
+                      }`}>
+                        {entry.outcome}
+                      </span>
                     </div>
-                  )}
-                  <div className="flex gap-2 mt-2 items-center">
-                    {/* Media icons */}
-                    {entry.beforeScreenshot && (
-                      <span title="Before Screenshot" className="text-xl">🖼️</span>
+                    {/* ...existing code... */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-gray-500 mb-1">
+                      <span>{entry.date}</span>
+                      {entry.timeEntered && (
+                        <span className="sm:ml-4">⏱️ <span className="font-semibold">Entered:</span> {entry.timeEntered.replace('T', ' ')}</span>
+                      )}
+                      {entry.timeAfterPlayout && (
+                        <span className="sm:ml-4">⏲️ <span className="font-semibold">After Playout:</span> {entry.timeAfterPlayout.replace('T', ' ')}</span>
+                      )}
+                    </div>
+                    {/* ...existing code... */}
+                    <div>
+                      <span className="font-semibold text-gray-800 dark:text-gray-100">Strategy:</span>
+                      <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.strategy}</div>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-800 dark:text-gray-100">Emotions & Confluences:</span>
+                      <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.emotions}</div>
+                    </div>
+                    {entry.confluences && (
+                      <div>
+                        <span className="font-semibold text-gray-800 dark:text-gray-100">Confluences:</span>
+                        <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.confluences}</div>
+                      </div>
                     )}
-                    {entry.afterScreenshot && (
-                      <span title="After Screenshot" className="text-xl">🖼️</span>
-                    )}
+                    <div className="flex gap-2 mt-2 items-center">
+                      {/* Media icons */}
+                      {entry.beforeScreenshot && (
+                        <span title="Before Screenshot" className="text-xl">🖼️</span>
+                      )}
+                      {entry.afterScreenshot && (
+                        <span title="After Screenshot" className="text-xl">🖼️</span>
+                      )}
+                      {entry.beforeScreenRecording && (
+                        <span title="Before Screen Recording" className="text-xl">🎬</span>
+                      )}
+                      {entry.afterScreenRecording && (
+                        <span title="After Screen Recording" className="text-xl">🎬</span>
+                      )}
+                    </div>
                     {entry.beforeScreenRecording && (
-                      <span title="Before Screen Recording" className="text-xl">🎬</span>
+                      <div className="mt-2">
+                        <span className="block text-xs font-semibold mb-1">Screen Recording (Before Trade):</span>
+                        <video
+                          controls
+                          className="w-full rounded border"
+                          style={{ maxHeight: 180 }}
+                        >
+                          <source src={URL.createObjectURL(entry.beforeScreenRecording)} />
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
                     )}
                     {entry.afterScreenRecording && (
-                      <span title="After Screen Recording" className="text-xl">🎬</span>
+                      <div className="mt-2">
+                        <span className="block text-xs font-semibold mb-1">Screen Recording (After Trade):</span>
+                        <video
+                          controls
+                          className="w-full rounded border"
+                          style={{ maxHeight: 180 }}
+                        >
+                          <source src={URL.createObjectURL(entry.afterScreenRecording)} />
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
                     )}
                   </div>
-                  {entry.beforeScreenRecording && (
-                    <div className="mt-2">
-                      <span className="block text-xs font-semibold mb-1">Screen Recording (Before Trade):</span>
-                      <video
-                        controls
-                        className="w-full rounded border"
-                        style={{ maxHeight: 180 }}
-                      >
-                        <source src={URL.createObjectURL(entry.beforeScreenRecording)} />
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
-                  )}
-                  {entry.afterScreenRecording && (
-                    <div className="mt-2">
-                      <span className="block text-xs font-semibold mb-1">Screen Recording (After Trade):</span>
-                      <video
-                        controls
-                        className="w-full rounded border"
-                        style={{ maxHeight: 180 }}
-                      >
-                        <source src={URL.createObjectURL(entry.afterScreenRecording)} />
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
-                  )}
+                ))}
+              </div>
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-6">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold disabled:opacity-50"
+                  >
+                    Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPage(i + 1)}
+                      className={`px-3 py-1 rounded font-semibold ${
+                        page === i + 1
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold disabled:opacity-50"
+                  >
+                    Next
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
