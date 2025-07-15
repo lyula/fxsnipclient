@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { searchPosts } from "../../utils/api";
 import { useLocation } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
+
 import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
+import FollowingFeed from "./community/FollowingFeed";
 
 import { useDashboard } from "../../context/dashboard";
 import FloatingPlusButton from "../../components/common/FloatingPlusButton";
