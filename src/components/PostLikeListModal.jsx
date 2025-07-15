@@ -45,11 +45,9 @@ export default function PostLikeListModal({
     let lastSnap = modalSnap;
     let lastOffset = 0;
 
+    // Only allow snap down (close), not up
     const getNextSnap = (direction) => {
-      const snaps = ['default', 'half', 'full'];
-      let idx = snaps.indexOf(modalSnap);
-      if (direction === 'up' && idx < snaps.length - 1) return snaps[idx + 1];
-      if (direction === 'down' && idx > 0) return snaps[idx - 1];
+      if (direction === 'down') return 'default';
       return modalSnap;
     };
 
@@ -71,13 +69,9 @@ export default function PostLikeListModal({
     const handleTouchEnd = () => {
       setDragging(false);
       if (!moved) { setDragOffset(0); startY = null; return; }
-      if (dragOffset < -40) {
-        // Drag up
-        setModalSnap(getNextSnap('up'));
-      } else if (dragOffset > 40) {
-        // Drag down
-        if (modalSnap === 'default') onClose();
-        else setModalSnap(getNextSnap('down'));
+      if (dragOffset > 40) {
+        // Drag down to close
+        onClose();
       }
       setDragOffset(0);
       startY = null;
@@ -101,11 +95,9 @@ export default function PostLikeListModal({
     const handleMouseUp = () => {
       setDragging(false);
       if (!moved) { setDragOffset(0); startY = null; window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); return; }
-      if (dragOffset < -40) {
-        setModalSnap(getNextSnap('up'));
-      } else if (dragOffset > 40) {
-        if (modalSnap === 'default') onClose();
-        else setModalSnap(getNextSnap('down'));
+      if (dragOffset > 40) {
+        // Drag down to close
+        onClose();
       }
       setDragOffset(0);
       startY = null;
@@ -251,7 +243,8 @@ export default function PostLikeListModal({
           <div className="w-12 h-1 rounded-full bg-gray-300 dark:bg-gray-600 mt-1 mb-2" style={{marginTop: 2}} />
         </div>
         <button
-          className="absolute top-2 right-2 text-gray-500 dark:text-gray-300 hover:text-red-500 text-2xl font-bold"
+          className="absolute top-4 right-4 text-gray-500 dark:text-gray-300 hover:text-red-500 text-3xl font-bold w-12 h-12 flex items-center justify-center"
+          style={{ zIndex: 10, background: 'none', boxShadow: 'none' }}
           onClick={onClose}
           aria-label="Close"
         >
