@@ -3,6 +3,7 @@ const yourRooms = [
     name: "EUR/USD Premium",
     status: "Active",
     lastMessage: "TP1 hit! Secure some profits.",
+    time: "10:15 AM",
     img: "https://randomuser.me/api/portraits/men/32.jpg",
     color: "text-blue-600 dark:text-blue-400",
   },
@@ -10,6 +11,7 @@ const yourRooms = [
     name: "GBP/JPY Free",
     status: "Active",
     lastMessage: "New trade idea posted.",
+    time: "09:58 AM",
     img: "https://randomuser.me/api/portraits/women/44.jpg",
     color: "text-green-600 dark:text-green-400",
   },
@@ -36,9 +38,9 @@ const suggestedRooms = [
 
 export default function Signals() {
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-8">
+    <div className="w-full sm:max-w-3xl sm:mx-auto space-y-8">
       {/* Your Signal Rooms Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+      <div className="bg-white dark:bg-gray-800 sm:rounded-xl sm:shadow sm:p-4 p-0 rounded-none shadow-none">
         <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">Your Signal Rooms</h2>
         <div className="flex flex-col gap-3">
           {yourRooms.map((room, i) => (
@@ -49,20 +51,22 @@ export default function Signals() {
                 className="w-12 h-12 rounded-full object-cover border border-gray-300 dark:border-gray-700"
               />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className={`font-semibold truncate ${room.color}`}>{room.name}</span>
-                  <span className="ml-1 text-xs text-gray-500">{room.status}</span>
+                <div className="flex items-center gap-2 justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`font-semibold truncate ${room.color}`}>{room.name}</span>
+                    <span className="ml-1 text-xs text-gray-500">{room.status}</span>
+                  </div>
+                  <span className="text-xs text-gray-400 ml-2 flex-shrink-0">{room.time}</span>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{room.lastMessage}</div>
               </div>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1 rounded transition">Open</button>
             </div>
           ))}
         </div>
       </div>
 
       {/* Suggested Rooms Section */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4">
+      <div className="bg-white dark:bg-gray-800 sm:rounded-xl sm:shadow sm:p-4 p-0 rounded-none shadow-none">
         <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3">Suggested Rooms</h2>
         <div className="flex flex-col gap-3">
           {suggestedRooms.map((room, i) => (
