@@ -186,7 +186,8 @@ export default function PostLikeListModal({
           setFiltered(likes);
         }
       } catch (err) {
-        if (isMounted) {
+      const handleTouchStart = (e) => {
+        e.preventDefault();
           setLikers([]);
           setFiltered([]);
         }
@@ -201,6 +202,20 @@ export default function PostLikeListModal({
   // Follow/unfollow actions update likers' followersHashed for instant UI feedback
   const handleFollow = async (userId) => {
     setFollowLoading(fl => ({ ...fl, [userId]: true }));
+      const handleTouchEnd = () => {
+        setDragging(false);
+        if (!moved) { setDragOffset(0); startY = null; return; }
+        if (dragOffset > 40) {
+          setDragOffset(400);
+          setTimeout(() => {
+            setDragOffset(0);
+            onClose();
+          }, 180);
+        } else {
+          setDragOffset(0);
+        }
+        startY = null;
+      };
     setFollowStates(fs => ({ ...fs, [userId]: true }));
     setLikers(likers => likers.map(liker =>
       liker._id === userId
