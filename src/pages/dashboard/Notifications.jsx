@@ -47,13 +47,26 @@ export default function NotificationsPage() {
   // Show cached data immediately with background refresh indicator
   const showLoading = loadingStates.notifications && notifications.length === 0;
 
-  // Remove duplicate usernames in followed you notifications
-  const processedNotifications = notifications.map((n) => ({
-    ...n,
-    message: n.message
+  // Remove duplicate usernames in followed you notifications and format payment numbers
+  const processedNotifications = notifications.slice(0, 100).map((n) => {
+    let message = n.message
       ? n.message.replace(`${n.from?.username} ${n.from?.username}`, n.from?.username).trim()
-      : n.text,
-  }));
+      : n.text;
+    // Format numbers with commas for payment notifications
+    if (n.type === 'badge_payment' && typeof message === 'string') {
+      // Replace any number (integer or decimal) with comma-formatted version
+      message = message.replace(/\b(\d{1,3}(?:\d{3})*(?:\.\d+)?|\d+)(?!\d|,)/g, (num) => {
+        // Only format if it's a number (not part of a word)
+        if (!isNaN(num)) {
+          const [intPart, decPart] = num.split('.');
+          const formatted = parseInt(intPart, 10).toLocaleString();
+          return decPart ? `${formatted}.${decPart}` : formatted;
+        }
+        return num;
+      });
+    }
+    return { ...n, message };
+  });
 
   const handleNotificationClick = (notification) => {
     // Payment notification: go to payment details
@@ -85,7 +98,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="flex-1 min-h-0 mx-0 p-0">
+    <div className="flex-1 min-h-0 mx-0 p-0" style={{ fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`, fontSize: 'inherit' }}>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-8 flex-1 min-h-0">
         <div className="p-0 md:p-4 border-b border-gray-200 dark:border-gray-700 mb-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">

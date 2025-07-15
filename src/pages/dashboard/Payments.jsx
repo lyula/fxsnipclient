@@ -59,7 +59,7 @@ export default function Payments() {
   }, []);
 
   return (
-    <div className="flex-1 min-h-0 mx-0 p-0">
+    <div className="flex-1 min-h-0 mx-0 p-0" style={{ fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`, fontSize: 'inherit' }}>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 md:p-8 flex-1 min-h-0">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Payments</h2>
@@ -96,7 +96,7 @@ export default function Payments() {
                           ? "text-green-600 dark:text-green-400"
                           : "text-red-600 dark:text-red-400"
                       }`}>
-                        {isSuccess ? (payment.currency || "KES") : "KES"} {payment.amount}
+                        {isSuccess ? (payment.currency || "KES") : "KES"} {typeof payment.amount === 'number' ? payment.amount.toLocaleString() : (Number(payment.amount)?.toLocaleString?.() || payment.amount)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mb-2">

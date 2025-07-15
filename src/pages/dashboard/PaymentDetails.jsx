@@ -44,7 +44,7 @@ export default function PaymentDetails() {
   const isSuccess = payment.status === "success" || payment.status === "completed";
 
   return (
-    <div className="w-full max-w-xl mx-auto p-4">
+    <div className="w-full max-w-xl mx-auto p-4" style={{ fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`, fontSize: 'inherit' }}>
       <button
         className="mb-4 px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
         onClick={() => navigate(-1)}
@@ -61,7 +61,7 @@ export default function PaymentDetails() {
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-200">Amount:</span>
             <span className={`font-bold text-lg ${isSuccess ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-              {isSuccess ? (payment.currency || "KES") : "KES"} {payment.amount}
+              {isSuccess ? (payment.currency || "KES") : "KES"} {typeof payment.amount === 'number' ? payment.amount.toLocaleString() : (Number(payment.amount)?.toLocaleString?.() || payment.amount)}
             </span>
           </div>
           <div className="flex items-center justify-between">
