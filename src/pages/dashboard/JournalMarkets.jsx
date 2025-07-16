@@ -48,7 +48,7 @@ function JournalMarkets({ onBack }) {
             Back to Journals
           </button>
         </div>
-        <div className="flex sm:hidden flex-row-reverse gap-4 items-center w-full justify-end pt-4 pb-2 z-50">
+        <div className="flex sm:hidden flex-row-reverse gap-4 items-center w-full justify-end pb-2 z-10">
           <span
             onClick={() => navigate('/dashboard/journal')}
             className="text-2xl text-gray-800 dark:text-gray-100 cursor-pointer"
