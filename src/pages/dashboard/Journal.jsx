@@ -72,6 +72,10 @@ function Journal() {
 
   // Open modal for new entry and clear form
   const handleNewEntry = () => {
+    // Set timeEntered to current local datetime in 'yyyy-MM-ddTHH:mm' format
+    const now = new Date();
+    const pad = (n) => n.toString().padStart(2, '0');
+    const localDatetime = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
     setCreationForm({
       type: "Buy",
       strategy: "",
@@ -79,7 +83,7 @@ function Journal() {
       confluences: "",
       beforeScreenshot: null,
       beforeScreenRecording: null,
-      timeEntered: ""
+      timeEntered: localDatetime
     });
     setEditingId(null);
     setShowCreationModal(true);
