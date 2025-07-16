@@ -115,18 +115,20 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
                 )}
               </div>
             </div>
-            <div className="flex gap-2 mt-2 justify-center">
+            <div className="flex flex-row gap-2 mt-2 justify-center">
               <button
                 type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-10 rounded text-base sm:text-xl min-w-[140px]"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 sm:px-8 sm:py-3 rounded text-sm sm:text-lg min-w-[90px] sm:min-w-[120px] whitespace-nowrap"
                 disabled={loading}
+                style={{lineHeight: 1.2}}
               >
                 {loading ? 'Saving...' : (editing ? 'Save Changes' : 'Create Entry')}
               </button>
               <button
                 type="button"
-                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-3 px-10 rounded text-base sm:text-xl min-w-[140px]"
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold px-4 py-2 sm:px-8 sm:py-3 rounded text-sm sm:text-lg min-w-[90px] sm:min-w-[120px] whitespace-nowrap"
                 onClick={onClose}
+                style={{lineHeight: 1.2}}
               >
                 Cancel
               </button>
