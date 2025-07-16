@@ -30,6 +30,7 @@ import AdCreation from "./dashboard/AdCreation";
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
+import JournalMarkets from "./dashboard/JournalMarkets";
 import Stats from "./dashboard/Stats";
 import Community from "./dashboard/Community";
 import Signals from "./dashboard/Signals";
@@ -664,6 +665,7 @@ export default function Dashboard() {
                   <Route path="" element={DashboardMain} />
                   <Route path="signals" element={<Signals />} />
                   <Route path="journal" element={<Journal />} />
+                  <Route path="markets" element={<JournalMarkets />} />
                   <Route path="stats" element={<Stats />} />
                   <Route path="payments" element={<Payments />} />
                   <Route path="payment/:id" element={<PaymentDetails />} />

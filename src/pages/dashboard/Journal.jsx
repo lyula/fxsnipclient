@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import JournalMarkets from "./JournalMarkets";
 
 const dummyEntries = [
   {
@@ -30,8 +32,9 @@ function Journal() {
     afterScreenRecording: null,
     outcome: "Profit",
     timeEntered: "",
-    timeAfterPlayout: "",
+    timeAfterPlayout: ""
   });
+  const navigate = useNavigate();
   // Pagination state
   const [page, setPage] = useState(1);
   const pageSize = 4;
@@ -84,14 +87,23 @@ function Journal() {
     <div className="w-full">
       <div className="max-w-3xl mx-auto p-2 sm:p-4 sm:max-w-full sm:mx-0">
         <div className="mb-6">
-          <div className="hidden sm:flex sm:items-center sm:justify-between">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-0">Your Journal Entries</h2>
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition shadow sm:w-auto mt-2 sm:mt-0"
-            >
-              + New Journal Entry
-            </button>
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 sm:mb-0">Your Journal Entries</h2>
+            <div className="flex flex-row gap-2 w-full sm:w-auto sm:justify-end">
+              <button
+                onClick={() => setShowForm(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition shadow w-fit sm:w-auto sm:text-left"
+              >
+                + New Entry
+              </button>
+              <button
+                onClick={() => navigate('/dashboard/markets')}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition shadow w-fit sm:w-auto sm:text-left"
+                type="button"
+              >
+                View Markets
+              </button>
+            </div>
           </div>
         </div>
 
@@ -101,9 +113,9 @@ function Journal() {
             <div
               className="bg-white dark:bg-gray-800 rounded-xl shadow-lg w-full max-w-md mx-2 relative animate-fadeIn hide-scrollbar"
               style={{
-                maxHeight: 'calc(100vh - 5rem)',
-                marginTop: '2.5rem',
-                marginBottom: '2.5rem',
+                maxHeight: 'calc(100vh - 2.5rem)',
+                marginTop: '1.25rem',
+                marginBottom: '1.25rem',
                 overflowY: 'auto',
                 padding: '1rem',
                 boxSizing: 'border-box',
@@ -120,24 +132,24 @@ function Journal() {
               <form className="space-y-3 text-sm" onSubmit={handleSubmit}>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">Trade Type</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Trade Type</label>
                     <select
                       name="type"
                       value={form.type}
                       onChange={handleChange}
-                        className="w-full rounded border-gray-300 dark:bg-gray-700 dark:text-gray-100 text-sm px-2 py-1"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-2 py-1"
                     >
                       <option value="Buy">Buy</option>
                       <option value="Sell">Sell</option>
                     </select>
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">Outcome</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Outcome</label>
                     <select
                       name="outcome"
                       value={form.outcome}
                       onChange={handleChange}
-                        className="w-full rounded border-gray-300 dark:bg-gray-700 dark:text-gray-100 text-sm px-2 py-1"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm px-2 py-1"
                     >
                       <option value="Profit">Profit</option>
                       <option value="Loss">Loss</option>
@@ -145,85 +157,85 @@ function Journal() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Strategy</label>
+                  <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Strategy</label>
                   <textarea
                     name="strategy"
                     value={form.strategy}
                     onChange={handleChange}
                     rows={2}
-                      className="w-full rounded border-gray-300 dark:bg-gray-700 dark:text-gray-100 text-sm"
+                    className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm"
                     placeholder="Specify the strategy for this trade..."
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Emotions</label>
+                  <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Emotions</label>
                   <textarea
                     name="emotions"
                     value={form.emotions}
                     onChange={handleChange}
                     rows={2}
-                      className="w-full rounded border-gray-300 dark:bg-gray-700 dark:text-gray-100 text-sm"
+                    className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm"
                     placeholder="How do you/did you feel when placing this trade?"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Confluences</label>
+                  <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Confluences</label>
                   <textarea
                     name="confluences"
                     value={form.confluences}
                     onChange={handleChange}
                     rows={2}
-                      className="w-full rounded border-gray-300 dark:bg-gray-700 dark:text-gray-100 text-sm"
+                    className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-sm"
                     placeholder="List your confluences..."
                   />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">Screen Recording (Before Trade)</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Screen Recording (Before Trade)</label>
                     <input
                       id="beforeScreenRecording"
                       name="beforeScreenRecording"
                       type="file"
                       accept="video/*"
                       onChange={handleChange}
-                        className="w-full text-xs"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs"
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">Screen Recording (After Trade)</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Screen Recording (After Trade)</label>
                     <input
                       id="afterScreenRecording"
                       name="afterScreenRecording"
                       type="file"
                       accept="video/*"
                       onChange={handleChange}
-                        className="w-full text-xs"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs"
                     />
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4 mt-2">
                   <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">Screenshot (Before Trade)</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Screenshot (Before Trade)</label>
                     <input
                       id="beforeScreenshot"
                       name="beforeScreenshot"
                       type="file"
                       accept="image/*"
                       onChange={handleChange}
-                        className="w-full text-xs"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs"
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">Screenshot (After Trade)</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-100">Screenshot (After Trade)</label>
                     <input
                       id="afterScreenshot"
                       name="afterScreenshot"
                       type="file"
                       accept="image/*"
                       onChange={handleChange}
-                        className="w-full text-xs"
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 text-xs"
                     />
                   </div>
                 </div>
@@ -237,22 +249,7 @@ function Journal() {
             </div>
           </div>
         )}
-
         <div className="space-y-6">
-          {/* On mobile, show the title and button stacked */}
-          <div className="block sm:hidden mb-2">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-2">Your Journal Entries</h2>
-          </div>
-          {/* On mobile, show the button below the title */}
-          <div className="block sm:hidden mb-4">
-            <button
-              onClick={() => setShowForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition shadow min-w-[140px]"
-              style={{ width: 'fit-content' }}
-            >
-              + New Journal Entry
-            </button>
-          </div>
           {entries.length === 0 ? (
             <p className="text-gray-700 dark:text-gray-200">No journal entries yet.</p>
           ) : (
@@ -263,7 +260,6 @@ function Journal() {
                     key={entry.id}
                     className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 flex flex-col gap-2"
                   >
-                    {/* ...existing code... */}
                     <div className="flex items-center justify-between mb-2">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
                         entry.type === "Buy"
@@ -280,7 +276,6 @@ function Journal() {
                         {entry.outcome}
                       </span>
                     </div>
-                    {/* ...existing code... */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-gray-500 mb-1">
                       <span>{entry.date}</span>
                       {entry.timeEntered && (
@@ -290,7 +285,6 @@ function Journal() {
                         <span className="sm:ml-4">⏲️ <span className="font-semibold">After Playout:</span> {entry.timeAfterPlayout.replace('T', ' ')}</span>
                       )}
                     </div>
-                    {/* ...existing code... */}
                     <div>
                       <span className="font-semibold text-gray-800 dark:text-gray-100">Strategy:</span>
                       <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.strategy}</div>
@@ -306,7 +300,6 @@ function Journal() {
                       </div>
                     )}
                     <div className="flex gap-2 mt-2 items-center">
-                      {/* Media icons */}
                       {entry.beforeScreenshot && (
                         <span title="Before Screenshot" className="text-xl">🖼️</span>
                       )}
@@ -349,7 +342,6 @@ function Journal() {
                   </div>
                 ))}
               </div>
-              {/* Pagination controls */}
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-6">
                   <button
