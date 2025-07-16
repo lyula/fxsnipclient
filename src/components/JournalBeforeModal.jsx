@@ -32,7 +32,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
           <form onSubmit={onSubmit} className="flex flex-col gap-4 w-full">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Type</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Type</label>
                 <select
                   name="type"
                   value={form.type}
@@ -45,7 +45,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
                 </select>
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Time Entered</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Time Entered</label>
                 <input
                   type="datetime-local"
                   name="timeEntered"
@@ -58,7 +58,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
             </div>
             <div className="grid grid-cols-1 gap-4 w-full">
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Strategy</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Strategy</label>
                 <textarea
                   name="strategy"
                   value={form.strategy}
@@ -68,7 +68,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Emotions</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Emotions</label>
                 <textarea
                   name="emotions"
                   value={form.emotions}
@@ -78,7 +78,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Confluences</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Confluences</label>
                 <textarea
                   name="confluences"
                   value={form.confluences}
@@ -89,7 +89,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Before Screenshot</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Before Screenshot</label>
                 <input
                   type="file"
                   name="beforeScreenshot"
@@ -102,7 +102,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
                 )}
               </div>
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold">Before Screen Recording</label>
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Before Screen Recording</label>
                 <input
                   type="file"
                   name="beforeScreenRecording"
