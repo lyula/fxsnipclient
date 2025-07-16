@@ -491,6 +491,16 @@ function Journal() {
                               value={creationForm.timeEntered}
                               onChange={handleCreationChange}
                               className="w-full rounded border px-2 py-1"
+                              min={(function() {
+                                const now = new Date();
+                                const pad = n => n.toString().padStart(2, '0');
+                                return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T00:00`;
+                              })()}
+                              max={(function() {
+                                const now = new Date();
+                                const pad = n => n.toString().padStart(2, '0');
+                                return `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                              })()}
                             />
                           </div>
                           <div className="flex gap-2 mt-2">
