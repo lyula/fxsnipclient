@@ -99,6 +99,21 @@ function Journal() {
         return null;
       }
     };
+    // Convert timeEntered to local ISO string with timezone offset if present
+    let timeEntered = creationForm.timeEntered;
+    if (timeEntered) {
+      // timeEntered is in 'yyyy-MM-ddTHH:mm' format (local time)
+      const localDate = new Date(timeEntered);
+      // Get ISO string with timezone offset (not UTC)
+      const pad = (n) => n.toString().padStart(2, '0');
+      const offset = -localDate.getTimezoneOffset();
+      const sign = offset >= 0 ? '+' : '-';
+      const absOffset = Math.abs(offset);
+      const offsetHours = pad(Math.floor(absOffset / 60));
+      const offsetMinutes = pad(absOffset % 60);
+      const isoWithOffset = `${localDate.getFullYear()}-${pad(localDate.getMonth()+1)}-${pad(localDate.getDate())}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}:${pad(localDate.getSeconds())}${sign}${offsetHours}:${offsetMinutes}`;
+      timeEntered = isoWithOffset;
+    }
     const payload = {
       type: creationForm.type,
       strategy: creationForm.strategy,
@@ -106,7 +121,7 @@ function Journal() {
       confluences: creationForm.confluences,
       beforeScreenshot: await buildMediaField("beforeScreenshot", "image"),
       beforeScreenRecording: await buildMediaField("beforeScreenRecording", "video"),
-      timeEntered: creationForm.timeEntered,
+      timeEntered,
     };
     if (editingId) {
       await updateJournalEntry(editingId, payload);
@@ -146,11 +161,24 @@ function Journal() {
         return null;
       }
     };
+    // Convert timeAfterPlayout to local ISO string with timezone offset if present
+    let timeAfterPlayout = afterForm.timeAfterPlayout;
+    if (timeAfterPlayout) {
+      const localDate = new Date(timeAfterPlayout);
+      const pad = (n) => n.toString().padStart(2, '0');
+      const offset = -localDate.getTimezoneOffset();
+      const sign = offset >= 0 ? '+' : '-';
+      const absOffset = Math.abs(offset);
+      const offsetHours = pad(Math.floor(absOffset / 60));
+      const offsetMinutes = pad(absOffset % 60);
+      const isoWithOffset = `${localDate.getFullYear()}-${pad(localDate.getMonth()+1)}-${pad(localDate.getDate())}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}:${pad(localDate.getSeconds())}${sign}${offsetHours}:${offsetMinutes}`;
+      timeAfterPlayout = isoWithOffset;
+    }
     const payload = {
       outcome: afterForm.outcome,
       afterScreenshot: await buildMediaField("afterScreenshot", "image"),
       afterScreenRecording: await buildMediaField("afterScreenRecording", "video"),
-      timeAfterPlayout: afterForm.timeAfterPlayout,
+      timeAfterPlayout,
     };
     if (editingId) {
       await updateJournalEntry(editingId, payload);
@@ -481,12 +509,37 @@ function Journal() {
                       ) : (
                         <>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-gray-500 mb-1">
-                            <span>{entry.date ? new Date(entry.date).toLocaleString() : ""}</span>
                             {entry.timeEntered && (
-                              <span className="sm:ml-4">⏱️ <span className="font-semibold">Entered:</span> {entry.timeEntered.replace('T', ' ')}</span>
+                              <span>
+                                ⏱️ <span className="font-semibold">Entered:</span> {(() => {
+                                  const d = new Date(entry.timeEntered);
+                                  // Use toLocaleString with only date and hour:minute, user's local time
+                                  return d.toLocaleString(undefined, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false
+                                  });
+                                })()}
+                              </span>
                             )}
                             {entry.timeAfterPlayout && (
-                              <span className="sm:ml-4">⏲️ <span className="font-semibold">After Playout:</span> {entry.timeAfterPlayout.replace('T', ' ')}</span>
+                              <span className="sm:ml-4">
+                                ⏲️ <span className="font-semibold">Updated:</span> {(() => {
+                                  const d = new Date(entry.timeAfterPlayout);
+                                  // Use toLocaleString with only date and hour:minute, user's local time
+                                  return d.toLocaleString(undefined, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    hour12: false
+                                  });
+                                })()} <span className="font-normal">(After)</span>
+                              </span>
                             )}
                           </div>
                           <div>
