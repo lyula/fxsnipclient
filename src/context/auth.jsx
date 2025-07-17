@@ -53,6 +53,8 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("lastDashboardRoute");
+    sessionStorage.removeItem("fxsnip_payments_cache");
+    sessionStorage.removeItem("fxsnip_payments_cache_time");
     setUser(null);
   };
 

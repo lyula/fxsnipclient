@@ -19,8 +19,10 @@ function Journal() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
-  const [pendingPaymentType, setPendingPaymentType] = useState(null);
+  const [pendingPaymentType, setPendingPaymentType] = useState(null); // This is the package/subscription type
   const [pendingPhone, setPendingPhone] = useState("");
+  // Track user's subscription type for feature gating
+  const [subscriptionType, setSubscriptionType] = useState(null); // 'screenrecording' | 'unlimited' | null
   // For 3-dots menu state
   const [menuOpenId, setMenuOpenId] = useState(null);
   const menuRefs = useRef({});
@@ -84,6 +86,7 @@ function Journal() {
       const payment = await getLatestJournalPayment();
       const now = new Date();
       let hasAccess = false;
+      let subType = null;
       if (payment && payment.status === 'success') {
         if (payment.period === 'annual') {
           const paidDate = new Date(payment.createdAt);
@@ -92,7 +95,12 @@ function Journal() {
           const paidDate = new Date(payment.createdAt);
           hasAccess = (now - paidDate) < 30 * 24 * 60 * 60 * 1000;
         }
+        // Get subscription type from payment
+        subType = payment.subscriptionType || 'unlimited';
       }
+      console.log('[Journal] handleNewEntry: payment', payment);
+      console.log('[Journal] handleNewEntry: resolved subscriptionType (journalType) =', subType);
+      setSubscriptionType(subType);
       if (!hasAccess) {
         setShowPaymentModal(true);
         setLoading(false);
@@ -109,20 +117,23 @@ function Journal() {
         emotions: "",
         confluences: "",
         beforeScreenshot: null,
-        beforeScreenRecording: null,
+        beforeScreenRecording: subType && subType.toLowerCase() === 'screenrecording' ? null : undefined,
         timeEntered: localDatetime
       });
       setEditingId(null);
       setShowCreationModal(true);
+      console.log('[Journal] Creation modal opened. subscriptionType (journalType) =', subType);
     } catch (err) {
       setPaymentError("Failed to check payment status. Please try again.");
+      console.error('[Journal] handleNewEntry error:', err);
     } finally {
       setLoading(false);
     }
   };
   // Handle payment modal actions
   // Accept amount in KES from modal (for M-Pesa)
-  const handlePay = async (journalType, phone, amount, billingType = 'monthly') => {
+  // Refactored: Ensure the selected package/subscription type is sent to the backend
+  const handlePay = async (journalType, phone, amount, billingType = 'monthly', subscriptionType = pendingPaymentType) => {
     setPaymentLoading(true);
     setPaymentError("");
     try {
@@ -135,12 +146,11 @@ function Journal() {
         phone,
         billingType,
         customer_name,
-        amount
+        amount,
+        subscriptionType // This is the package type selected in the modal
       });
       // Return paymentId or payment object for polling
       if (res && res.data && res.data.CheckoutRequestID) {
-        // Try to get paymentId from backend if available
-        // You may want to fetch the payment by transactionId if needed
         return { paymentId: res.data._id, transactionId: res.data.CheckoutRequestID };
       }
       if (res && res._id) {
@@ -312,6 +322,7 @@ function Journal() {
   // Handle creation form field changes
   const handleCreationChange = (e) => {
     const { name, value, files } = e.target;
+    // Allow all users to select beforeScreenRecording
     if (files && files.length > 0) {
       setCreationForm((prev) => ({ ...prev, [name]: files[0] }));
     } else {
@@ -322,6 +333,11 @@ function Journal() {
   // Handle after edit form field changes
   const handleAfterEditChange = (e) => {
     const { name, value, files } = e.target;
+    // Prevent file selection for after screen recording if not allowed (case-insensitive)
+    if (name === 'afterScreenRecording' && (!subscriptionType || subscriptionType.toLowerCase() !== 'screenrecording')) {
+      setAfterForm((prev) => ({ ...prev, afterScreenRecording: null }));
+      return;
+    }
     if (files && files.length > 0) {
       setAfterForm((prev) => ({ ...prev, [name]: files[0] }));
     } else {
@@ -377,6 +393,7 @@ function Journal() {
               onSubmit={handleAfterEditSubmit}
               loading={loading}
               editing={Boolean(editingId)}
+              subscriptionType={subscriptionType}
             />
           </div>
           {/* Zoom Modal for media */}
@@ -470,6 +487,7 @@ function Journal() {
                             className="space-y-2"
                             onSubmit={handleCreationSubmit}
                           >
+                            {/* ...existing code for before fields... */}
                             <div>
                               <label className="block text-xs font-semibold mb-1">Type</label>
                               <select
@@ -548,6 +566,19 @@ function Journal() {
                               )}
                             </div>
                             <div>
+                              <label className="block text-xs font-semibold mb-1">After Screen Recording</label>
+                              <input
+                                type="file"
+                                name="afterScreenRecording"
+                                accept="video/*"
+                                onChange={handleAfterEditChange}
+                                className="w-full"
+                              />
+                              {afterForm.afterScreenRecording && afterForm.afterScreenRecording.url && (
+                                <video src={afterForm.afterScreenRecording.url} className="h-16 w-16 object-cover rounded border shadow mt-1" controls />
+                              )}
+                            </div>
+                            <div>
                               <label className="block text-xs font-semibold mb-1">Time Entered</label>
                               <input
                                 type="datetime-local"
@@ -563,7 +594,7 @@ function Journal() {
                                 max={(function () {
                                   const now = new Date();
                                   const pad = n => n.toString().padStart(2, '0');
-                                  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                                  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${now.getHours()}:${now.getMinutes()}`;
                                 })()}
                               />
                             </div>

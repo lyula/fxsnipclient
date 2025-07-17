@@ -69,7 +69,11 @@ export default function NotificationsPage() {
   });
 
   const handleNotificationClick = (notification) => {
-    // Payment notification: go to payment details
+    // Payment notification: go to payment details (journal payments)
+    if (notification.type === "journal_payment" && notification.payment) {
+      navigate(`/dashboard/journal-payment/${notification.payment}`);
+      return;
+    }
     if (notification.type === "badge_payment" && notification.payment) {
       navigate(`/dashboard/payment/${notification.payment}`);
       return;
@@ -103,11 +107,6 @@ export default function NotificationsPage() {
         <div className="p-0 md:p-4 border-b border-gray-200 dark:border-gray-700 mb-4">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
             Notifications
-            {loadingStates.notifications && notifications.length > 0 && (
-              <span className="ml-2 inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-xs rounded-full">
-                Refreshing...
-              </span>
-            )}
           </h2>
         </div>
         {showLoading ? (
@@ -127,7 +126,7 @@ export default function NotificationsPage() {
                   !n.read ? "bg-blue-50 dark:bg-blue-900/20" : ""
                 }`}
                 onClick={() => handleNotificationClick(n)}
-                style={{ cursor: n.type === "badge_payment" && n.payment ? "pointer" : undefined }}
+                style={{ cursor: ((n.type === "badge_payment" || n.type === "journal_payment") && n.payment) ? "pointer" : undefined }}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
