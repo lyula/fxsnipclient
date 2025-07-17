@@ -30,7 +30,7 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
           <h3 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2 text-center tracking-tight">{editing ? 'Edit Entry (Before Trade)' : 'New Journal Entry'}</h3>
           {/* Only one modal header and close button should exist. Remove duplicate. */}
           <form onSubmit={onSubmit} className="flex flex-col gap-4 w-full">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Type</label>
                 <select
@@ -43,6 +43,18 @@ const JournalBeforeModal = ({ open, onClose, form, onChange, onSubmit, loading, 
                   <option value="Buy">Buy</option>
                   <option value="Sell">Sell</option>
                 </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Pair</label>
+                <input
+                  type="text"
+                  name="pair"
+                  value={form.pair}
+                  onChange={onChange}
+                  className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1 text-base sm:text-base min-h-[32px] sm:min-h-[36px] focus:ring-2 focus:ring-blue-500 focus:outline-none transition"
+                  placeholder="e.g. EURUSD"
+                  required
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-200">Time Entered</label>

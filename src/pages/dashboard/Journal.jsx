@@ -37,6 +37,7 @@ function Journal() {
   const [loading, setLoading] = useState(false);
   const [creationForm, setCreationForm] = useState({
     type: "Buy",
+    pair: "",
     strategy: "",
     emotions: "",
     confluences: "",
@@ -72,6 +73,7 @@ function Journal() {
     const localDatetime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
     setCreationForm({
       type: "Buy",
+      pair: "",
       strategy: "",
       emotions: "",
       confluences: "",
@@ -109,10 +111,18 @@ function Journal() {
       timeEntered = isoWithOffset;
     }
     try {
+      // Ensure pair is trimmed and not empty
+      const trimmedPair = creationForm.pair ? creationForm.pair.trim() : "";
+      if (!trimmedPair) {
+        alert("Pair is required and cannot be empty or whitespace.");
+        setLoading(false);
+        return;
+      }
       if (editingId) {
         // Only send before fields if editing before fields
         const payload = {
           type: creationForm.type,
+          pair: trimmedPair,
           strategy: creationForm.strategy,
           emotions: creationForm.emotions,
           confluences: creationForm.confluences,
@@ -120,11 +130,13 @@ function Journal() {
           beforeScreenRecording: await buildMediaField("beforeScreenRecording", "video"),
           timeEntered,
         };
+        console.log('Submitting updateJournalEntry payload:', payload);
         await updateJournalEntry(editingId, payload);
       } else {
         // Only send before fields on creation
         const payload = {
           type: creationForm.type,
+          pair: trimmedPair,
           strategy: creationForm.strategy,
           emotions: creationForm.emotions,
           confluences: creationForm.confluences,
@@ -132,6 +144,7 @@ function Journal() {
           beforeScreenRecording: await buildMediaField("beforeScreenRecording", "video"),
           timeEntered,
         };
+        console.log('Submitting postJournalEntry payload:', payload);
         await postJournalEntry(payload);
       }
       setShowCreationModal(false);
@@ -139,6 +152,7 @@ function Journal() {
       setEditingEntry(null);
       setCreationForm({
         type: "Buy",
+        pair: "",
         strategy: "",
         emotions: "",
         confluences: "",
@@ -328,20 +342,30 @@ function Journal() {
                         className="bg-white dark:bg-gray-800 rounded-xl shadow p-4 flex flex-col gap-2"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            entry.type === "Buy"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
-                              : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200"
-                          }`}>
-                            {entry.type}
-                          </span>
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            entry.outcome === "Profit"
-                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
-                              : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200"
-                          }`}>
-                            {entry.outcome}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {entry.pair && (
+                              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{entry.pair}</span>
+                            )}
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              entry.type === "Buy"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200"
+                                : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200"
+                            }`}>
+                              {entry.type}
+                            </span>
+                            {entry.outcome && (
+                              <span className="ml-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                Outcome:
+                                <span className={`ml-1 px-2 py-1 rounded text-xs font-bold ${
+                                  entry.outcome === "Profit"
+                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
+                                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200"
+                                }`}>
+                                  {entry.outcome}
+                                </span>
+                              </span>
+                            )}
+                          </div>
                           <button
                             className="ml-2 px-3 py-1 rounded bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition"
                             onClick={() => {
@@ -380,6 +404,18 @@ function Journal() {
                                 <option value="Buy">Buy</option>
                                 <option value="Sell">Sell</option>
                               </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold mb-1">Pair</label>
+                              <input
+                                type="text"
+                                name="pair"
+                                value={creationForm.pair}
+                                onChange={handleCreationChange}
+                                className="w-full rounded border px-2 py-1"
+                                placeholder="e.g. EURUSD"
+                                required
+                              />
                             </div>
                             <div>
                               <label className="block text-xs font-semibold mb-1">Strategy</label>
