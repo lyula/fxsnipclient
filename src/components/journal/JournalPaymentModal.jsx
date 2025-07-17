@@ -35,7 +35,7 @@ function normalizeMpesaNumber(number) {
   return null;
 }
 
-export default function JournalPaymentModal({ open, onClose, onPay, loading, error }) {
+export default function JournalPaymentModal({ open, onClose, onPay, loading, error, userId, username }) {
   const [step, setStep] = useState(1); // 1: select plan, 2: select method, 3: enter details, 4: waiting, 5: result
   const [selected, setSelected] = useState(JOURNAL_PAYMENT_OPTIONS[0].id);
   const [selectedMethod, setSelectedMethod] = useState('mpesa');

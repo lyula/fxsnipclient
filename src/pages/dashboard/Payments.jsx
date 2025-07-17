@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -36,18 +37,29 @@ export default function Payments() {
           return;
         }
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_URL}/badge-payments/my`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          withCredentials: true
-        });
-        // Defensive: always set as array
-        let data = res.data;
-        if (!Array.isArray(data)) {
-          if (data == null) data = [];
-          else data = [data];
-        }
-        setPayments(data);
-        sessionStorage.setItem(PAYMENTS_CACHE_KEY, JSON.stringify(data));
+        // Fetch both badge and journal payments
+        const [badgeRes, journalRes] = await Promise.all([
+          axios.get(`${API_URL}/badge-payments/my`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true
+          }),
+          axios.get(`${API_URL}/journal-payments`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true
+          })
+        ]);
+        let badgePayments = badgeRes.data || [];
+        let journalPayments = journalRes.data || [];
+        // Defensive: always arrays
+        if (!Array.isArray(badgePayments)) badgePayments = badgePayments ? [badgePayments] : [];
+        if (!Array.isArray(journalPayments)) journalPayments = journalPayments ? [journalPayments] : [];
+        // Add type field for display
+        badgePayments = badgePayments.map(p => ({ ...p, _paymentType: 'Badge' }));
+        journalPayments = journalPayments.map(p => ({ ...p, _paymentType: 'Journal' }));
+        // Merge and sort by createdAt desc
+        const allPayments = [...badgePayments, ...journalPayments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setPayments(allPayments);
+        sessionStorage.setItem(PAYMENTS_CACHE_KEY, JSON.stringify(allPayments));
         sessionStorage.setItem(PAYMENTS_CACHE_TIME_KEY, Date.now().toString());
       } catch (err) {
         setError("Failed to fetch payments");
@@ -87,7 +99,13 @@ export default function Payments() {
                   <div
                     key={payment._id || payment.id || idx}
                     className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 flex flex-col gap-2 transition-colors duration-200 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 w-full"
-                    onClick={() => navigate(`/dashboard/payment/${payment._id || payment.id || idx}`)}
+                    onClick={() => {
+                      if (payment._paymentType === 'Journal') {
+                        navigate(`/dashboard/journal-payment/${payment._id || payment.id || idx}`);
+                      } else {
+                        navigate(`/dashboard/payment/${payment._id || payment.id || idx}`);
+                      }
+                    }}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold text-gray-700 dark:text-gray-200">Amount:</span>
@@ -114,6 +132,10 @@ export default function Payments() {
                             })
                           : "-"}
                       </span>
+                    </div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">Type:</span>
+                      <span className="font-bold text-blue-700 dark:text-blue-300">{payment._paymentType || 'Payment'}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-gray-700 dark:text-gray-200">Status:</span>

@@ -15,6 +15,7 @@ import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import JournalPaymentDetails from "./pages/dashboard/JournalPaymentDetails";
 import Terms from "./pages/Terms";
 import UserProfile from "./pages/dashboard/community/UserProfile";
 import MobileUserProfile from "./pages/dashboard/community/MobileUserProfile";
@@ -64,6 +65,7 @@ function AppRoutes({ isMobile }) {
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard/community/post/:postId" element={<PostNotificationView />} />
           <Route path="/dashboard/*" element={<Dashboard />} />
+          <Route path="/dashboard/journal-payment/:id" element={<JournalPaymentDetails />} />
           <Route element={<PrivateLayout />}>
             <Route path="/tsr" element={<Placeholder title="TSR" />} />
             <Route path="/stats" element={<Placeholder title="Stats" />} />

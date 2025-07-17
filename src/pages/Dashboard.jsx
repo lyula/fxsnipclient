@@ -26,6 +26,7 @@ import Notifications from "./dashboard/Notifications";
 import { useDashboard } from "../context/dashboard";
 import PostNotificationView from "./dashboard/community/PostNotificationView";
 import PaymentDetails from "./dashboard/PaymentDetails";
+import JournalPaymentDetails from "./dashboard/JournalPaymentDetails";
 import AdCreation from "./dashboard/AdCreation";
 
 // Import only dashboard subpages that are linked in the sidebar
@@ -669,6 +670,7 @@ export default function Dashboard() {
                   <Route path="stats" element={<Stats />} />
                   <Route path="payments" element={<Payments />} />
                   <Route path="payment/:id" element={<PaymentDetails />} />
+                  <Route path="journal-payment/:id" element={<JournalPaymentDetails />} />
                   <Route path="profile" element={<Profile />} />
                   <Route path="notifications" element={<Notifications />} />
                   <Route path="ad-creation" element={<AdCreation />} />
