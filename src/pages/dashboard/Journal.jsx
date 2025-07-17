@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import JournalPaymentModal from "../../components/journal/JournalPaymentModal";
+import { createJournalPayment, getLatestJournalPayment } from '../../utils/journalPaymentApi';
 import { useNavigate } from "react-router-dom";
 import JournalMarkets from "./JournalMarkets";
 import ModalPortal from "../../components/ModalPortal";
@@ -13,6 +15,12 @@ import {
 import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
 
 function Journal() {
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [pendingPaymentType, setPendingPaymentType] = useState(null);
+  const [pendingPhone, setPendingPhone] = useState("");
   // For 3-dots menu state
   const [menuOpenId, setMenuOpenId] = useState(null);
   const menuRefs = useRef({});
@@ -67,22 +75,85 @@ function Journal() {
   }, [page]);
 
   // Open modal for new entry and clear form
-  const handleNewEntry = () => {
-    const now = new Date();
-    const pad = (n) => n.toString().padStart(2, '0');
-    const localDatetime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    setCreationForm({
-      type: "Buy",
-      pair: "",
-      strategy: "",
-      emotions: "",
-      confluences: "",
-      beforeScreenshot: null,
-      beforeScreenRecording: null,
-      timeEntered: localDatetime
-    });
-    setEditingId(null);
-    setShowCreationModal(true);
+  // Payment enforcement before allowing new entry
+  const handleNewEntry = async () => {
+    setLoading(true);
+    setPaymentError("");
+    try {
+      // Check latest payment status
+      const payment = await getLatestJournalPayment();
+      const now = new Date();
+      let hasAccess = false;
+      if (payment && payment.status === 'success') {
+        if (payment.period === 'annual') {
+          const paidDate = new Date(payment.createdAt);
+          hasAccess = (now - paidDate) < 365 * 24 * 60 * 60 * 1000;
+        } else if (payment.period === 'monthly') {
+          const paidDate = new Date(payment.createdAt);
+          hasAccess = (now - paidDate) < 30 * 24 * 60 * 60 * 1000;
+        }
+      }
+      if (!hasAccess) {
+        setShowPaymentModal(true);
+        setLoading(false);
+        return;
+      }
+      // If access, proceed to show creation modal
+      const nowDate = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      const localDatetime = `${nowDate.getFullYear()}-${pad(nowDate.getMonth() + 1)}-${pad(nowDate.getDate())}T${pad(nowDate.getHours())}:${pad(nowDate.getMinutes())}`;
+      setCreationForm({
+        type: "Buy",
+        pair: "",
+        strategy: "",
+        emotions: "",
+        confluences: "",
+        beforeScreenshot: null,
+        beforeScreenRecording: null,
+        timeEntered: localDatetime
+      });
+      setEditingId(null);
+      setShowCreationModal(true);
+    } catch (err) {
+      setPaymentError("Failed to check payment status. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  // Handle payment modal actions
+  // Accept amount in KES from modal (for M-Pesa)
+  const handlePay = async (journalType, phone, amount) => {
+    setPaymentLoading(true);
+    setPaymentError("");
+    try {
+      // Compose all required fields for backend
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const customer_name = user.username || user.name || undefined;
+      let billingType = 'monthly';
+      // amount is now passed in KES for M-Pesa
+      const res = await createJournalPayment({
+        journalType,
+        phone,
+        billingType,
+        customer_name,
+        amount
+      });
+      // Return paymentId or payment object for polling
+      if (res && res.data && res.data.CheckoutRequestID) {
+        // Try to get paymentId from backend if available
+        // You may want to fetch the payment by transactionId if needed
+        return { paymentId: res.data._id, transactionId: res.data.CheckoutRequestID };
+      }
+      if (res && res._id) {
+        return { paymentId: res._id };
+      }
+      return res;
+    } catch (err) {
+      setPaymentError(err?.response?.data?.error || 'Payment failed. Please try again.');
+      throw err;
+    } finally {
+      setPaymentLoading(false);
+    }
   };
 
   // Handle creation form submit (add or update before fields)
@@ -263,6 +334,13 @@ function Journal() {
 
   return (
     <div className="w-full">
+      <JournalPaymentModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onPay={handlePay}
+        loading={paymentLoading}
+        error={paymentError}
+      />
       <div className="max-w-3xl mx-auto p-2 sm:p-4 sm:max-w-full sm:mx-0">
         <div className="mb-6">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
