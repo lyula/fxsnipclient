@@ -46,6 +46,7 @@ export default function JournalPaymentModal({ open, onClose, onPay, loading, err
   const [statusMessage, setStatusMessage] = useState("");
   const [mpesaLoading, setMpesaLoading] = useState(false);
   const [otherFields, setOtherFields] = useState({ paypalEmail: '', stripeToken: '', cardNumber: '', expiry: '', cvc: '' });
+  const [billingType, setBillingType] = useState('monthly'); // 'monthly' or 'annual'
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [pricingLoading, setPricingLoading] = useState(true);
   const pollAttempts = useRef(0);
@@ -106,11 +107,16 @@ export default function JournalPaymentModal({ open, onClose, onPay, loading, err
           return;
         }
         try {
-          // Calculate correct KES amount based on selected plan and USD to KES rate
-          const planPriceUSD = selected === 'screenrecording' ? pricing.screenrecordingUSD : pricing.unlimitedUSD;
+          // Calculate correct KES amount based on selected plan, billing type, and USD to KES rate
+          let planPriceUSD;
+          if (selected === 'screenrecording') {
+            planPriceUSD = billingType === 'annual' ? (pricing.screenrecordingUSD * 12 * 0.8) : pricing.screenrecordingUSD;
+          } else {
+            planPriceUSD = billingType === 'annual' ? (pricing.unlimitedUSD * 12 * 0.8) : pricing.unlimitedUSD;
+          }
           const USD_TO_KES = pricing.usdToKes;
           const amountKES = Math.round(planPriceUSD * USD_TO_KES);
-          const payResult = await onPay(selected, normalized, amountKES);
+          const payResult = await onPay(selected, normalized, amountKES, billingType);
           // Store paymentId for polling
           paymentIdRef.current = payResult?.paymentId;
           setStep(4);
@@ -261,13 +267,27 @@ export default function JournalPaymentModal({ open, onClose, onPay, loading, err
           </div>
         );
       case 'mpesa':
+        // Calculate price based on billing type
+        let planPriceUSD;
+        if (selected === 'screenrecording') {
+          planPriceUSD = billingType === 'annual' ? (pricing.screenrecordingUSD * 12 * 0.8) : pricing.screenrecordingUSD;
+        } else {
+          planPriceUSD = billingType === 'annual' ? (pricing.unlimitedUSD * 12 * 0.8) : pricing.unlimitedUSD;
+        }
         return (
           <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
+            <div>
+              <label className="block text-sm font-medium text-[#a99d6b] mb-1">Billing Type</label>
+              <div className="flex gap-2 mb-2">
+                <button type="button" className={`px-3 py-1 rounded-lg font-semibold border transition ${billingType === 'monthly' ? 'bg-[#a99d6b] text-white border-[#a99d6b]' : 'bg-white text-[#a99d6b] border-[#a99d6b]'}`} onClick={() => setBillingType('monthly')} disabled={mpesaLoading}>Monthly</button>
+                <button type="button" className={`px-3 py-1 rounded-lg font-semibold border transition ${billingType === 'annual' ? 'bg-[#a99d6b] text-white border-[#a99d6b]' : 'bg-white text-[#a99d6b] border-[#a99d6b]'}`} onClick={() => setBillingType('annual')} disabled={mpesaLoading}>Annual (20% off)</button>
+              </div>
+            </div>
             <div>
               <label className="block text-sm font-medium text-[#a99d6b] mb-1">USD Amount</label>
               <input
                 type="text"
-                value={plan ? `$${planPriceUSD}` : ''}
+                value={plan ? `$${planPriceUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
                 readOnly
                 className="w-full text-center text-xl font-semibold border-2 border-[#a99d6b] rounded-lg px-4 py-2 bg-gray-100 dark:bg-gray-800 text-[#a99d6b] placeholder:text-[#a99d6b] mb-1"
                 tabIndex={-1}
@@ -399,7 +419,7 @@ export default function JournalPaymentModal({ open, onClose, onPay, loading, err
               {selectedMethod !== 'mpesa' && (
                 <div className="flex gap-3 justify-between pt-2">
                   <button type="button" className="rounded-lg px-4 py-2 font-semibold bg-red-600 text-white hover:bg-red-700 transition" onClick={handleBack}>Back</button>
-                  <button type="submit" className="rounded-lg px-4 py-2 font-semibold" style={{ background: '#a99d6b', color: 'white' }} disabled={mpesaLoading || (selectedMethod === 'mpesa' && !phone)}>{mpesaLoading ? 'Processing...' : `Pay ${plan ? `$${planPriceUSD}` : ''}`}</button>
+                  <button type="submit" className="rounded-lg px-4 py-2 font-semibold" style={{ background: '#a99d6b', color: 'white' }} disabled={mpesaLoading || (selectedMethod === 'mpesa' && !phone)}>{mpesaLoading ? 'Processing...' : `Pay ${plan ? `$${planPriceUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}`}</button>
                 </div>
               )}
             </form>

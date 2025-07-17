@@ -122,14 +122,13 @@ function Journal() {
   };
   // Handle payment modal actions
   // Accept amount in KES from modal (for M-Pesa)
-  const handlePay = async (journalType, phone, amount) => {
+  const handlePay = async (journalType, phone, amount, billingType = 'monthly') => {
     setPaymentLoading(true);
     setPaymentError("");
     try {
       // Compose all required fields for backend
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const customer_name = user.username || user.name || undefined;
-      let billingType = 'monthly';
       // amount is now passed in KES for M-Pesa
       const res = await createJournalPayment({
         journalType,

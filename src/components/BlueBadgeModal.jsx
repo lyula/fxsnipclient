@@ -45,36 +45,30 @@ const PaymentFields = forwardRef(({ method, onChange, billingType, setBillingTyp
   // Add billing options and amount fields for all methods
   return (
     <>
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-center">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="billingType"
-            value="monthly"
-            checked={billingType === 'monthly'}
-            onChange={() => setBillingType('monthly')}
-            className="accent-[#a99d6b] dark:accent-[#a99d6b]"
-          />
-          <span className="text-[#1E3A8A] dark:text-[#a99d6b] font-semibold">Monthly</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="radio"
-            name="billingType"
-            value="annual"
-            checked={billingType === 'annual'}
-            onChange={() => setBillingType('annual')}
-            className="accent-[#a99d6b] dark:accent-[#a99d6b]"
-          />
-          <span className="text-[#1E3A8A] dark:text-[#a99d6b] font-semibold">Annual</span>
-        </label>
+      <div className="flex gap-2 mb-4 w-full max-w-xs mx-auto">
+        <button
+          type="button"
+          className={`flex-1 px-3 py-2 rounded-lg font-semibold border transition text-center ${billingType === 'monthly' ? 'bg-[#a99d6b] text-white border-[#a99d6b]' : 'bg-white text-[#a99d6b] border-[#a99d6b]'}`}
+          onClick={() => setBillingType('monthly')}
+          disabled={rest.loading}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          className={`flex-1 px-3 py-2 rounded-lg font-semibold border transition text-center ${billingType === 'annual' ? 'bg-[#a99d6b] text-white border-[#a99d6b]' : 'bg-white text-[#a99d6b] border-[#a99d6b]'}`}
+          onClick={() => setBillingType('annual')}
+          disabled={rest.loading}
+        >
+          Annual <span className="ml-1 text-xs font-bold text-green-600">(20% off)</span>
+        </button>
       </div>
       <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center justify-center">
         <div className="flex flex-col items-center w-full max-w-xs">
           <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (USD)</label>
           <input
             type="text"
-            value={pricing ? (billingType === 'annual' ? `$${pricing.badgeAnnualUSD}` : `$${pricing.badgeMonthlyUSD}`) : ''}
+            value={pricing ? (billingType === 'annual' ? `$${Number(pricing.badgeAnnualUSD).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `$${Number(pricing.badgeMonthlyUSD).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`) : ''}
             readOnly
             className={inputClass}
             style={{ letterSpacing: '2px' }}
@@ -84,7 +78,7 @@ const PaymentFields = forwardRef(({ method, onChange, billingType, setBillingTyp
           <label className="text-xs text-[#a99d6b] dark:text-[#a99d6b] font-semibold">Amount (KES)</label>
           <input
             type="text"
-            value={pricing ? (billingType === 'annual' ? `KES ${Math.round(pricing.badgeAnnualUSD * pricing.usdToKes)}` : `KES ${Math.round(pricing.badgeMonthlyUSD * pricing.usdToKes)}`) : ''}
+            value={pricing ? (billingType === 'annual' ? `KES ${Math.round(pricing.badgeAnnualUSD * pricing.usdToKes).toLocaleString()}` : `KES ${Math.round(pricing.badgeMonthlyUSD * pricing.usdToKes).toLocaleString()}`) : ''}
             readOnly
             className={inputClass}
             style={{ letterSpacing: '2px' }}
