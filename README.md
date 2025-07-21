@@ -209,4 +209,8 @@ Pull requests are welcome! Please open an issue first to discuss major changes.
 ---
 
 ## License
-This project is licensed under the MIT License.
+Copyright © 2025 Sacred "Zack" Baraka Lyula.
+
+All rights reserved. This project and its source code are protected by copyright law. No part of this project may be used, copied, modified, distributed, or reproduced in any form without the express written permission of the author.
+
+Unauthorized use is strictly prohibited.
