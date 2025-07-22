@@ -702,7 +702,7 @@ export default function ChatPost({
       <div
         ref={postContainerRef}
         data-post-id={post._id}
-        className={`w-full max-w-xl mx-auto mb-0 transition-all duration-300 ease-out px-2 overflow-x-hidden ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
+        className={`w-full mb-0 transition-all duration-300 ease-out overflow-x-hidden ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''} sm:max-w-xl sm:mx-auto sm:px-2`}
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
         style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0, touchAction: 'pan-y' }}
