@@ -776,59 +776,67 @@ export default function ChatPost({
             {/* Enforce strict media sizing and overflow for all images/videos in media-container */}
             <style>{`
               .media-container img {
-                width: 100% !important;
-                max-width: 100% !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                min-width: 100vw !important;
                 max-height: 60vh !important;
                 object-fit: cover !important;
                 display: block !important;
                 overflow: hidden !important;
                 border-radius: 0 !important;
-                background: #fff !important;
-                margin: 0 auto !important;
+                background: var(--post-bg, #fff) !important;
+                margin: 0 !important;
+                margin-left: calc(-1 * (100vw - 100%) / 2) !important;
                 box-shadow: none !important;
                 border: none !important;
               }
               .media-container video {
-                width: 100% !important;
-                max-width: 100% !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                min-width: 100vw !important;
                 max-height: 60vh !important;
                 object-fit: cover !important;
                 display: block !important;
                 overflow: hidden !important;
                 border-radius: 0 !important;
-                background: #fff !important;
-                margin: 0 auto !important;
+                background: var(--post-bg, #fff) !important;
+                margin: 0 !important;
+                margin-left: calc(-1 * (100vw - 100%) / 2) !important;
                 box-shadow: none !important;
                 border: none !important;
-              }
-              @media (prefers-color-scheme: dark) {
-                .media-container img,
-                .media-container video {
-                  background: #18181b !important;
-                }
               }
               .media-container {
                 overflow: hidden !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 auto !important;
+                width: 100vw !important;
+                max-width: 100vw !important;
+                min-width: 100vw !important;
+                margin: 0 !important;
+                margin-left: calc(-1 * (100vw - 100%) / 2) !important;
                 padding: 0 !important;
-                background: transparent !important;
+                background: var(--post-bg, #fff) !important;
                 border-radius: 0 !important;
                 border: none !important;
                 box-shadow: none !important;
+                position: relative !important;
+              }
+              @media (prefers-color-scheme: dark) {
+                .media-container,
+                .media-container img,
+                .media-container video {
+                  background: var(--post-bg-dark, #18181b) !important;
+                }
               }
             `}</style>
             <div
               ref={postRef}
-              className="media-container w-full max-w-full flex justify-center items-center overflow-hidden p-0 m-0"
+              className="media-container w-full flex justify-center items-center overflow-hidden p-0 m-0"
               style={{ marginLeft: 0, marginRight: 0 }}
             >
               <MediaDisplay 
                 imageUrl={post.image} 
                 videoUrl={post.video}
                 altText={`${post.author?.username || 'User'}'s post media`}
-                className={'w-full h-auto object-contain max-w-full max-h-[60vh] m-0 p-0'}
+                className={'w-full h-auto object-contain max-h-[60vh] m-0 p-0'}
               />
             </div>
           </>
