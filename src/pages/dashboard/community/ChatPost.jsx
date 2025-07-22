@@ -730,11 +730,8 @@ export default function ChatPost({
                   to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
                   className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
                 >
-                  {post.author?.username || post.user}
+                  <span className="flex items-center">{post.author?.username || post.user}{(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (<VerifiedBadge />)}</span>
                 </Link>
-                {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
-                  <VerifiedBadge />
-                )}
                 <span className="text-gray-400 dark:text-gray-500">•</span>
                 <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                   {formatPostDate(post.createdAt)}
@@ -859,16 +856,15 @@ export default function ChatPost({
                   : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
                 }
               </div>
+
               <Link 
                 to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
                 className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
               >
-                {post.author?.username || post.user}
-                {(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (
-                  <VerifiedBadge />
-                )}
+                <span className="flex items-center">{post.author?.username || post.user}{(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (<VerifiedBadge />)}</span>
               </Link>
-              <span className="ml-3 text-sm text-gray-500 dark:text-gray-400 font-medium">
+              <span className="mx-2 font-bold text-gray-400 dark:text-gray-500">•</span>
+              <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
                 {formatPostDate(post.createdAt)}
                 <EditedIndicator item={localPost} />
               </span>
