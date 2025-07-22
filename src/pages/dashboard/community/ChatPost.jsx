@@ -1,3 +1,99 @@
+// Video component with IntersectionObserver for autoplay/pause
+function AutoPlayVideo({ src, className, style, ...props }) {
+  const videoRef = React.useRef(null);
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let observer;
+    if ('IntersectionObserver' in window) {
+      observer = new window.IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+            if (video.paused) video.play().catch(() => {});
+          } else {
+            if (!video.paused) video.pause();
+          }
+        },
+        { threshold: [0, 0.5, 1] }
+      );
+      observer.observe(video);
+    }
+    return () => {
+      if (observer && video) observer.unobserve(video);
+    };
+  }, [src]);
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      className={className}
+      style={style}
+      controls
+      playsInline
+      preload="metadata"
+      {...props}
+    />
+  );
+}
+// Header above media for images and for videos not taller than 16:9
+function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDeletePost, canEditDelete, canDeleteAsPostOwner, showPostMenu, setShowPostMenu, localPost }) {
+  return (
+    <div className="flex items-center p-2 gap-3 w-full" style={{ background: 'none' }}>
+      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer ml-2"
+        onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
+        title="View profile picture"
+      >
+        {post.author?.profile?.profileImage
+          ? (<img
+              src={post.author.profile.profileImage}
+              alt="Profile"
+              className="w-10 h-10 rounded-full object-cover"
+              onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+            />)
+          : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
+        }
+      </div>
+      <Link 
+        to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
+        className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
+      >
+        <span className="flex items-center">{post.author?.username || post.user}{(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (<VerifiedBadge />)}</span>
+      </Link>
+      <span className="mx-2 font-bold text-gray-400 dark:text-gray-500">•</span>
+      <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+        {typeof formatPostDate === 'function' ? formatPostDate(post.createdAt) : ''}
+      </span>
+      {(canEditDelete?.(post.author?._id || post.author) || canDeleteAsPostOwner?.()) && (
+        <div className="ml-auto relative">
+          <button
+            onClick={() => setShowPostMenu && setShowPostMenu(!showPostMenu)}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <FaEllipsisV />
+          </button>
+          {showPostMenu && setShowPostMenu && (
+            <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
+              {canEditDelete?.(post.author?._id || post.author) && (
+                <button
+                  onClick={handleEditPost}
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                >
+                  <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
+                </button>
+              )}
+              <button
+                onClick={handleDeletePost}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+              >
+                <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
@@ -29,7 +125,6 @@ function ReplyInput({ onSubmit, loading, postId, commentId, replyToUsername = ""
   const handleChange = (e) => {
     setReplyText(e.target.value);
   };
-
   return (
     <div className="w-full max-w-full overflow-x-hidden">
       <MentionInput
@@ -186,7 +281,6 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
             // Play if visible
             if (video.paused) video.play().catch(() => {});
           } else {
-            // Pause if not visible
             if (!video.paused) video.pause();
           }
         },
@@ -204,7 +298,7 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
       <video
         ref={videoRef}
         src={post.video}
-        className="w-full h-auto object-cover max-h-[60vh] m-0 p-0"
+        className="w-full h-auto object-contain m-0 p-0"
         style={{
           display: 'block',
           background: 'black',
@@ -214,7 +308,7 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
           borderRadius: 0,
           margin: 0,
           padding: 0,
-          objectFit: 'cover',
+          objectFit: 'contain',
         }}
         controls
         playsInline
@@ -322,6 +416,22 @@ export default function ChatPost({
   scrollable = false, // NEW PROP: only true in notification post view
   loading = false // <-- NEW PROP
 }) {
+  // For video aspect ratio logic
+  const [isTallVideo, setIsTallVideo] = React.useState(undefined);
+
+  // Check aspect ratio for videos
+  React.useEffect(() => {
+    if (post.video) {
+      const video = document.createElement('video');
+      video.src = post.video;
+      video.onloadedmetadata = () => {
+        const aspect = video.videoHeight / video.videoWidth;
+        setIsTallVideo(aspect > 16/9);
+      };
+    } else {
+      setIsTallVideo(undefined);
+    }
+  }, [post.video]);
   // ChatPost component implementation goes here
   // Move localPost state to the very top before any hooks that use it
   const [localPost, setLocalPost] = useState(post);
@@ -815,12 +925,21 @@ export default function ChatPost({
       {/* Profile Image Zoom Modal */}
       {zoomProfile && zoomProfile.profileImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 transition-opacity">
-          <div className="relative max-w-xs w-full flex flex-col items-center">
+          <div className="relative w-full flex flex-col items-center">
             <img
               src={zoomProfile.profileImage}
               alt="Profile Zoom"
-              className="rounded-full shadow-lg border-4 border-white"
-              style={{ background: '#fff', borderRadius: '50%', width: '300px', height: '300px', objectFit: 'cover', aspectRatio: '1 / 1', maxWidth: '80vw', maxHeight: '80vw' }}
+              className="shadow-lg border-4 border-white"
+              style={{
+                background: '#fff',
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                display: 'block',
+                borderRadius: 0,
+                objectFit: 'contain',
+              }}
             />
             <div className="mt-2 flex items-center gap-2 text-white font-semibold text-lg text-center truncate max-w-xs">
               <span className="font-bold">{zoomProfile.username}</span>
@@ -859,77 +978,66 @@ export default function ChatPost({
         {post.video ? (
           <>
             <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
-            <VideoUsernameOverlay
-              post={post}
-              setZoomProfile={setZoomProfile}
-              onEditPost={handleEditPost}
-              onDeletePost={handleDeletePost}
-              canEditDelete={canEditDelete}
-              canDeleteAsPostOwner={canDeleteAsPostOwner}
-            />
+            {/* For tall (mobile format) videos, show overlay with username/menu on video. For non-tall, show header above and video below. */}
+            {isTallVideo === true ? (
+              <VideoUsernameOverlay
+                post={post}
+                setZoomProfile={setZoomProfile}
+                onEditPost={handleEditPost}
+                onDeletePost={handleDeletePost}
+                canEditDelete={canEditDelete}
+                canDeleteAsPostOwner={canDeleteAsPostOwner}
+              />
+            ) : isTallVideo === false ? (
+              <>
+                <VideoHeaderAboveMedia
+                  post={post}
+                  setZoomProfile={setZoomProfile}
+                  handleEditPost={handleEditPost}
+                  handleDeletePost={handleDeletePost}
+                  canEditDelete={canEditDelete}
+                  canDeleteAsPostOwner={canDeleteAsPostOwner}
+                  showPostMenu={showPostMenu}
+                  setShowPostMenu={setShowPostMenu}
+                  localPost={localPost}
+                />
+                <div className="media-container w-full flex justify-center items-center overflow-hidden p-0 m-0" style={{ marginLeft: 0, marginRight: 0 }}>
+                  <AutoPlayVideo
+                    src={post.video}
+                    className="w-full h-auto object-contain m-0 p-0"
+                    style={{
+                      display: 'block',
+                      background: 'black',
+                      width: '100vw',
+                      maxWidth: '100vw',
+                      minWidth: '100vw',
+                      borderRadius: 0,
+                      margin: 0,
+                      padding: 0,
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
+              </>
+            ) : null}
           </>
         ) : post.image ? (
           <>
             <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
-            <div className="pt-0.5 pb-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer ml-2"
-                  onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
-                  title="View profile picture"
-                >
-                  {post.author?.profile?.profileImage
-                    ? (<img
-                        src={post.author.profile.profileImage}
-                        alt="Profile"
-                        className="w-10 h-10 rounded-full object-cover"
-                        onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
-                      />)
-                    : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
-                  }
-                </div>
-                <Link
-                  to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-                  className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
-                >
-                  <span className="flex items-center">{post.author?.username || post.user}{(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (<VerifiedBadge />)}</span>
-                </Link>
-                <span className="text-gray-400 dark:text-gray-500">•</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                  {formatPostDate(post.createdAt)}
-                  <EditedIndicator item={localPost} />
-                </span>
-                {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
-                  <div className="ml-auto relative">
-                    <button
-                      onClick={() => setShowPostMenu(!showPostMenu)}
-                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <FaEllipsisV />
-                    </button>
-                    {showPostMenu && (
-                      <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
-                        {canEditDelete(post.author?._id || post.author) && (
-                          <button
-                            onClick={handleEditPost}
-                            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                          >
-                            <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
-                          </button>
-                        )}
-                        <button
-                          onClick={handleDeletePost}
-                          className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                        >
-                          <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+            <VideoHeaderAboveMedia
+              post={post}
+              setZoomProfile={setZoomProfile}
+              handleEditPost={handleEditPost}
+              handleDeletePost={handleDeletePost}
+              canEditDelete={canEditDelete}
+              canDeleteAsPostOwner={canDeleteAsPostOwner}
+              showPostMenu={showPostMenu}
+              setShowPostMenu={setShowPostMenu}
+              localPost={localPost}
+            />
           </>
         ) : null}
+
 
 
         {/* Only render MediaDisplay for images, not for videos */}
