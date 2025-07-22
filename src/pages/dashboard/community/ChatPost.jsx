@@ -932,13 +932,14 @@ export default function ChatPost({
               className="shadow-lg border-4 border-white"
               style={{
                 background: '#fff',
-                width: 'auto',
-                height: 'auto',
+                width: 'min(90vw, 90vh)',
+                height: 'min(90vw, 90vh)',
                 maxWidth: '90vw',
                 maxHeight: '90vh',
+                aspectRatio: '1 / 1',
                 display: 'block',
-                borderRadius: 0,
-                objectFit: 'contain',
+                borderRadius: '50%',
+                objectFit: 'cover',
               }}
             />
             <div className="mt-2 flex items-center gap-2 text-white font-semibold text-lg text-center truncate max-w-xs">
