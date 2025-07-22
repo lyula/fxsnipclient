@@ -159,6 +159,153 @@ function renderHashtagsBlue(text) {
   });
 }
 
+
+// Helper to check if a video is tall (mobile format, i.e. height/width > 16/9)
+function isTallVideo(videoUrl) {
+  // This function will be used in the VideoUsernameOverlay component
+  // We'll use a ref and effect to check the video aspect ratio dynamically
+  // Here, just a placeholder for logic in the overlay component
+  return false;
+}
+
+// Overlay component for username on tall videos
+function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, canEditDelete, canDeleteAsPostOwner }) {
+
+  const videoRef = React.useRef(null);
+  const [showPostMenu, setShowPostMenu] = React.useState(false);
+
+  // Autoplay/pause video when visible/invisible
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let observer;
+    if ('IntersectionObserver' in window) {
+      observer = new window.IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+            // Play if visible
+            if (video.paused) video.play().catch(() => {});
+          } else {
+            // Pause if not visible
+            if (!video.paused) video.pause();
+          }
+        },
+        { threshold: [0, 0.5, 1] }
+      );
+      observer.observe(video);
+    }
+    return () => {
+      if (observer && video) observer.unobserve(video);
+    };
+  }, [post.video]);
+
+  return (
+    <div style={{ position: 'relative', width: '100vw', maxWidth: '100vw', minWidth: '100vw', margin: 0, padding: 0 }}>
+      <video
+        ref={videoRef}
+        src={post.video}
+        className="w-full h-auto object-cover max-h-[60vh] m-0 p-0"
+        style={{
+          display: 'block',
+          background: 'black',
+          width: '100vw',
+          maxWidth: '100vw',
+          minWidth: '100vw',
+          borderRadius: 0,
+          margin: 0,
+          padding: 0,
+          objectFit: 'cover',
+        }}
+        controls
+        playsInline
+        preload="metadata"
+      />
+      {/* Username and avatar, no background */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 12,
+          left: 12,
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          background: 'none',
+          padding: 0,
+          maxWidth: '80vw',
+          minHeight: 40,
+        }}
+      >
+        <div
+          className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-700 overflow-hidden cursor-pointer border-2 border-white"
+          onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
+          title="View profile picture"
+          style={{ flexShrink: 0 }}
+        >
+          {post.author?.profile?.profileImage
+            ? (<img
+                src={post.author.profile.profileImage}
+                alt="Profile"
+                className="w-8 h-8 rounded-full object-cover"
+                onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+              />)
+            : (<FaUser className="text-white text-sm" />)
+          }
+        </div>
+        <div className="flex items-center ml-2 truncate" style={{ maxWidth: '60vw' }}>
+          <Link
+            to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
+            className="font-bold flex items-center truncate"
+            style={{ color: 'white', textShadow: '0 1px 4px rgba(0,0,0,0.7)', fontSize: 16 }}
+          >
+            <span className="flex items-center">{post.author?.username || post.user}{(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (<VerifiedBadge />)}</span>
+          </Link>
+          <span className="mx-2 font-bold text-gray-200" style={{ fontWeight: 700, fontSize: 18, userSelect: 'none' }}>•</span>
+          <span className="text-sm text-gray-200 font-medium" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>
+            {typeof formatPostDate === 'function' ? formatPostDate(post.createdAt) : ''}
+          </span>
+        </div>
+      </div>
+      {/* Three dots menu at top right */}
+      {(canEditDelete?.(post.author?._id || post.author) || canDeleteAsPostOwner?.()) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 12,
+            zIndex: 20,
+          }}
+        >
+          <button
+            onClick={() => setShowPostMenu((v) => !v)}
+            className="text-gray-200 hover:text-gray-50 dark:text-gray-300 dark:hover:text-white p-2 rounded-full hover:bg-gray-700/60 dark:hover:bg-gray-900/60 transition-colors"
+            style={{ background: 'rgba(0,0,0,0.15)' }}
+          >
+            <FaEllipsisV />
+          </button>
+          {showPostMenu && (
+            <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-30 w-48 py-2">
+              {canEditDelete?.(post.author?._id || post.author) && (
+                <button
+                  onClick={() => { setShowPostMenu(false); onEditPost?.(); }}
+                  className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
+                >
+                  <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
+                </button>
+              )}
+              <button
+                onClick={() => { setShowPostMenu(false); onDeletePost?.(); }}
+                className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
+              >
+                <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ChatPost({
   post,
   onReply,
@@ -175,6 +322,7 @@ export default function ChatPost({
   scrollable = false, // NEW PROP: only true in notification post view
   loading = false // <-- NEW PROP
 }) {
+  // ChatPost component implementation goes here
   // Move localPost state to the very top before any hooks that use it
   const [localPost, setLocalPost] = useState(post);
   // Remove parent state for editingCommentId and editCommentContent
@@ -702,17 +850,30 @@ export default function ChatPost({
       <div
         ref={postContainerRef}
         data-post-id={post._id}
-        className={`w-full mb-0 transition-all duration-300 ease-out overflow-x-hidden ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''} sm:max-w-xl sm:mx-auto sm:px-2`}
+        className={`w-full mb-0 transition-all duration-300 ease-out overflow-x-hidden ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
         onTouchStart={handleDoubleTap}
         onDoubleClick={handleDoubleTap}
-        style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0, touchAction: 'pan-y' }}
+        style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0, touchAction: 'pan-y', marginLeft: 0, paddingLeft: 0 }}
       >
-        {(post.image || post.video) && (
+        {/* Only render VideoUsernameOverlay for videos, and header for images */}
+        {post.video ? (
+          <>
+            <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
+            <VideoUsernameOverlay
+              post={post}
+              setZoomProfile={setZoomProfile}
+              onEditPost={handleEditPost}
+              onDeletePost={handleDeletePost}
+              canEditDelete={canEditDelete}
+              canDeleteAsPostOwner={canDeleteAsPostOwner}
+            />
+          </>
+        ) : post.image ? (
           <>
             <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
             <div className="pt-0.5 pb-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer"
+                <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden cursor-pointer ml-2"
                   onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
                   title="View profile picture"
                 >
@@ -737,7 +898,6 @@ export default function ChatPost({
                   {formatPostDate(post.createdAt)}
                   <EditedIndicator item={localPost} />
                 </span>
-                
                 {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
                   <div className="ml-auto relative">
                     <button
@@ -769,11 +929,13 @@ export default function ChatPost({
               </div>
             </div>
           </>
-        )}
+        ) : null}
 
-        {(post.image || post.video) && (
+
+        {/* Only render MediaDisplay for images, not for videos */}
+        {post.image && !post.video && (
           <>
-            {/* Enforce strict media sizing and overflow for all images/videos in media-container */}
+            {/* Enforce strict media sizing and overflow for all images in media-container */}
             <style>{`
               .media-container img {
                 width: 100vw !important;
@@ -786,22 +948,6 @@ export default function ChatPost({
                 border-radius: 0 !important;
                 background: var(--post-bg, #fff) !important;
                 margin: 0 !important;
-                margin-left: calc(-1 * (100vw - 100%) / 2) !important;
-                box-shadow: none !important;
-                border: none !important;
-              }
-              .media-container video {
-                width: 100vw !important;
-                max-width: 100vw !important;
-                min-width: 100vw !important;
-                max-height: 60vh !important;
-                object-fit: cover !important;
-                display: block !important;
-                overflow: hidden !important;
-                border-radius: 0 !important;
-                background: var(--post-bg, #fff) !important;
-                margin: 0 !important;
-                margin-left: calc(-1 * (100vw - 100%) / 2) !important;
                 box-shadow: none !important;
                 border: none !important;
               }
@@ -811,7 +957,6 @@ export default function ChatPost({
                 max-width: 100vw !important;
                 min-width: 100vw !important;
                 margin: 0 !important;
-                margin-left: calc(-1 * (100vw - 100%) / 2) !important;
                 padding: 0 !important;
                 background: var(--post-bg, #fff) !important;
                 border-radius: 0 !important;
@@ -821,8 +966,7 @@ export default function ChatPost({
               }
               @media (prefers-color-scheme: dark) {
                 .media-container,
-                .media-container img,
-                .media-container video {
+                .media-container img {
                   background: var(--post-bg-dark, #18181b) !important;
                 }
               }
@@ -833,8 +977,7 @@ export default function ChatPost({
               style={{ marginLeft: 0, marginRight: 0 }}
             >
               <MediaDisplay 
-                imageUrl={post.image} 
-                videoUrl={post.video}
+                imageUrl={post.image}
                 altText={`${post.author?.username || 'User'}'s post media`}
                 className={'w-full h-auto object-contain max-h-[60vh] m-0 p-0'}
               />
@@ -845,7 +988,7 @@ export default function ChatPost({
         <div
           className={`$${post.image || post.video ? 'w-full max-w-full p-0' : 'p-6'} backdrop-blur-sm transition-all overflow-x-hidden max-w-full ${
             post.image || post.video ? "rounded-none rounded-b-2xl" : "rounded-2xl"
-          }`}
+          } px-3`}
           style={{ maxWidth: "100%" }}
         >
           {!(post.image || post.video) && (
@@ -968,31 +1111,33 @@ export default function ChatPost({
           </div>
 
           {/* Interaction Bar */}
-          <PostInteractionBar
-            liked={liked}
-            likeAnimating={likeAnimating}
-            handleLike={handleLike}
-            normalizedLikes={normalizedLikes}
-            likesUsers={likesUsers}
-            setShowLikes={(val) => {
-              if (window.innerWidth <= 768) {
-                setShowLikeListModal(val);
-                if (val && post.likes) setLikeListInitial(post.likes);
-              } else {
-                setShowLikes(val);
-              }
-            }}
-            showLikes={showLikes}
-            setShowComments={setShowComments}
-            localPost={{ ...localPost, shares: localPost.shareCount || localPost.shares || 0 }}
-            loadingLikes={loadingLikes}
-            getPostLikes={getPostLikes}
-            setLikesUsers={setLikesUsers}
-            currentUserId={currentUserId}
-            currentUsername={currentUsername}
-            currentUserVerified={currentUserVerified}
-            onShare={handleShare}
-          />
+          <div className="px-0">
+            <PostInteractionBar
+              liked={liked}
+              likeAnimating={likeAnimating}
+              handleLike={handleLike}
+              normalizedLikes={normalizedLikes}
+              likesUsers={likesUsers}
+              setShowLikes={(val) => {
+                if (window.innerWidth <= 768) {
+                  setShowLikeListModal(val);
+                  if (val && post.likes) setLikeListInitial(post.likes);
+                } else {
+                  setShowLikes(val);
+                }
+              }}
+              showLikes={showLikes}
+              setShowComments={setShowComments}
+              localPost={{ ...localPost, shares: localPost.shareCount || localPost.shares || 0 }}
+              loadingLikes={loadingLikes}
+              getPostLikes={getPostLikes}
+              setLikesUsers={setLikesUsers}
+              currentUserId={currentUserId}
+              currentUsername={currentUsername}
+              currentUserVerified={currentUserVerified}
+              onShare={handleShare}
+            />
+          </div>
 
           {/* Likes Display */}
           {showLikes && window.innerWidth > 768 && (

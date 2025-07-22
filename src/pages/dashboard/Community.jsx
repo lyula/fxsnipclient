@@ -1199,7 +1199,7 @@ useEffect(() => {
               Searching posts...
             </div>
           ) : searchResults && searchResults.length > 0 ? (
-            <div className="w-full max-w-full overflow-x-hidden px-1 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
+            <div className="w-full max-w-full overflow-x-hidden">
               <ChatList
                 posts={searchResults}
                 postRefs={postRefs}
@@ -1224,7 +1224,7 @@ useEffect(() => {
           </div>
         ) : (
           <>
-            <div className="w-full max-w-full overflow-x-hidden px-1 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
+            <div className="w-full max-w-full overflow-x-hidden">
               <ChatList
                 posts={rotatedPosts}
                 postRefs={postRefs}
