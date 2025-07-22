@@ -1,32 +1,43 @@
+
+
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
 export default function PaymentDetails() {
   const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+
+  // Instead of fetching only one type, fetch both badge and journal payments, merge, and find by ID
   useEffect(() => {
     async function fetchPayment() {
       setLoading(true);
       setError(null);
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${API_URL}/badge-payments/my`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          withCredentials: true
-        });
-        let data = res.data;
-        if (!Array.isArray(data)) {
-          if (data == null) data = [];
-          else data = [data];
-        }
-        const found = data.find(p => (p._id || p.id) === id || String(p._id || p.id) === id);
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        // Fetch both payment types in parallel
+        const [badgeRes, journalRes] = await Promise.all([
+          axios.get(`${API_URL}/badge-payments/my`, { headers, withCredentials: true }),
+          axios.get(`${API_URL}/journal-payments`, { headers, withCredentials: true })
+        ]);
+        let badgePayments = badgeRes.data || [];
+        let journalPayments = journalRes.data || [];
+        if (!Array.isArray(badgePayments)) badgePayments = badgePayments ? [badgePayments] : [];
+        if (!Array.isArray(journalPayments)) journalPayments = journalPayments ? [journalPayments] : [];
+        // Add _paymentType for clarity
+        badgePayments = badgePayments.map(p => ({ ...p, _paymentType: "badge" }));
+        journalPayments = journalPayments.map(p => ({ ...p, _paymentType: "journal" }));
+        const allPayments = [...badgePayments, ...journalPayments];
+        // Find by id (string or object id)
+        const found = allPayments.find(p => (p._id || p.id) === id || String(p._id || p.id) === id);
         setPayment(found || null);
       } catch (err) {
         setError("Failed to fetch payment details");
@@ -41,8 +52,11 @@ export default function PaymentDetails() {
   if (error) return <div className="text-red-500 p-8">{error}</div>;
   if (!payment) return <div className="text-gray-500 dark:text-gray-400 p-8">Payment not found.</div>;
 
+  // Determine payment type from _paymentType (added above)
+  const isJournal = payment._paymentType === "journal";
   const isSuccess = payment.status === "success" || payment.status === "completed";
 
+  // Unified details for both payment types
   return (
     <div className="w-full max-w-xl mx-auto p-4" style={{ fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`, fontSize: 'inherit' }}>
       <button
@@ -52,11 +66,15 @@ export default function PaymentDetails() {
         ← Back
       </button>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Payment Details</h2>
+        <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">{isJournal ? "Journal Payment Details" : "Payment Details"}</h2>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-200">M-Pesa Code:</span>
-            <span className="font-mono text-sm text-gray-900 dark:text-gray-100">{payment.mpesaCode || payment.code || "-"}</span>
+            <span className="font-mono text-sm text-gray-900 dark:text-gray-100">
+              {isJournal
+                ? payment.mpesaCode || payment.code || payment.receipt || payment.rawResponse?.MpesaReceiptNumber || payment.rawResponse?.receipt || "-"
+                : payment.mpesaCode || payment.code || "-"}
+            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-200">Amount:</span>
@@ -83,11 +101,17 @@ export default function PaymentDetails() {
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-200">Reason:</span>
             <span className="text-gray-900 dark:text-gray-100">
-              {payment.type === "verified_badge"
+              {isJournal
+                ? payment.journalType === "screenrecording"
+                  ? "Unlimited Journals + Screen Recordings"
+                  : payment.journalType === "unlimited"
+                  ? "Unlimited Journals (No Screen Recordings)"
+                  : payment.journalType || "-"
+                : payment.type === "verified_badge"
                 ? "Blue Badge subscription"
                 : payment.type
-                  ? `${payment.type.charAt(0).toUpperCase() + payment.type.slice(1)} badge subscription`
-                  : "-"}
+                ? `${payment.type.charAt(0).toUpperCase() + payment.type.slice(1)} badge subscription`
+                : "-"}
             </span>
           </div>
           <div className="flex items-center justify-between">
@@ -96,22 +120,26 @@ export default function PaymentDetails() {
               {payment.status}
             </span>
           </div>
-          {!isSuccess && payment.rawResponse?.ResultDesc && (
+          {!isSuccess && (isJournal ? (payment.failureReason || payment.rawResponse?.ResultDesc) : payment.rawResponse?.ResultDesc) && (
             <div className="flex items-center justify-between">
               <span className="font-semibold text-gray-700 dark:text-gray-200">Reason:</span>
-              <span className="font-mono text-xs text-red-700 dark:text-red-300">{payment.rawResponse.ResultDesc}</span>
+              <span className="font-mono text-xs text-red-700 dark:text-red-300">{isJournal ? (payment.failureReason || payment.rawResponse?.ResultDesc) : payment.rawResponse?.ResultDesc}</span>
             </div>
           )}
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-200">Phone Number:</span>
             <span className="font-mono text-xs text-gray-900 dark:text-gray-100">
-              {payment.rawResponse?.Phone || payment.methodDetails?.MpesaReceiptNumber || "-"}
+              {isJournal
+                ? payment.phone || payment.rawResponse?.Phone || payment.methodDetails?.MpesaReceiptNumber || "-"
+                : payment.rawResponse?.Phone || payment.methodDetails?.MpesaReceiptNumber || "-"}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-700 dark:text-gray-200">Reference:</span>
             <span className="font-mono text-xs text-gray-900 dark:text-gray-100">
-              {payment.rawResponse?.ExternalReference || payment.rawResponse?.external_reference || "-"}
+              {isJournal
+                ? payment.rawResponse?.ExternalReference || payment.rawResponse?.external_reference || payment.transactionId || "-"
+                : payment.rawResponse?.ExternalReference || payment.rawResponse?.external_reference || "-"}
             </span>
           </div>
         </div>
