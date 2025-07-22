@@ -245,152 +245,165 @@ export default function PostLikeListModal({
   };
 
   if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50">
-      <div
-        ref={modalRef}
-        style={{
-          transform: dragging || dragOffset ? `translateY(${dragOffset}px)` : undefined,
-          transition: dragging ? 'none' : 'transform 0.2s',
-        }}
-        className={`w-full sm:w-[400px] max-w-full bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-xl shadow-xl p-4 pb-0 relative flex flex-col animate-slideUp ${snapHeights[modalSnap]}`}
-      >
-        {/* Drag handle for swipe up/down */}
-        <div className="flex justify-center items-center mb-2 modal-drag-handle cursor-grab active:cursor-grabbing select-none" style={{touchAction:'none'}}>
-          <div className="w-12 h-1 rounded-full bg-gray-300 dark:bg-gray-600 mt-1 mb-2" style={{marginTop: 2}} />
-        </div>
-        <button
-          className="absolute top-4 right-4 text-gray-500 dark:text-gray-300 hover:text-red-500 text-3xl font-bold w-12 h-12 flex items-center justify-center"
-          style={{ zIndex: 10, background: 'none', boxShadow: 'none' }}
-          onClick={onClose}
-          aria-label="Close"
+    <>
+      <style>{`
+        body.modal-open-likes #main-tabs-content, body.modal-open-likes .main-tabs-content {
+          pointer-events: none !important;
+          filter: blur(2px) grayscale(0.5) brightness(0.8);
+          user-select: none !important;
+        }
+        body.modal-open-likes {
+          overflow: hidden !important;
+        }
+      `}</style>
+      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50">
+        <div
+          ref={modalRef}
+          style={{
+            transform: dragging || dragOffset ? `translateY(${dragOffset}px)` : undefined,
+            transition: dragging ? 'none' : 'transform 0.2s',
+          }}
+          className={`w-full sm:w-[400px] max-w-full bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-xl shadow-xl p-4 pb-0 relative flex flex-col animate-slideUp ${snapHeights[modalSnap]}`}
         >
-          ×
-        </button>
-        <h3 className="text-lg font-bold mb-2 text-gray-800 dark:text-gray-100 text-center">
-          Likes
-        </h3>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search users..."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm mb-2 font-medium"
-        />
-        <div className="overflow-y-auto flex-1 min-h-0 hide-scrollbar">
-          {loading ? (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-              Loading...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-              No users found.
-            </div>
-          ) : (
-            <ul>
-              {filtered.slice(0, maxLikers).map((user) => (
-                <li
-                  key={user._id}
-                  className="flex items-center gap-3 py-3 px-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors justify-between text-base"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* Use the same logic as comments for profile image */}
-                    {user.profile?.profileImage || user.profileImage ? (
-                      <img
-                        src={user.profile?.profileImage || user.profileImage}
-                        alt={user.username}
-                        className="w-10 h-10 rounded-full object-cover cursor-zoom-in border-2 border-gray-300 dark:border-gray-700"
-                        onClick={() => setZoomImg({ ...user, profileImage: user.profile?.profileImage || user.profileImage })}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "/default-avatar.png";
+          {/* Drag handle for swipe up/down */}
+          <div className="flex justify-center items-center mb-2 modal-drag-handle cursor-grab active:cursor-grabbing select-none" style={{touchAction:'none'}}>
+            <div className="w-12 h-1 rounded-full bg-gray-300 dark:bg-gray-600 mt-1 mb-2" style={{marginTop: 2}} />
+          </div>
+          <button
+            className="absolute top-4 right-4 text-gray-500 dark:text-gray-300 hover:text-red-500 text-3xl font-bold w-12 h-12 flex items-center justify-center"
+            style={{ zIndex: 10, background: 'none', boxShadow: 'none' }}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+          <h3 className="text-lg font-bold mb-2 text-gray-800 dark:text-gray-100 text-center">
+            Likes
+          </h3>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search users..."
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-sm mb-2 font-medium"
+          />
+          <div className="overflow-y-auto flex-1 min-h-0 hide-scrollbar">
+            {loading ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                Loading...
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 py-8">
+                No users found.
+              </div>
+            ) : (
+              <ul>
+                {filtered.slice(0, maxLikers).map((user) => (
+                  <li
+                    key={user._id}
+                    className="flex items-center gap-3 py-3 px-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors justify-between text-base"
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Use the same logic as comments for profile image */}
+                      {user.profile?.profileImage || user.profileImage ? (
+                        <img
+                          src={user.profile?.profileImage || user.profileImage}
+                          alt={user.username}
+                          className="w-10 h-10 rounded-full object-cover cursor-zoom-in border-2 border-gray-300 dark:border-gray-700"
+                          onClick={() => setZoomImg({ ...user, profileImage: user.profile?.profileImage || user.profileImage })}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "/default-avatar.png";
+                          }}
+                        />
+                      ) : (
+                        <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
+                          <FaUser className="text-gray-500 dark:text-gray-300" size={22} />
+                        </div>
+                      )}
+                      <span
+                        className="font-semibold text-gray-900 dark:text-gray-100 flex items-center hover:underline text-base cursor-pointer"
+                        tabIndex={0}
+                        onClick={e => {
+                          e.stopPropagation();
+                          navigate(`/dashboard/community/user/${encodeURIComponent(user.username)}`);
                         }}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700">
-                        <FaUser className="text-gray-500 dark:text-gray-300" size={22} />
-                      </div>
+                        title={`View ${user.username}'s profile`}
+                      >
+                        <span className="flex items-center">{user.username}{user.verified && <VerifiedBadge className="ml-1" />}</span>
+                      </span>
+                    </div>
+                    {currentUser && user._id && String(currentUser._id) !== String(user._id) && (
+                      followStates[user._id] ? (
+                        <button
+                          className="px-4 py-1 rounded-full bg-gray-400 text-white text-xs font-semibold hover:bg-gray-500 transition"
+                          disabled={followLoading[user._id]}
+                          onClick={() => handleUnfollow(user._id)}
+                        >
+                          {followLoading[user._id] ? "..." : "Following"}
+                        </button>
+                      ) : (
+                        <button
+                          className="px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition"
+                          disabled={followLoading[user._id]}
+                          onClick={() => handleFollow(user._id)}
+                        >
+                          {followLoading[user._id] ? "..." : "Follow"}
+                        </button>
+                      )
                     )}
-                    <span
-                      className="font-semibold text-gray-900 dark:text-gray-100 flex items-center hover:underline text-base cursor-pointer"
-                      tabIndex={0}
-                      onClick={e => {
-                        e.stopPropagation();
-                        navigate(`/dashboard/community/user/${encodeURIComponent(user.username)}`);
-                      }}
-                      title={`View ${user.username}'s profile`}
-                    >
-                      <span className="flex items-center">{user.username}{user.verified && <VerifiedBadge className="ml-1" />}</span>
-                    </span>
-                  </div>
-                  {currentUser && user._id && String(currentUser._id) !== String(user._id) && (
-                    followStates[user._id] ? (
-                      <button
-                        className="px-4 py-1 rounded-full bg-gray-400 text-white text-xs font-semibold hover:bg-gray-500 transition"
-                        disabled={followLoading[user._id]}
-                        onClick={() => handleUnfollow(user._id)}
-                      >
-                        {followLoading[user._id] ? "..." : "Following"}
-                      </button>
-                    ) : (
-                      <button
-                        className="px-4 py-1 rounded-full bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition"
-                        disabled={followLoading[user._id]}
-                        onClick={() => handleFollow(user._id)}
-                      >
-                        {followLoading[user._id] ? "..." : "Follow"}
-                      </button>
-                    )
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      {/* Zoom overlay for profile image */}
-      {zoomImg && zoomImg.profileImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 transition-opacity" onClick={() => setZoomImg(null)}>
-          <div className="relative max-w-xs w-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
-            <img
-              src={zoomImg.profileImage}
-              alt="Profile Zoom"
-              className="rounded-full shadow-lg border-4 border-white"
-              style={{ background: '#fff', borderRadius: '50%', width: '300px', height: '300px', objectFit: 'cover', aspectRatio: '1 / 1', maxWidth: '80vw', maxHeight: '80vw' }}
-            />
-            <div className="mt-2 flex items-center gap-2 text-white font-semibold text-lg text-center truncate max-w-xs">
-              <span className="font-bold">{zoomImg.username}</span>
-              {zoomImg.verified && <VerifiedBadge />}
-              <button
-                className="text-white text-2xl font-bold bg-black bg-opacity-40 rounded-full p-1 hover:bg-opacity-70 transition-colors ml-2"
-                onClick={() => setZoomImg(null)}
-                aria-label="Close profile image zoom"
-              >
-                ×
-              </button>
-            </div>
-            {currentUser && zoomImg._id && String(currentUser._id) !== String(zoomImg._id) && (
-              followStates[zoomImg._id] ? (
-                <button
-                  className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition mb-2 mt-2"
-                  disabled={followLoading[zoomImg._id]}
-                  onClick={() => handleUnfollow(zoomImg._id)}
-                >
-                  {followLoading[zoomImg._id] ? "..." : "Following"}
-                </button>
-              ) : (
-                <button
-                  className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition mb-2 mt-2"
-                  disabled={followLoading[zoomImg._id]}
-                  onClick={() => handleFollow(zoomImg._id)}
-                >
-                  {followLoading[zoomImg._id] ? "..." : "Follow"}
-                </button>
-              )
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </div>
-      )}
-    </div>
+        {/* Zoom overlay for profile image */}
+        {zoomImg && zoomImg.profileImage && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 transition-opacity" onClick={() => setZoomImg(null)}>
+            <div className="relative max-w-xs w-full flex flex-col items-center" onClick={e => e.stopPropagation()}>
+              <img
+                src={zoomImg.profileImage}
+                alt="Profile Zoom"
+                className="rounded-full shadow-lg border-4 border-white"
+                style={{ background: '#fff', borderRadius: '50%', width: '300px', height: '300px', objectFit: 'cover', aspectRatio: '1 / 1', maxWidth: '80vw', maxHeight: '80vw' }}
+              />
+              <div className="mt-2 flex items-center gap-2 text-white font-semibold text-lg text-center truncate max-w-xs">
+                <span className="font-bold">{zoomImg.username}</span>
+                {zoomImg.verified && <VerifiedBadge />}
+                <button
+                  className="text-white text-2xl font-bold bg-black bg-opacity-40 rounded-full p-1 hover:bg-opacity-70 transition-colors ml-2"
+                  onClick={() => setZoomImg(null)}
+                  aria-label="Close profile image zoom"
+                >
+                  ×
+                </button>
+              </div>
+              {currentUser && zoomImg._id && String(currentUser._id) !== String(zoomImg._id) && (
+                followStates[zoomImg._id] ? (
+                  <button
+                    className="px-6 py-2 rounded-full bg-gray-400 text-white font-semibold hover:bg-gray-500 transition mb-2 mt-2"
+                    disabled={followLoading[zoomImg._id]}
+                    onClick={() => handleUnfollow(zoomImg._id)}
+                  >
+                    {followLoading[zoomImg._id] ? "..." : "Following"}
+                  </button>
+                ) : (
+                  <button
+                    className="px-6 py-2 rounded-full bg-blue-600 text-white font-semibold hover:bg-blue-700 transition mb-2 mt-2"
+                    disabled={followLoading[zoomImg._id]}
+                    onClick={() => handleFollow(zoomImg._id)}
+                  >
+                    {followLoading[zoomImg._id] ? "..." : "Follow"}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

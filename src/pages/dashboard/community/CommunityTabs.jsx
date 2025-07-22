@@ -27,6 +27,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
   return (
     <div
       className="w-full"
+      id="main-tabs-content"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
