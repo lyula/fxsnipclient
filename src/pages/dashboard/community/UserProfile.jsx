@@ -449,14 +449,14 @@ export default function UserProfile() {
       <div className="max-w-2xl mx-auto p-4 w-full max-w-full overflow-x-hidden">
         <div className="flex flex-col items-center gap-2 mb-4" style={{ marginTop: "12px" }}>
           {/* Top row: Arrow | Avatar | Username+Badge */}
-          <div className="flex gap-8">
+          <div className="flex gap-3">
             {/* Arrow on the left */}
             <span className="flex items-center cursor-pointer" onClick={() => navigate(-1)}>
               <FaArrowLeft className="text-xl text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition" />
             </span>
             {/* Avatar next to arrow */}
             <div className="flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <div className="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                 {profile.profile?.profileImage ? (
                   <img
                     src={profile.profile.profileImage}
@@ -471,7 +471,7 @@ export default function UserProfile() {
             </div>
             {/* Username+Badge to the right of avatar */}
             <div className="flex flex-col justify-center flex-grow">
-              <span className="flex items-center gap-2 font-bold text-xl text-gray-900 dark:text-white break-all">
+              <span className="flex items-center font-bold text-xl text-gray-900 dark:text-white break-all">
                 {profile.username}
                 {profile.verified && <VerifiedBadge />}
               </span>
