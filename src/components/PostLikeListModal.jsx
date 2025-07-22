@@ -4,7 +4,7 @@ import VerifiedBadge from "./VerifiedBadge";
 import { followUser, unfollowUser } from "../utils/api";
 import { hashId } from "../utils/hash";
 import { useAuth } from "../context/auth";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function PostLikeListModal({
   open,
@@ -14,6 +14,7 @@ export default function PostLikeListModal({
   initialLikes = [],
   maxLikers = 100,
 }) {
+  const navigate = useNavigate();
   const [likers, setLikers] = useState(initialLikes);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -244,7 +245,6 @@ export default function PostLikeListModal({
   };
 
   if (!open) return null;
-
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black bg-opacity-50">
       <div
@@ -311,17 +311,17 @@ export default function PostLikeListModal({
                         <FaUser className="text-gray-500 dark:text-gray-300" size={22} />
                       </div>
                     )}
-                    <Link
-                      to={`/dashboard/community/user/${encodeURIComponent(user.username)}`}
-                      className="font-semibold text-gray-900 dark:text-gray-100 flex items-center hover:underline text-base"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <span
+                      className="font-semibold text-gray-900 dark:text-gray-100 flex items-center hover:underline text-base cursor-pointer"
                       tabIndex={0}
-                      onClick={e => e.stopPropagation()}
+                      onClick={e => {
+                        e.stopPropagation();
+                        navigate(`/dashboard/community/user/${encodeURIComponent(user.username)}`);
+                      }}
+                      title={`View ${user.username}'s profile`}
                     >
-                      {user.username}
-                      {user.verified && <VerifiedBadge className="ml-1" />}
-                    </Link>
+                      <span className="flex items-center">{user.username}{user.verified && <VerifiedBadge className="ml-1" />}</span>
+                    </span>
                   </div>
                   {currentUser && user._id && String(currentUser._id) !== String(user._id) && (
                     followStates[user._id] ? (
