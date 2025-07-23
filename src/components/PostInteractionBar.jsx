@@ -22,15 +22,11 @@ export default function PostInteractionBar({
   ...props
 }) {
   return (
-    <div className={`flex items-center gap-3 sm:gap-6 text-base mb-4 ${localPost.image || localPost.video ? 'w-full max-w-full px-2' : 'px-2 sm:px-4'} py-3 rounded-xl bg-gradient-to-r from-gray-50/80 to-indigo-50/50 dark:from-gray-800/50 dark:to-gray-700/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-600/30 shadow-sm transition-all duration-300 overflow-x-hidden`}>
-      <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-4 sm:gap-8 text-base mb-3 ${localPost.image || localPost.video ? 'w-full max-w-full px-1' : 'px-1 sm:px-2'} py-2 rounded-2xl bg-gradient-to-r from-white/80 to-indigo-50/60 dark:from-gray-900/60 dark:to-indigo-900/40 backdrop-blur-lg border border-gray-200/40 dark:border-gray-700/30 shadow-md transition-all duration-300 overflow-x-auto`}>
+      <div className="flex items-center gap-0.5">
         <button
           onClick={handleLike}
-          className={`transition-all duration-300 hover:scale-110 active:scale-95 ${
-            likeAnimating ? 'scale-110' : ''
-          } ${
-            liked ? "text-red-500" : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
-          }`}
+          className={`transition-all duration-200 rounded-full p-1 hover:bg-red-100 dark:hover:bg-red-900/30 active:scale-95 ${likeAnimating ? 'scale-110' : ''} ${liked ? "text-red-500" : "text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"}`}
           aria-label="Like"
         >
           {liked ? (
@@ -40,15 +36,13 @@ export default function PostInteractionBar({
           )}
         </button>
         <button
-          className={`font-semibold hover:underline transition-colors ${liked ? "text-red-500" : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
+          className={`font-semibold px-1 py-1 rounded-lg transition-colors duration-200 ${liked ? "text-red-500" : "text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"}`}
           onClick={async (e) => {
             e.stopPropagation();
             const likesCount = normalizedLikes.length;
             if (likesCount > 0) {
               setShowLikes(!showLikes);
               if (!showLikes && likesUsers.length === 0 && getPostLikes) {
-                // Optionally fetch likes if needed
-                // setLoadingLikes(true); // Not handled here, pass loadingLikes prop if needed
                 try {
                   const response = await getPostLikes(localPost._id, 100);
                   if (response.likes) {
@@ -56,8 +50,6 @@ export default function PostInteractionBar({
                   }
                 } catch (error) {
                   // Handle error if needed
-                } finally {
-                  // setLoadingLikes(false);
                 }
               }
             }
@@ -72,7 +64,7 @@ export default function PostInteractionBar({
           setShowLikes(false);
           setShowComments((prev) => !prev);
         }}
-        className="flex items-center gap-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 transition-all duration-300 hover:scale-105 active:scale-95"
+        className="flex items-center gap-1 rounded-full px-2 py-1 text-gray-500 hover:bg-blue-50 hover:text-blue-600 dark:text-gray-400 dark:hover:bg-blue-900 dark:hover:text-blue-400 transition-all duration-200 active:scale-95"
       >
         <FaRegCommentDots className="transition-transform duration-200 hover:scale-110" />
         <span className="font-semibold">
@@ -86,13 +78,13 @@ export default function PostInteractionBar({
       {/* Share button */}
       <button
         onClick={onShare}
-        className="flex items-center gap-2 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-all duration-300 hover:scale-105 active:scale-95"
+        className="flex items-center gap-1 rounded-full px-2 py-1 text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-gray-400 dark:hover:bg-red-900 dark:hover:text-red-400 transition-all duration-200 active:scale-95"
         aria-label="Share"
       >
         <LuShare2 className="transition-transform duration-200 hover:scale-110" />
         <span className="font-semibold">{localPost.shares ?? 0}</span>
       </button>
-      <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500 ml-auto">
+      <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500 ml-auto px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-900/40">
         <FaChartBar className="transition-transform duration-200 hover:scale-110" />
         <span className="font-semibold">{localPost.views || 0}</span>
       </div>

@@ -978,7 +978,7 @@ export default function ChatPost({
         {/* Only render VideoUsernameOverlay for videos, and header for images */}
         {post.video ? (
           <>
-            <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
+            <hr className="border-gray-200/50 dark:border-gray-700/50" />
             {/* For tall (mobile format) videos, show overlay with username/menu on video. For non-tall, show header above and video below. */}
             {isTallVideo === true ? (
               <VideoUsernameOverlay
@@ -1001,6 +1001,7 @@ export default function ChatPost({
                   showPostMenu={showPostMenu}
                   setShowPostMenu={setShowPostMenu}
                   localPost={localPost}
+                  className="mt-0 pt-0 mb-0 !p-0 !m-0" // force no margin/padding above profile image
                 />
                 <div className="media-container w-full flex justify-center items-center overflow-hidden p-0 m-0" style={{ marginLeft: 0, marginRight: 0 }}>
                   <AutoPlayVideo
@@ -1024,7 +1025,7 @@ export default function ChatPost({
           </>
         ) : post.image ? (
           <>
-            <hr className="border-gray-200/50 dark:border-gray-700/50 mb-4" />
+            <hr className="border-gray-200/50 dark:border-gray-700/50" />
             <VideoHeaderAboveMedia
               post={post}
               setZoomProfile={setZoomProfile}
@@ -1035,6 +1036,7 @@ export default function ChatPost({
               showPostMenu={showPostMenu}
               setShowPostMenu={setShowPostMenu}
               localPost={localPost}
+              className="mt-0 pt-0" // remove top margin and padding for username row
             />
           </>
         ) : null}
