@@ -22,7 +22,7 @@ export default function PostInteractionBar({
   ...props
 }) {
   return (
-    <div className={`flex items-center gap-4 sm:gap-8 text-base mb-3 ${localPost.image || localPost.video ? 'w-full max-w-full px-1' : 'px-1 sm:px-2'} py-2 rounded-2xl bg-gradient-to-r from-white/80 to-indigo-50/60 dark:from-gray-900/60 dark:to-indigo-900/40 backdrop-blur-lg border border-gray-200/40 dark:border-gray-700/30 shadow-md transition-all duration-300 overflow-x-auto`}>
+    <div className={`flex items-center gap-4 sm:gap-8 text-base mb-3 ${localPost.image || localPost.video ? 'w-full max-w-full px-1' : 'px-1 sm:px-2'} py-2 rounded-2xl bg-white/80 dark:bg-black border border-gray-200/40 dark:border-gray-700/30 shadow-md transition-all duration-300 overflow-x-auto`}>
       <div className="flex items-center gap-0.5">
         <button
           onClick={handleLike}

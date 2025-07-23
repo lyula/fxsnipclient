@@ -157,7 +157,7 @@ const getOriginalPostId = (postId) => {
     const verticalDistance = touchEnd - touchStart;
     const horizontalDistance = horizontalTouchStart - horizontalTouchEnd;
     
-    const minHorizontalDistance = 10;
+    const minHorizontalDistance = 40;
     const minVerticalDistance = 50;
     
     const absHorizontal = Math.abs(horizontalDistance);
