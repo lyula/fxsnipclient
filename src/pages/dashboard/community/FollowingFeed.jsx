@@ -301,7 +301,7 @@ export default function FollowingFeed({
           <>
             {/* Posts container with top padding only */}
             <div className="pt-6">
-              <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
+            <div className="w-full max-w-full overflow-x-hidden">
                 <ChatList
                   posts={followingPosts}
                   postRefs={{}}

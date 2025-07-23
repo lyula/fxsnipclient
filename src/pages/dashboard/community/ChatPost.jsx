@@ -967,14 +967,14 @@ export default function ChatPost({
         />
       ))}
 
-      <div
-        ref={postContainerRef}
-        data-post-id={post._id}
-        className={`w-full mb-0 transition-all duration-300 ease-out overflow-x-hidden ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
-        onTouchStart={handleDoubleTap}
-        onDoubleClick={handleDoubleTap}
-        style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0, touchAction: 'pan-y', marginLeft: 0, paddingLeft: 0 }}
-      >
+  <div
+    ref={postContainerRef}
+    data-post-id={post._id}
+    className={`mb-0 transition-all duration-300 ease-out ${scrollable ? 'overflow-y-auto max-h-[80vh]' : ''}`}
+    onTouchStart={handleDoubleTap}
+    onDoubleClick={handleDoubleTap}
+    style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0, touchAction: 'pan-y', margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0 }}
+  >
         {/* Only render VideoUsernameOverlay for videos, and header for images */}
         {post.video ? (
           <>
