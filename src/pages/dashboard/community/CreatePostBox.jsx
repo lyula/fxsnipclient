@@ -189,11 +189,7 @@ export default function CreatePostBox({ onPost, onClose }) {
 
   const handleSubmit = () => {
     if (!content.trim() || isUploading) return;
-    onPost({
-      content,
-      image,
-      video,
-    });
+    onPost(content, image, video);
     setContent("");
     setImage("");
     setVideo("");
