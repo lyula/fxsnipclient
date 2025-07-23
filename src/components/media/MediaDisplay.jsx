@@ -812,58 +812,34 @@ export default function MediaDisplay({
   }
 
   if (isVideoMedia) {
-    // Portrait/phone aspect ratio: render as mobile size on desktop
-    const isPortrait = videoAspectRatio && videoAspectRatio < 0.8;
-    const isSixteenNine = videoAspectRatio && Math.abs(videoAspectRatio - 16/9) < 0.05;
+    // Enforce only the required desktop media styles, remove conflicting logic
+    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
     return (
       <ErrorBoundary>
-        <div
-          className={
-            isSixteenNine
-              ? 'w-screen max-w-none flex justify-center items-center relative left-1/2 right-1/2 -translate-x-1/2'
-              : isPortrait
-                ? 'flex justify-center items-center w-full'
-                : 'w-full overflow-x-hidden'
-          }
-          style={
-            isSixteenNine
-              ? { maxWidth: '100vw', width: '100vw', marginLeft: 'calc(50% - 50vw)', marginRight: 'calc(50% - 50vw)' }
-              : isPortrait
-                ? { maxWidth: '375px', width: '100%', margin: '0 auto' }
-                : { maxWidth: '100%', maxHeight: '60vh', width: '100%' }
-          }
-        >
+        <div>
           {!hideMedia && (
             <div 
               ref={containerRef}
-              className="relative overflow-hidden cursor-pointer w-full"
-              style={{
-                minHeight: shouldUseMobileLayout ? 'auto' : 'auto',
-                height: isFullscreen ? '100vh' : 'auto',
-                background: 'transparent',
-                maxWidth: '100vw'
-              }}
+              style={{ height: isFullscreen ? '100vh' : 'auto' }}
               onClick={handleMediaInteraction}
               onMouseMove={handleMouseMove}
             >
               <video
                 ref={mediaRef}
                 src={ensureMP4Format(videoUrl)}
-                className={
-                  shouldUseMobileLayout
-                    ? 'w-full h-auto object-cover border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm'
-                    : isPortrait
-                      ? 'w-full max-w-xs h-auto object-contain border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm'
-                      : 'w-full block'
-                }
+                className="community-post-media"
                 style={{
-                  width: shouldUseMobileLayout ? '100%' : undefined,
-                  maxWidth: shouldUseMobileLayout ? '100%' : undefined,
+                  width: '100%',
+                  maxWidth: isDesktop ? '360px' : '100vw',
                   height: 'auto',
-                  maxHeight: shouldUseMobileLayout ? '70vh' : '60vh',
-                  objectFit: shouldUseMobileLayout ? 'cover' : (isPortrait ? 'contain' : 'cover'),
+                  maxHeight: isDesktop ? '20vh' : '50vh',
+                  objectFit: 'contain',
                   display: 'block',
-                  backgroundColor: 'transparent'
+                  backgroundColor: '#000',
+                  aspectRatio: '16/9',
+                  borderRadius: '12px',
+                  boxShadow: '0 2px 12px 0 rgba(0,0,0,0.08)',
+                  margin: '0 auto'
                 }}
                 playsInline
                 webkit-playsinline="true"
@@ -893,13 +869,6 @@ export default function MediaDisplay({
                   if (video.videoWidth && video.videoHeight) {
                     const aspectRatio = video.videoWidth / video.videoHeight;
                     setVideoAspectRatio(aspectRatio);
-                    if (aspectRatio < 0.8) {
-                      setVideoFormat('portrait');
-                    } else if (aspectRatio > 1.2) {
-                      setVideoFormat('landscape');
-                    } else {
-                      setVideoFormat('square');
-                    }
                   }
                 }}
               >

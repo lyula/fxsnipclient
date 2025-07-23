@@ -1113,172 +1113,220 @@ useEffect(() => {
 
   return (
     <div 
-      className="w-full h-full flex flex-col overflow-x-hidden overflow-y-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-900 dark:via-slate-900 dark:to-gray-800"
+      className="w-full h-full flex flex-col overflow-x-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-900 dark:via-slate-900 dark:to-gray-800"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{ 
+        minHeight: 0,
         height: '100%',
         maxHeight: '100%',
-        overflowY: 'hidden',
-        overscrollBehavior: 'none',
         fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`,
-        fontSize: 'inherit'
+        fontSize: 'inherit',
+        width: '100%',
+        boxSizing: 'border-box',
+        display: 'flex',
+        justifyContent: 'center',
+        flex: 1,
       }}
     >
-      {/* Enhanced tabs container */}
-      <div 
-        className={`flex-shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-20 transition-all duration-300 ${
-          showTabs ? "opacity-100 translate-y-0 h-auto py-2" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
-        }`}
-        style={{ willChange: "transform, opacity, height" }}
-      >
-        <div className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 md:px-6 lg:max-w-4xl xl:max-w-5xl lg:mx-auto">
-          <CommunityTabs
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            onCreatePost={() => setShowCreate(true)}
-            visible={showTabs}
-            onSearch={handleSearch}
-            onCancelSearch={handleCancelSearch}
-          />
-        </div>
-      </div>
-
-      {/* Enhanced posts container */}
-      <div 
-        ref={activeTab === 'forYou' ? containerRef : followingContainerRef}
-        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar ${
-          activeTab === 'following' ? '' : 'py-0'
-        }`}
-        style={{ 
-          overscrollBehavior: 'contain',
-          WebkitOverflowScrolling: 'touch',
-          scrollBehavior: 'smooth',
-          willChange: 'scroll-position'
+      {/* Enhanced tabs container and posts container */}
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '900px',
+          minHeight: 0,
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          marginLeft: 'auto',
+          marginRight: 'auto',
         }}
-        onTouchStart={handleFeedTouchStart}
-        onTouchMove={handleFeedTouchMove}
-        onTouchEnd={handleFeedTouchEnd}
       >
-        {/* Pull-to-refresh spinner */}
-        {activeTab === 'forYou' && (pullDistance > minDragToShowSpinner || isPullRefreshing) && (
-          <div className="w-full flex justify-center items-center pt-2 pb-1" style={{ minHeight: 32 }}>
-            <div className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${isPullRefreshing ? '' : 'opacity-60'}`}></div>
+        {/* Responsive video styles for posts */}
+        <style>{`
+          .community-post-media video,
+          .community-post-media img {
+            width: 100%;
+            height: auto;
+            max-width: 100vw;
+            max-height: 50vh;
+            border-radius: 12px;
+            background: #000;
+            object-fit: contain;
+            box-shadow: 0 2px 12px 0 rgba(0,0,0,0.08);
+            margin: 0 auto;
+            display: block;
+            aspect-ratio: 16/9;
+          }
+          @media (min-width: 768px) {
+            .community-post-media video,
+            .community-post-media img {
+              max-width: 40vw;
+              max-height: 28vh;
+              aspect-ratio: 16/9;
+            }
+          }
+          @media (min-width: 1200px) {
+            .community-post-media video,
+            .community-post-media img {
+              max-width: 32vw;
+              max-height: 24vh;
+              aspect-ratio: 16/9;
+            }
+          }
+        `}</style>
+        <div 
+          className={`flex-shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-20 transition-all duration-300 ${
+            showTabs ? "opacity-100 translate-y-0 h-auto py-2" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
+          }`}
+          style={{ willChange: "transform, opacity, height" }}
+        >
+          <div className="w-full overflow-x-hidden px-2 sm:px-4 md:px-6">
+            <CommunityTabs
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              onCreatePost={() => setShowCreate(true)}
+              visible={showTabs}
+              onSearch={handleSearch}
+              onCancelSearch={handleCancelSearch}
+            />
           </div>
-        )}
+        </div>
+        {/* Enhanced posts container */}
+        <div 
+          ref={activeTab === 'forYou' ? containerRef : followingContainerRef}
+          className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar ${
+            activeTab === 'following' ? '' : 'py-0'
+          }`}
+          style={{ 
+            overscrollBehavior: 'contain',
+            WebkitOverflowScrolling: 'touch',
+            scrollBehavior: 'smooth',
+            willChange: 'scroll-position'
+          }}
+          onTouchStart={handleFeedTouchStart}
+          onTouchMove={handleFeedTouchMove}
+          onTouchEnd={handleFeedTouchEnd}
+        >
+          {/* Pull-to-refresh spinner */}
+          {activeTab === 'forYou' && (pullDistance > minDragToShowSpinner || isPullRefreshing) && (
+            <div className="w-full flex justify-center items-center pt-2 pb-1" style={{ minHeight: 32 }}>
+              <div className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${isPullRefreshing ? '' : 'opacity-60'}`}></div>
+            </div>
+          )}
 
-        {showCreate && (
-          <CreatePostBox
-            onPost={handleNewPost}
-            onClose={() => setShowCreate(false)}
-          />
-        )}
+          {showCreate && (
+            <CreatePostBox
+              onPost={handleNewPost}
+              onClose={() => setShowCreate(false)}
+            />
+          )}
 
-        {showLoading ? (
-          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            Loading posts...
-          </div>
-        ) : activeTab === "following" ? (
-          <FollowingFeed 
-            user={user}
-            onReply={handleReply}
-            onComment={handleComment}
-            onLike={handleLike}
-            onView={handleView}
-            onDelete={handleDeletePost}
-            containerRef={followingContainerRef}
-            onLoadFresh={handleLoadFreshFollowingPosts}
-            isLoadingFresh={followingIsLoadingFresh}
-          />
-        ) : searchQuery ? (
-          searchLoading ? (
+          {showLoading ? (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              Searching posts...
+              Loading posts...
             </div>
-          ) : searchResults && searchResults.length > 0 ? (
-            <div className="w-full max-w-full overflow-x-hidden">
-              <ChatList
-                posts={searchResults}
-                postRefs={postRefs}
-                onReply={handleReply}
-                onComment={handleComment}
-                onLike={handleLike}
-                onView={handleView}
-                onDelete={handleDeletePost}
-                currentUserId={user?._id}
-                currentUsername={user?.username}
-                currentUserVerified={user?.verified}
-              />
+          ) : activeTab === "following" ? (
+            <FollowingFeed 
+              user={user}
+              onReply={handleReply}
+              onComment={handleComment}
+              onLike={handleLike}
+              onView={handleView}
+              onDelete={handleDeletePost}
+              containerRef={followingContainerRef}
+              onLoadFresh={handleLoadFreshFollowingPosts}
+              isLoadingFresh={followingIsLoadingFresh}
+            />
+          ) : searchQuery ? (
+            searchLoading ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                Searching posts...
+              </div>
+            ) : searchResults && searchResults.length > 0 ? (
+              <div className="w-full max-w-full overflow-x-hidden">
+                <ChatList
+                  posts={searchResults}
+                  postRefs={postRefs}
+                  onReply={handleReply}
+                  onComment={handleComment}
+                  onLike={handleLike}
+                  onView={handleView}
+                  onDelete={handleDeletePost}
+                  currentUserId={user?._id}
+                  currentUsername={user?.username}
+                  currentUserVerified={user?.verified}
+                />
+              </div>
+            ) : (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                No posts found for "{searchQuery}".
+              </div>
+            )
+          ) : rotatedPosts.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+              No posts yet. Be the first to share something!
             </div>
           ) : (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              No posts found for "{searchQuery}".
-            </div>
-          )
-        ) : rotatedPosts.length === 0 ? (
-          <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-            No posts yet. Be the first to share something!
-          </div>
-        ) : (
-          <>
-            <div className="w-full max-w-full overflow-x-hidden">
-              <ChatList
-                posts={rotatedPosts}
-                postRefs={postRefs}
-                onReply={handleReply}
-                onComment={handleComment}
-                onLike={handleLike}
-                onView={handleView}
-                onDelete={handleDeletePost}
-                currentUserId={user?._id}
-                currentUsername={user?.username}
-                currentUserVerified={user?.verified}
-              />
-            </div>
-            
-            {isLoadingMore && (
-              <div className="p-6 text-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Loading more posts...</p>
+            <>
+              <div className="w-full max-w-full overflow-x-hidden">
+                <ChatList
+                  posts={rotatedPosts}
+                  postRefs={postRefs}
+                  onReply={handleReply}
+                  onComment={handleComment}
+                  onLike={handleLike}
+                  onView={handleView}
+                  onDelete={handleDeletePost}
+                  currentUserId={user?._id}
+                  currentUsername={user?.username}
+                  currentUserVerified={user?.verified}
+                />
               </div>
-            )}
-            
-            {!isLoadingMore && communityPosts.length > 0 && (
-              <div className="p-6 text-center">
-                {cyclingInfo?.isRepeatingContent ? (
-                  <p className="text-blue-400 dark:text-blue-300 text-xs">
-                    🔄 Cycling through posts (Round {cyclingInfo.completedCycles + 1})
-                  </p>
-                ) : hasMore ? (
-                  <p className="text-gray-400 dark:text-gray-500 text-xs">
-                    ∞ Scroll for more content ∞
-                  </p>
-                ) : (
-                  <p className="text-gray-400 dark:text-gray-500 text-xs">
-                    🔄 Scroll more to see posts again
-                  </p>
-                )}
-              </div>
-            )}
-          </>
-        )}
+              
+              {isLoadingMore && (
+                <div className="p-6 text-center">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Loading more posts...</p>
+                </div>
+              )}
+              
+              {!isLoadingMore && communityPosts.length > 0 && (
+                <div className="p-6 text-center">
+                  {cyclingInfo?.isRepeatingContent ? (
+                    <p className="text-blue-400 dark:text-blue-300 text-xs">
+                      🔄 Cycling through posts (Round {cyclingInfo.completedCycles + 1})
+                    </p>
+                  ) : hasMore ? (
+                    <p className="text-gray-400 dark:text-gray-500 text-xs">
+                      ∞ Scroll for more content ∞
+                    </p>
+                  ) : (
+                    <p className="text-gray-400 dark:text-gray-500 text-xs">
+                      🔄 Scroll more to see posts again
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
 
-        {/* Enhanced load new posts buttons - ONLY for forYou tab */}
-        {activeTab === 'forYou' && showLoadNewButton && !isLoadingFresh && (
-          <button
-            className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
-            onClick={handleLoadFreshPosts}
-          >
-            Load New Posts
-          </button>
-        )}
+          {/* Enhanced load new posts buttons - ONLY for forYou tab */}
+          {activeTab === 'forYou' && showLoadNewButton && !isLoadingFresh && (
+            <button
+              className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
+              onClick={handleLoadFreshPosts}
+            >
+              Load New Posts
+            </button>
+          )}
+        </div>
+        {/* Mobile floating create post button */}
+        <FloatingPlusButton onClick={() => setShowCreate(true)} visible={showTabs} />
       </div>
-      
-      {/* Mobile floating create post button */}
-      <FloatingPlusButton onClick={() => setShowCreate(true)} visible={showTabs} />
     </div>
   );
 }
