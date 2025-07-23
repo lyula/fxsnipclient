@@ -68,8 +68,7 @@ export default function ChatReply({ onSubmit, placeholder }) {
               className="px-3 py-2 cursor-pointer hover:bg-blue-100 flex items-center gap-1"
               onClick={() => handleSuggestionClick(user.username)}
             >
-              @{user.username}
-              {user.verified && <VerifiedBadge />}
+              <span className="flex items-center">@{user.username}{user.verified && <VerifiedBadge className="!ml-0 !mr-0" />}</span>
             </li>
           ))}
         </ul>

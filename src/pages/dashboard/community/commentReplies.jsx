@@ -125,13 +125,15 @@ export default function CommentReplies({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Link
-                    to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
-                    className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
-                  >
-                    {reply.author.username}
-                  </Link>
-                  {reply.author.verified && <VerifiedBadge />}
+                  <span className="flex items-center gap-0">
+                    <Link
+                      to={`/dashboard/community/user/${encodeURIComponent(reply.author.username)}`}
+                      className="font-semibold text-sm text-gray-900 dark:text-white hover:underline break-words"
+                    >
+                      {reply.author.username}
+                    </Link>
+                    {reply.author.verified && <VerifiedBadge />}
+                  </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                     {reply.createdAt && formatPostDate(reply.createdAt)}
                   </span>

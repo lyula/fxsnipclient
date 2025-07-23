@@ -187,15 +187,17 @@ export default function PostComment({
           </div>
           <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-center w-full">
-              <div className="flex items-center gap-2 mb-1">
-                <Link
-                  to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
-                  className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
-                >
-                  {comment.author.username}
-                </Link>
-                {comment.author.verified && <VerifiedBadge />}
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+              <div className="flex items-center mb-1">
+                <span className="flex items-center">
+                  <Link
+                    to={`/dashboard/community/user/${encodeURIComponent(comment.author.username)}`}
+                    className="font-semibold text-sm text-gray-900 dark:text-white hover:underline"
+                  >
+                    {comment.author.username}
+                  </Link>
+                  {comment.author.verified && <VerifiedBadge className="!ml-0 !mr-0" />}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
                   {comment.createdAt && formatPostDate(comment.createdAt)}
                 </span>
                 <span className="text-xs text-gray-400 ml-1">
