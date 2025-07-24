@@ -19,11 +19,13 @@
 ## Overview
 
 **Journalyze** is a full-stack web application designed for journaling, social interaction, and payment-enabled features, tailored for trading communities. It provides a Progressive Web App (PWA) experience, real-time messaging, notifications, and a robust API for extensibility.
-
+ 
+ **Backend GitHub Repository:** [https://github.com/lyula/fxsnipserver.git](https://github.com/lyula/fxsnipserver.git)
+ **Frontend Deployment:** [https://fxsnip.vercel.app](https://fxsnip.vercel.app)
+ 
 ---
 
-## Features
-
+<!-- Features -->
 - **Journaling:** Create, edit, and manage personal trading journals.
 - **Social Feed:** Post, like, comment, and reply on community posts.
 - **User Profiles:** View and follow other users, see public posts and stats.
