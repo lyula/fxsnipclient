@@ -5,10 +5,10 @@ export default function About() {
     <section className="bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 min-h-[80vh] flex flex-col items-center justify-center px-4 py-12 pt-20">
       <div className="max-w-3xl mx-auto text-center" data-aos="fade-down">
         <h1 className="text-4xl md:text-5xl font-extrabold text-[#1E3A8A] dark:text-white mb-4 font-inter">
-          About FXsnip
+          About Journalyze
         </h1>
         <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-8 font-medium">
-          FXsnip is dedicated to empowering traders to turn{" "}
+          Journalyze is dedicated to empowering traders to turn{" "}
           <span className="text-[#a99d6b] font-bold">data into discipline</span>{" "}
           and{" "}
           <span className="text-[#a99d6b] font-bold">discipline into profits</span>
@@ -79,7 +79,7 @@ export default function About() {
           to="/register"
           className="inline-block px-10 py-4 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition-transform duration-300 hover:scale-105"
         >
-          Get Started with FXsnip
+          Get Started with Journalyze
         </Link>
         <div className="mt-4 text-center text-gray-500 dark:text-gray-400 text-sm">
           <Link

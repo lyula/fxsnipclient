@@ -22,7 +22,7 @@ export default function Landing() {
             Turn Data Into Discipline,<br className="hidden md:inline" /> and Discipline Into Profits
           </h1>
           <p className="text-lg md:text-xl text-gray-700 dark:text-gray-300 mb-6 font-medium">
-            FXsnip empowers you to track your trades, analyze your performance, and connect with top traders.
+            Journalyze empowers you to track your trades, analyze your performance, and connect with top traders.
             <span className="block mt-2">
               <span className="font-bold text-[#a99d6b]">Access your journals from any device, anywhere, anytime.</span>
             </span>
@@ -143,9 +143,9 @@ export default function Landing() {
 
         {/* Why Choose Us Section */}
         <div className="max-w-3xl mx-auto text-center mb-16" data-aos="fade-up">
-          <h2 className="text-2xl md:text-3xl font-bold text-[#1E3A8A] dark:text-white mb-4">Why FXsnip?</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-[#1E3A8A] dark:text-white mb-4">Why Journalyze?</h2>
           <p className="text-gray-700 dark:text-gray-300 mb-6">
-            FXsnip is built for traders who want to turn data into discipline and discipline into profits.
+            Journalyze is built for traders who want to turn data into discipline and discipline into profits.
             Our platform is designed to help you:
           </p>
           <ul className="text-left text-gray-700 dark:text-gray-300 mx-auto max-w-xl space-y-3">
@@ -194,7 +194,7 @@ export default function Landing() {
             to="/register"
             className="inline-block px-10 py-4 bg-[#a99d6b] text-white rounded-lg font-bold shadow hover:bg-[#c2b77a] transition-transform duration-300 hover:scale-105"
           >
-            Join FXsnip Free
+            Join Journalyze Free
           </Link>
         </div>
 
@@ -206,7 +206,7 @@ export default function Landing() {
             rel="noopener noreferrer"
             className="block hover:underline transition"
           >
-            &copy; {new Date().getFullYear()} FXsnip. All rights reserved.
+            &copy; {new Date().getFullYear()} Journalyze. All rights reserved.
           </a>
         </div>
       </div>

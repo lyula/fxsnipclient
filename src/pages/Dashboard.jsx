@@ -311,7 +311,7 @@ export default function Dashboard() {
         {/* Desktop header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-blue-100 dark:border-gray-800 w-full relative md:static">
           <span className={`text-2xl font-extrabold text-[#1E3A8A] dark:text-white font-inter transition-all duration-200 ${sidebarCollapsed ? "hidden md:block md:text-lg" : ""}`}>
-            {sidebarCollapsed ? "FX" : "FXsnip"}
+            {sidebarCollapsed ? "JN" : "Journalyze"}
           </span>
           <div className="flex items-center gap-2">
             <button

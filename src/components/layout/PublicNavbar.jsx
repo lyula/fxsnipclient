@@ -9,7 +9,7 @@ export default function PublicNavbar() {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between w-full">
         {/* Logo */}
         <Link to="/" className="text-2xl font-extrabold text-[#1E3A8A] dark:text-white font-inter">
-          FXsnip
+          Journalyze
         </Link>
         {/* Hamburger */}
         <button
