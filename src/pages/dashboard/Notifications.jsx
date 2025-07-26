@@ -9,6 +9,35 @@ import { Link } from "react-router-dom";
 import { useDashboard } from "../../context/dashboard";
 
 export default function NotificationsPage() {
+  // Custom relative time formatter for notifications
+  function customFormatRelativeTime(date) {
+    const now = Date.now();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+    if (diffDay < 1) {
+      if (diffHour < 1) {
+        if (diffMin < 1) return 'just now';
+        return `${diffMin} min${diffMin > 1 ? 's' : ''} ago`;
+      }
+      return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
+    }
+    if (diffDay < 7) {
+      return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+    }
+    const diffWeek = Math.floor(diffDay / 7);
+    if (diffWeek < 5) {
+      return `${diffWeek} week${diffWeek > 1 ? 's' : ''} ago`;
+    }
+    const diffMonth = Math.floor(diffDay / 30.44);
+    if (diffMonth < 12) {
+      return `${diffMonth} month${diffMonth > 1 ? 's' : ''} ago`;
+    }
+    const diffYear = Math.floor(diffDay / 365.25);
+    return `${diffYear} year${diffYear > 1 ? 's' : ''} ago`;
+  }
   // Cache for username -> profileImage
   const [profileImages, setProfileImages] = useState({});
   const fetchingProfiles = useRef({});
@@ -54,7 +83,8 @@ export default function NotificationsPage() {
   const showLoading = loadingStates.notifications && notifications.length === 0;
 
   // Remove duplicate usernames in followed you notifications and format payment numbers
-  const processedNotifications = notifications.slice(0, 100).map((n) => {
+  // Always show the last 100 notifications (most recent)
+  const processedNotifications = notifications.slice(-100).map((n) => {
     let message = n.message
       ? n.message.replace(`${n.from?.username} ${n.from?.username}`, n.from?.username).trim()
       : n.text;
@@ -164,38 +194,39 @@ export default function NotificationsPage() {
                       {n.type === "badge_payment" ? (
                         <span className="font-semibold text-black dark:text-[#a99d6b]">{n.message}</span>
                       ) : n.from ? (
-                        <>
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="inline-flex items-center gap-2 font-bold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline cursor-pointer"
-                              onClick={e => {
-                                e.stopPropagation();
-                                navigate(`/dashboard/community/user/${encodeURIComponent(n.from.username)}`)
-                              }}
-                              title={`View ${n.from.username}'s profile`}
-                            >
-                              {/* Profile image or fallback icon */}
-                              {n._profileImage ? (
-                                <img
-                                  src={n._profileImage}
-                                  alt={n.from.username + "'s profile"}
-                                  className="w-6 h-6 rounded-full object-cover border border-gray-300 dark:border-gray-600"
-                                  onError={e => { e.target.onerror = null; e.target.src = "/default-avatar.png"; }}
-                                />
-                              ) : (
-                                <span className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600">
-                                  <FaUser className="w-4 h-4 text-gray-400" />
-                                </span>
-                              )}
-                              <span className="flex items-center">
-                                {n.from.username}{n.from.verified && <VerifiedBadge />}
-                              </span>
+                        <span
+                          style={{ fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`, fontSize: 'inherit', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
+                        >
+                          {/* Profile image or fallback icon */}
+                          {n._profileImage ? (
+                            <img
+                              src={n._profileImage}
+                              alt={n.from.username + "'s profile"}
+                              className="w-6 h-6 rounded-full object-cover border border-gray-300 dark:border-gray-600"
+                              onError={e => { e.target.onerror = null; e.target.src = "/default-avatar.png"; }}
+                            />
+                          ) : (
+                            <span className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600">
+                              <FaUser className="w-4 h-4 text-gray-400" />
                             </span>
-                            <span className="ml-1">
-                              {n.type === "follow" ? (
-                                <> followed you</>
-                              ) : n.type === "like_post" && n.post ? (
+                          )}
+                          <span className="flex items-center font-bold text-[#1E3A8A] dark:text-[#a99d6b] hover:underline cursor-pointer"
+                            onClick={e => {
+                              e.stopPropagation();
+                              navigate(`/dashboard/community/user/${encodeURIComponent(n.from.username)}`)
+                            }}
+                            title={`View ${n.from.username}'s profile`}
+                          >
+                            {n.from.username}{n.from.verified && <VerifiedBadge />}
+                          </span>
+                          {/* Notification text as part of the same sentence for proper wrapping */}
+                          {n.type === "follow"
+                            ? " followed you"
+                            : n.type === "like_post" && n.post
+                            ? [
+                                " ",
                                 <Link
+                                  key="like_post"
                                   to={`/dashboard/community/post/${n.post}`}
                                   className="hover:text-[#a99d6b] transition-colors"
                                   style={{ textDecoration: "none" }}
@@ -203,8 +234,12 @@ export default function NotificationsPage() {
                                 >
                                   liked your post
                                 </Link>
-                              ) : n.type === "like_comment" && n.post ? (
+                              ]
+                            : n.type === "like_comment" && n.post
+                            ? [
+                                " ",
                                 <Link
+                                  key="like_comment"
                                   to={`/dashboard/community/post/${n.post}${n.comment ? `?commentId=${n.comment}` : ""}`}
                                   className="hover:text-[#a99d6b] transition-colors"
                                   style={{ textDecoration: "none" }}
@@ -212,8 +247,12 @@ export default function NotificationsPage() {
                                 >
                                   liked your comment
                                 </Link>
-                              ) : n.type === "like_reply" && n.post ? (
+                              ]
+                            : n.type === "like_reply" && n.post
+                            ? [
+                                " ",
                                 <Link
+                                  key="like_reply"
                                   to={`/dashboard/community/post/${n.post}${n.comment && n.reply ? `?commentId=${n.comment}&replyId=${n.reply}` : n.comment ? `?commentId=${n.comment}` : n.reply ? `?replyId=${n.reply}` : ""}`}
                                   className="hover:text-[#a99d6b] transition-colors"
                                   style={{ textDecoration: "none" }}
@@ -221,8 +260,12 @@ export default function NotificationsPage() {
                                 >
                                   liked your reply
                                 </Link>
-                              ) : n.type === "comment" && n.post ? (
+                              ]
+                            : n.type === "comment" && n.post
+                            ? [
+                                " ",
                                 <Link
+                                  key="comment"
                                   to={`/dashboard/community/post/${n.post}${n.comment ? `?commentId=${n.comment}` : ""}`}
                                   className="hover:text-[#a99d6b] transition-colors"
                                   style={{ textDecoration: "none" }}
@@ -230,8 +273,12 @@ export default function NotificationsPage() {
                                 >
                                   commented on your post
                                 </Link>
-                              ) : n.type === "reply" && n.post ? (
+                              ]
+                            : n.type === "reply" && n.post
+                            ? [
+                                " ",
                                 <Link
+                                  key="reply"
                                   to={`/dashboard/community/post/${n.post}${n.comment && n.reply ? `?commentId=${n.comment}&replyId=${n.reply}` : n.comment ? `?commentId=${n.comment}` : n.reply ? `?replyId=${n.reply}` : ""}`}
                                   className="hover:text-[#a99d6b] transition-colors"
                                   style={{ textDecoration: "none" }}
@@ -239,8 +286,12 @@ export default function NotificationsPage() {
                                 >
                                   replied to your comment
                                 </Link>
-                              ) : n.type === "mention" && n.post ? (
+                              ]
+                            : n.type === "mention" && n.post
+                            ? [
+                                " ",
                                 <Link
+                                  key="mention"
                                   to={`/dashboard/community/post/${n.post}${n.comment ? `?commentId=${n.comment}` : ""}`}
                                   className="hover:text-[#a99d6b] transition-colors"
                                   style={{ textDecoration: "none" }}
@@ -248,20 +299,17 @@ export default function NotificationsPage() {
                                 >
                                   mentioned you in a comment.
                                 </Link>
-                              ) : (
-                                <> {n.message || n.text || "performed an action"}</>
-                              )}
-                            </span>
-                          </span>
-                        </>
+                              ]
+                            : [" ", n.message || n.text || "performed an action"]}
+                        </span>
                       ) : (
-                        <>{n.message || n.text}</>
+                        n.message || n.text
                       )}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs text-gray-400">
-                      {formatRelativeTime(new Date(n.createdAt).getTime())}
+                      {customFormatRelativeTime(new Date(n.createdAt).getTime())}
                     </span>
                     {!n.read && (
                       <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
