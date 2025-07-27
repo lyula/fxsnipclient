@@ -13,7 +13,7 @@ export default function Navbar() {
   return (
     <nav className="bg-white dark:bg-gray-900 shadow-md">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="text-2xl font-bold text-blue-900 dark:text-white tracking-tight">
+        <Link to="/" className="text-2xl font-bold" style={{ color: '#1e3a8a' }}>
           Journalyze
         </Link>
         <div className="flex items-center gap-6">
