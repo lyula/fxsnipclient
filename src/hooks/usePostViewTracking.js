@@ -9,6 +9,14 @@ export const usePostViewTracking = (post, onView, options = {}) => {
     debounceDelay = 100
   } = options;
 
+  // Helper to extract the true backend _id for view tracking
+  const getOriginalPostId = (post) => {
+    if (!post || !post._id) return null;
+    if (post._id.startsWith('temp-')) return null;
+    // Handle cycled/aliased posts
+    return post._id.includes('_cycle_') ? post._id.split('_cycle_')[0] : post._id;
+  };
+
   const observerRef = useRef(null);
   const timeoutRef = useRef(null);
   const hasViewedRef = useRef(false);
@@ -96,7 +104,11 @@ export const usePostViewTracking = (post, onView, options = {}) => {
       return;
     }
 
-    const originalPostId = post._originalId || post._id.split('_cycle_')[0] || post._id;
+    const originalPostId = getOriginalPostId(post);
+    if (!originalPostId) {
+      // Do not log post._id to avoid leaking info
+      return;
+    }
     // Use localStorage and a single array for viewed posts
     const viewedPostsKey = 'viewedPosts';
     let viewedPosts = [];
@@ -105,7 +117,20 @@ export const usePostViewTracking = (post, onView, options = {}) => {
     } catch {
       viewedPosts = [];
     }
+    // Only log 'Already viewed post' once per post per session
+    const alreadyLoggedKey = '__viewedPostsLogged';
+    let alreadyLogged = [];
+    try {
+      alreadyLogged = JSON.parse(localStorage.getItem(alreadyLoggedKey) || '[]');
+    } catch {
+      alreadyLogged = [];
+    }
     if (viewedPosts.includes(originalPostId)) {
+      if (!alreadyLogged.includes(originalPostId)) {
+        alreadyLogged.push(originalPostId);
+        localStorage.setItem(alreadyLoggedKey, JSON.stringify(alreadyLogged));
+        // No log to avoid leaking info
+      }
       return;
     }
 
@@ -143,9 +168,24 @@ export const usePostViewTracking = (post, onView, options = {}) => {
               if (!viewedPosts.includes(originalPostId)) {
                 viewedPosts.push(originalPostId);
                 localStorage.setItem(viewedPostsKey, JSON.stringify(viewedPosts));
-                onView(post._id);
+                hasViewedRef.current = true;
+                // No log to avoid leaking info
+                onView(originalPostId);
+              } else {
+                hasViewedRef.current = true;
+                // Only log once per post per session
+                let alreadyLogged = [];
+                try {
+                  alreadyLogged = JSON.parse(localStorage.getItem(alreadyLoggedKey) || '[]');
+                } catch {
+                  alreadyLogged = [];
+                }
+                if (!alreadyLogged.includes(originalPostId)) {
+                  alreadyLogged.push(originalPostId);
+                  localStorage.setItem(alreadyLoggedKey, JSON.stringify(alreadyLogged));
+                  // No log to avoid leaking info
+                }
               }
-              hasViewedRef.current = true;
               if (observerRef.current) {
                 observerRef.current.disconnect();
                 observerRef.current = null;

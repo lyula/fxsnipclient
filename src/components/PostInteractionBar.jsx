@@ -19,6 +19,7 @@ export default function PostInteractionBar({
   currentUsername,
   currentUserVerified,
   onShare, // <-- new prop
+  views, // <-- new prop for robust view count
   ...props
 }) {
   return (
@@ -86,7 +87,7 @@ export default function PostInteractionBar({
       </button>
       <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500 ml-auto px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-900/40">
         <FaChartBar className="transition-transform duration-200 hover:scale-110" />
-        <span className="font-semibold">{localPost.views || 0}</span>
+        <span className="font-semibold">{typeof views === 'number' ? views : (localPost.views || 0)}</span>
       </div>
     </div>
   );

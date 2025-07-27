@@ -436,6 +436,8 @@ export default function ChatPost({
   // ChatPost component implementation goes here
   // Move localPost state to the very top before any hooks that use it
   const [localPost, setLocalPost] = useState(post);
+  // Track if we've already viewed this post in this session
+  const [hasViewed, setHasViewed] = useState(false);
   // Remove parent state for editingCommentId and editCommentContent
   // Use only the hook's state for editingCommentId and editCommentContent
   const commentMenuRefs = useRef({});
@@ -578,14 +580,41 @@ export default function ChatPost({
     return String(post.author?._id || post.author) === String(currentUserId);
   };
 
-  useEffect(() => {
-    setLocalPost(prev => ({ ...prev, ...post }));
-    previousContentRef.current = post.content;
-    setShowFullContent(false);
-  }, [post]);
+// Sync localPost with parent post prop, and reset hasViewed if post._id changes
+useEffect(() => {
+  setLocalPost(prev => ({ ...prev, ...post }));
+  previousContentRef.current = post.content;
+  setShowFullContent(false);
+  setHasViewed(false); // Reset view tracking if post changes
+}, [post._id]);
+
+
+// Robust handleView: only call once per session, update localPost.views
+const handleView = async () => {
+  if (hasViewed) return;
+  setHasViewed(true);
+  console.log('[DEBUG][ChatPost] handleView called for post', localPost._id);
+  if (onView) {
+    try {
+      const updatedPost = await onView(localPost._id);
+      console.log('[DEBUG][ChatPost] onView returned:', updatedPost);
+      if (updatedPost && typeof updatedPost.views === 'number') {
+        setLocalPost(prev => ({ ...prev, views: updatedPost.views }));
+        console.log('[DEBUG][ChatPost] localPost.views updated to', updatedPost.views);
+      } else if (typeof post.views === 'number' && post.views !== localPost.views) {
+        // If parent updated the prop but didn't return updatedPost, sync it
+        setLocalPost(prev => ({ ...prev, views: post.views }));
+        console.log('[DEBUG][ChatPost] localPost.views synced from prop', post.views);
+      }
+    } catch (err) {
+      setHasViewed(false); // allow retry if needed
+      console.error('[DEBUG][ChatPost] handleView error:', err);
+    }
+  }
+};
 
   // Use the new post view tracking hook
-  const { attachObserver } = usePostViewTracking(post, onView, {
+  const { attachObserver } = usePostViewTracking(post, handleView, {
     threshold: 0.5,
     rootMargin: '0px',
     enableOnFocus: false,
@@ -1067,6 +1096,7 @@ export default function ChatPost({
           } px-3`}
           style={{ maxWidth: "100%" }}
         >
+          {/* Views count display removed from here; will be shown only in PostInteractionBar */}
           {!(post.image || post.video) && (
             <div className="flex items-center p-2 gap-3">
               <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer"
@@ -1212,6 +1242,8 @@ export default function ChatPost({
               currentUsername={currentUsername}
               currentUserVerified={currentUserVerified}
               onShare={handleShare}
+              // Add views prop for display in the interaction bar
+              views={localPost.views || 0}
             />
           </div>
 

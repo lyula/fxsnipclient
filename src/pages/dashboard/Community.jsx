@@ -784,10 +784,45 @@ function isValidPost(post) {
 }
 
 
+
   // Provide no-op handlers to prevent ReferenceError if not implemented
   const handleReply = () => {};
   const handleComment = () => {};
-  const handleView = () => {};
+
+  // Real view handler: increment post views in backend
+  const handleView = async (postId) => {
+    try {
+      // Only increment for valid posts
+      if (!postId || postId.startsWith('temp-')) return;
+      // Always use the original backend id
+      const originalId = getOriginalPostId(postId);
+      if (!originalId) {
+        console.log('[DEBUG][Community] handleView: invalid originalId for', postId);
+        return;
+      }
+      console.log('[DEBUG][Community] handleView called for post', postId, 'originalId', originalId);
+      // Call backend API
+      const res = await fetch(`${API_BASE}/posts/${originalId}/view`, {
+        method: 'POST',
+        headers: authHeaders,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log('[DEBUG][Community] Backend responded with:', data);
+        // Optionally update post in state with new view count
+        const currentPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
+        if (currentPost && typeof data.views === 'number') {
+          updatePost(postId, { ...currentPost, views: data.views });
+          console.log('[DEBUG][Community] updatePost called for', postId, 'with views', data.views);
+        }
+        return { ...currentPost, views: data.views };
+      } else {
+        console.error('[DEBUG][Community] Backend view increment failed for', postId, res.status);
+      }
+    } catch (e) {
+      console.error('[DEBUG][Community] handleView error:', e);
+    }
+  };
 
   // Custom confirmation for deleting a post
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
