@@ -5,7 +5,7 @@ import { uploadToCloudinary } from "../../../utils/cloudinaryUpload";
 import FloatingMenu from "../../../components/common/FloatingMenu"; 
 import { renderHighlightedContent } from "../../../utils/renderHighlight.jsx";
 
-export default function CreatePostBox({ onPost, onClose }) {
+export default function CreatePostBox({ onPost, onClose, posting, postError }) {
   const [content, setContent] = useState("");
   const [image, setImage] = useState("");
   const [video, setVideo] = useState("");
@@ -188,15 +188,12 @@ export default function CreatePostBox({ onPost, onClose }) {
   };
 
   const handleSubmit = () => {
-    if (!content.trim() || isUploading) return;
+    if (!content.trim() || isUploading || posting) return;
     onPost(content, image, video);
-    setContent("");
-    setImage("");
-    setVideo("");
-    cleanupPreview();
+    // Do not clear fields until post is successful
   };
 
-  const canSubmit = content.trim() && !isUploading;
+  const canSubmit = content.trim() && !isUploading && !posting;
 
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-50 z-40 flex items-center justify-center p-4 overflow-y-auto">
@@ -209,12 +206,23 @@ export default function CreatePostBox({ onPost, onClose }) {
               className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full p-2 shadow-md text-gray-500 hover:text-gray-700 dark:hover:text-white transition-colors"
               onClick={onClose}
               aria-label="Close"
+              disabled={posting}
             >
               <FaTimes size={16} />
             </button>
           </div>
 
           <div className="px-4 pb-4 -mt-2">
+            {posting && (
+              <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-yellow-800 dark:text-yellow-200 text-center font-medium">
+                Posting... Please wait.
+              </div>
+            )}
+            {postError && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-800 dark:text-red-200 text-center font-medium">
+                {postError}
+              </div>
+            )}
             {/* MEDIA PREVIEW SECTION */}
             {(previewFile || image || video) && (
               <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">

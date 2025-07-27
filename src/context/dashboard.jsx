@@ -539,11 +539,6 @@ export function DashboardProvider({ children }) {
     }
   }, [fetchConversations]);
 
-  // Add post optimistically
-  const addPostOptimistically = useCallback((post) => {
-    setCommunityPosts(prev => [post, ...prev]);
-  }, []);
-
   // Update a specific post
   const updatePost = useCallback((postId, updatedData, forceId = null) => {
     React.startTransition(() => {
@@ -1019,8 +1014,6 @@ export function DashboardProvider({ children }) {
     };
   }, [userId]);
 
-  // Remove any duplicate or legacy heartbeat/online status intervals/effects below this point
-
   // Context value
   const value = useMemo(() => ({
     conversations,
@@ -1036,7 +1029,6 @@ export function DashboardProvider({ children }) {
     loadMorePosts,
     loadNewerPosts,
     refreshCommunityFeed,
-    addPostOptimistically,
     updatePost,
     deletePost: deletePostFromList,
     loadingStates,
@@ -1086,7 +1078,6 @@ export function DashboardProvider({ children }) {
     loadMorePosts,
     loadNewerPosts,
     refreshCommunityFeed,
-    addPostOptimistically,
     updatePost,
     deletePostFromList,
     loadingStates,
