@@ -975,53 +975,18 @@ export default function ChatPost({
     onDoubleClick={handleDoubleTap}
     style={{ background: 'none', border: 'none', boxShadow: 'none', borderRadius: 0, touchAction: 'pan-y', margin: 0, marginLeft: 0, padding: 0, paddingLeft: 0 }}
   >
-        {/* Only render VideoUsernameOverlay for videos, and header for images */}
+        {/* Always render VideoUsernameOverlay for videos, and header for images */}
         {post.video ? (
           <>
             <hr className="border-gray-200/50 dark:border-gray-700/50" />
-            {/* For tall (mobile format) videos, show overlay with username/menu on video. For non-tall, show header above and video below. */}
-            {isTallVideo === true ? (
-              <VideoUsernameOverlay
-                post={post}
-                setZoomProfile={setZoomProfile}
-                onEditPost={handleEditPost}
-                onDeletePost={handleDeletePost}
-                canEditDelete={canEditDelete}
-                canDeleteAsPostOwner={canDeleteAsPostOwner}
-              />
-            ) : isTallVideo === false ? (
-              <>
-                <VideoHeaderAboveMedia
-                  post={post}
-                  setZoomProfile={setZoomProfile}
-                  handleEditPost={handleEditPost}
-                  handleDeletePost={handleDeletePost}
-                  canEditDelete={canEditDelete}
-                  canDeleteAsPostOwner={canDeleteAsPostOwner}
-                  showPostMenu={showPostMenu}
-                  setShowPostMenu={setShowPostMenu}
-                  localPost={localPost}
-                  className="mt-0 pt-0 mb-0 !p-0 !m-0" // force no margin/padding above profile image
-                />
-                <div className="media-container w-full flex justify-center items-center overflow-hidden p-0 m-0" style={{ marginLeft: 0, marginRight: 0 }}>
-                  <AutoPlayVideo
-                    src={post.video}
-                    className="w-full h-auto object-contain m-0 p-0"
-                    style={{
-                      display: 'block',
-                      background: 'black',
-                      width: '100vw',
-                      maxWidth: '100vw',
-                      minWidth: '100vw',
-                      borderRadius: 0,
-                      margin: 0,
-                      padding: 0,
-                      objectFit: 'contain',
-                    }}
-                  />
-                </div>
-              </>
-            ) : null}
+            <VideoUsernameOverlay
+              post={post}
+              setZoomProfile={setZoomProfile}
+              onEditPost={handleEditPost}
+              onDeletePost={handleDeletePost}
+              canEditDelete={canEditDelete}
+              canDeleteAsPostOwner={canDeleteAsPostOwner}
+            />
           </>
         ) : post.image ? (
           <>
