@@ -589,12 +589,20 @@ useEffect(() => {
     }
   };
 
-  // Whenever communityPosts changes (new posts loaded), reset rotatedPosts
+  // Whenever communityPosts changes (new posts loaded), reset rotatedPosts with deduplication and valid createdAt
   useEffect(() => {
-    setRotatedPosts(communityPosts);
+    // Remove duplicate posts by _id and filter out invalid createdAt
+    const seen = new Set();
+    const deduped = communityPosts.filter(post => {
+      if (!post || !post._id || seen.has(post._id)) return false;
+      seen.add(post._id);
+      // Only allow posts with valid createdAt
+      return post.createdAt && !isNaN(Date.parse(post.createdAt));
+    });
+    setRotatedPosts(deduped);
     // Debug: Log createdAt for all posts and their authors
-    if (communityPosts && communityPosts.length) {
-      communityPosts.forEach((post, idx) => {
+    if (deduped && deduped.length) {
+      deduped.forEach((post, idx) => {
         console.log(`[NaN-debug] [communityPosts] Post #${idx} _id:`, post._id, 'createdAt:', post.createdAt, 'author.createdAt:', post.author?.createdAt, 'author:', post.author);
         if (Array.isArray(post.comments)) {
           post.comments.forEach((comment, cidx) => {
@@ -617,6 +625,8 @@ const [postError, setPostError] = useState("");
 const handleNewPost = async (content, image, video) => {
   setPosting(true);
   setPostError("");
+  let postCreated = false;
+  let newPost = null;
   try {
     const res = await fetch(`${API_BASE}/posts`, {
       method: "POST",
@@ -624,23 +634,119 @@ const handleNewPost = async (content, image, video) => {
       body: JSON.stringify({ content, image, video }),
     });
     if (res.ok) {
-      const newPost = await res.json();
-      setCommunityPosts(prev => [newPost, ...prev]);
+      newPost = await res.json();
+      await loadFreshContent({ force: true }); // Reload posts from backend
       setActiveTab("forYou");
       setShowCreate(false);
-      if (containerRef.current) {
-        containerRef.current.scrollTop = 0;
-      }
+      setPostError("");
+      postCreated = true;
+      // Always scroll to top after posting
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = 0;
+        }
+        // Scroll to the new post if possible
+        if (newPost && newPost._id) {
+          const el = document.querySelector(`[data-post-id='${newPost._id}']`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('highlight-mention');
+            setTimeout(() => el.classList.remove('highlight-mention'), 2000);
+          }
+        }
+      }, 200);
     } else {
       const errorData = await res.json();
       setPostError(errorData.message || "Failed to post");
     }
   } catch (error) {
-    setPostError("Network error. Check your connection.");
+    console.log('[DEBUG] Entered catch block in handleNewPost', { error, postCreated, newPost });
+    if (!postCreated) {
+      setPostError("Network error. Check your connection.");
+    } else {
+      // Post was created, so do not show error
+      setActiveTab("forYou");
+      setShowCreate(false);
+      setPostError("");
+      // Log error for debugging
+      window.alert && window.alert('[Post Success But Error Thrown] Check browser console for details.');
+      console.error('[Post Success But Error Thrown]', {
+        error,
+        newPost,
+        postCreated,
+        errorString: error?.toString?.(),
+        errorStack: error?.stack,
+      });
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = 0;
+        }
+        if (newPost && newPost._id) {
+          const el = document.querySelector(`[data-post-id='${newPost._id}']`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('highlight-mention');
+            setTimeout(() => el.classList.remove('highlight-mention'), 2000);
+          }
+        }
+      }, 200);
+    }
   } finally {
     setPosting(false);
   }
 };
+
+  // In handleLike, preserve createdAt and essential fields during optimistic update
+const handleLike = useCallback(async (postId) => {
+  const originalPostId = getOriginalPostId(postId);
+  if (!originalPostId) return; // Don't like temp/invalid posts
+
+  // Find the post in either collection
+  const currentPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
+  if (!currentPost || !user) return;
+
+  const currentUserId = user._id || user.id;
+  const isCurrentlyLiked = currentPost.likes?.some(likeId => String(likeId) === String(currentUserId));
+  let newLikes;
+  if (isCurrentlyLiked) {
+    newLikes = currentPost.likes.filter(likeId => String(likeId) !== String(currentUserId));
+  } else {
+    newLikes = [...(currentPost.likes || []), currentUserId];
+  }
+  // Only update likes optimistically, preserve createdAt and all other fields
+  updatePost(postId, {
+    ...currentPost,
+    likes: newLikes,
+    createdAt: currentPost.createdAt,
+    author: currentPost.author,
+  });
+
+  try {
+    const res = await fetch(`${API_BASE}/posts/${originalPostId}/like`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        "Content-Type": "application/json",
+      },
+    });
+    if (res.ok) {
+      const updatedPost = await res.json();
+      // Merge backend likes with the latest post state
+      const latestPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId) || currentPost;
+      updatePost(postId, {
+        ...latestPost,
+        ...updatedPost,
+        createdAt: updatedPost.createdAt || latestPost.createdAt,
+        author: updatedPost.author || latestPost.author,
+      });
+    } else {
+      // Revert optimistic update on error
+      updatePost(postId, { ...currentPost });
+    }
+  } catch (error) {
+    updatePost(postId, { ...currentPost });
+  }
+}, [API_BASE, communityPosts, followingPosts, updatePost, user]);
 
   // Defensive filter for posts with valid createdAt and backend _id
 function isValidPost(post) {
@@ -649,6 +755,40 @@ function isValidPost(post) {
   if (!post.createdAt || isNaN(Date.parse(post.createdAt))) return false;
   return true;
 }
+
+
+  // Provide no-op handlers to prevent ReferenceError if not implemented
+  const handleReply = () => {};
+  const handleComment = () => {};
+  const handleView = () => {};
+
+  // Delete post and update UI immediately
+  const handleDeletePost = async (postId) => {
+    try {
+      await deletePost(postId);
+      // Remove the post from rotatedPosts immediately
+      setRotatedPosts(prev => prev.filter(p => p._id !== postId));
+    } catch (error) {
+      // Optionally show error to user
+      console.error('Failed to delete post:', error);
+    }
+  };
+
+  // Fix: Define handleLoadFreshPosts for the 'Load New Posts' button
+  const handleLoadFreshPosts = async () => {
+    setIsLoadingFresh(true);
+    setShowLoadNewButton(false);
+    try {
+      await loadFreshContent({ force: true });
+      if (containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
+    } catch (error) {
+      // Optionally handle error
+    } finally {
+      setIsLoadingFresh(false);
+    }
+  };
 
   return (
     <div 
