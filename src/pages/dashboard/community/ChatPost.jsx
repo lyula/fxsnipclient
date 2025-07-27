@@ -95,6 +95,7 @@ function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDel
   );
 }
 import React, { useState, useRef, useEffect } from "react";
+import ConfirmModal from '../../../components/common/ConfirmModal';
 import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
 import { getConversations, addCommentToPost, likePost, likeComment, likeReply, editPost, deletePost, editComment, deleteComment, editReply, deleteReply, getPostLikes, searchUsers, sendMessage, incrementPostShareCount } from "../../../utils/api";
@@ -827,17 +828,12 @@ export default function ChatPost({
     setEditPostContent('');
   };
 
-  const handleDeletePost = async () => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      try {
-        await deletePost(localPost._id);
-        if (onDelete) onDelete(localPost._id);
-      } catch (error) {
-        console.error('Failed to delete post:', error);
-      }
-    }
+  // Delegate delete confirmation to parent (Community.jsx)
+  const handleDeletePost = () => {
     setShowPostMenu(false);
+    if (onDelete) onDelete(localPost._id);
   };
+
 
   useEffect(() => {
     if (typeof forceShowComments === 'boolean') setShowComments(forceShowComments);
@@ -920,8 +916,12 @@ export default function ChatPost({
     );
   }
 
+  // Patch VideoUsernameOverlay and VideoHeaderAboveMedia to always use handleDeletePost from ChatPost
+  // (If they receive handleDeletePost as a prop, it will always be the correct one)
+
   return (
     <>
+      {/* No internal delete modal; confirmation handled by parent */}
       {/* Profile Image Zoom Modal */}
       {zoomProfile && zoomProfile.profileImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 transition-opacity">

@@ -1,5 +1,30 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { searchPosts } from "../../utils/api";
+
+// Floating notification component
+function FloatingNotification({ message, onClose }) {
+  const [visible, setVisible] = React.useState(true);
+  React.useEffect(() => {
+    if (!visible) return;
+    const timeout = setTimeout(() => setVisible(false), 2000);
+    return () => clearTimeout(timeout);
+  }, [visible]);
+  React.useEffect(() => {
+    if (!visible) {
+      setTimeout(onClose, 400); // allow fade out
+    }
+  }, [visible, onClose]);
+  return (
+    <div
+      className={`fixed top-6 left-1/2 z-[9999] px-6 py-3 rounded-lg shadow-lg text-white text-base font-semibold transition-all duration-400 pointer-events-none select-none bg-blue-700/90 dark:bg-blue-900/90 transform -translate-x-1/2 ${visible ? 'opacity-100' : 'opacity-0'}`}
+      style={{ minWidth: 200, maxWidth: '90vw', textAlign: 'center' }}
+    >
+      {message}
+    </div>
+  );
+}
+
+// (Floating notification state will be defined inside the component)
+import { searchPosts, deletePost as apiDeletePost } from "../../utils/api";
 import { useLocation } from "react-router-dom";
 import { FaPlus } from "react-icons/fa";
 
@@ -12,6 +37,8 @@ import FloatingPlusButton from "../../components/common/FloatingPlusButton";
 import CreatePostBox from "../../pages/dashboard/community/CreatePostBox";
 
 export default function Community({ user }) {
+  // Floating notification state (must be inside the component)
+  const [floatingNotification, setFloatingNotification] = useState(null);
   // Search state (must be inside the component)
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState(null);
@@ -762,16 +789,45 @@ function isValidPost(post) {
   const handleComment = () => {};
   const handleView = () => {};
 
-  // Delete post and update UI immediately
-  const handleDeletePost = async (postId) => {
+  // Custom confirmation for deleting a post
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleDeletePost = (postId) => {
+    setPendingDeleteId(postId);
+    setDeleteError("");
+  };
+
+  const confirmDeletePost = async () => {
+    if (!pendingDeleteId) return;
     try {
-      await deletePost(postId);
-      // Remove the post from rotatedPosts immediately
-      setRotatedPosts(prev => prev.filter(p => p._id !== postId));
+      const res = await apiDeletePost(pendingDeleteId);
+      if (res && (res.success || res.message?.toLowerCase().includes('deleted'))) {
+        setRotatedPosts(prev => prev.filter(p => p._id !== pendingDeleteId));
+        setPendingDeleteId(null);
+        // Show floating notification
+        let msg = 'Post deleted successfully.';
+        if (res.message && res.message.toLowerCase().includes('media')) {
+          msg = res.message;
+        }
+        setFloatingNotification(msg);
+      } else {
+        setDeleteError(res?.message || "Failed to delete post. Please try again.");
+        console.error('Failed to delete post:', res);
+      }
     } catch (error) {
-      // Optionally show error to user
+      setDeleteError("Failed to delete post. Please try again.");
       console.error('Failed to delete post:', error);
     }
+  };
+      {/* Floating notification */}
+      {floatingNotification && (
+        <FloatingNotification message={floatingNotification} onClose={() => setFloatingNotification(null)} />
+      )}
+
+  const cancelDeletePost = () => {
+    setPendingDeleteId(null);
+    setDeleteError("");
   };
 
   // Fix: Define handleLoadFreshPosts for the 'Load New Posts' button
@@ -809,6 +865,20 @@ function isValidPost(post) {
         flex: 1,
       }}
     >
+      {/* Custom Delete Confirmation Dialog */}
+      {pendingDeleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-xs w-full text-center">
+            <div className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Delete Post?</div>
+            <div className="text-gray-700 dark:text-gray-300 mb-4">Are you sure you want to delete this post? This action cannot be undone.</div>
+            {deleteError && <div className="text-red-500 text-sm mb-2">{deleteError}</div>}
+            <div className="flex justify-center gap-4">
+              <button onClick={confirmDeletePost} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">Delete</button>
+              <button onClick={cancelDeletePost} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Enhanced tabs container and posts container */}
       <div
         style={{
