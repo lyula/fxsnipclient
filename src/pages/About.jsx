@@ -54,7 +54,7 @@ export default function About() {
         <h2 className="text-2xl md:text-3xl font-bold text-[#1E3A8A] dark:text-white mb-4">Our Mission</h2>
         <p className="text-gray-700 dark:text-gray-300 mb-6">
           We believe every trader deserves the tools to grow, learn, and succeed.
-          ForexJournal is here to help you build discipline, master your psychology,
+          Journalyze is here to help you build discipline, master your psychology,
           and achieve consistent results—no matter your experience level.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function About() {
           <span className="text-[#a99d6b] font-semibold">all major payment methods</span>{" "}
           for your convenience—credit/debit cards, PayPal, mobile money, crypto, and more.
           <br />
-          Enjoy seamless, secure payments and instant access to all ForexJournal features.
+          Enjoy seamless, secure payments and instant access to all Journalyze features.
         </p>
         <div className="flex flex-wrap justify-center gap-6 mb-4">
           <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa" className="h-12 w-auto bg-white rounded shadow px-3 py-2 object-contain" />
