@@ -690,20 +690,30 @@ const handleView = async () => {
   // Remove optimistic update: only update UI after backend confirms
   const handleReply = async (postId, replyText, commentId) => {
     setError(null);
+    setLoadingComment(true);
     try {
-      await replyHook.handleReplySubmit(
+      // Await backend save, do not update UI until confirmed
+      const result = await replyHook.handleReply(
         postId,
         replyText,
         commentId,
-        setError,
-        onReply,
-        { optimistic: false }
+        onReply, // onReply callback
+        null,    // onComment (not used for replies)
+        setError
       );
+      // If backend returns updated post, update localPost to ensure all profile images are present
+      if (result && result.updatedPost) {
+        setLocalPost(prev => ({ ...prev, ...result.updatedPost }));
+      } else if (result && result.post) {
+        setLocalPost(prev => ({ ...prev, ...result.post }));
+      }
       // Only close reply input after backend confirms
       setActiveReply(null);
     } catch (error) {
       setError('Failed to post reply. Please try again.');
       console.error('[DEBUG] handleReply: Error posting reply', error);
+    } finally {
+      setLoadingComment(false);
     }
   };
 

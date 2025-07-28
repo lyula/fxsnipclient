@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { likeReply, editReply, deleteReply } from '../utils/api';
+import { likeReply, editReply, deleteReply, addReplyToComment } from '../utils/api';
 
 export const useReplies = (localPost, setLocalPost, currentUserId, currentUsername, currentUserVerified, replyMenuRefs) => {
   const [expandedReplies, setExpandedReplies] = useState({});
@@ -147,29 +147,54 @@ export const useReplies = (localPost, setLocalPost, currentUserId, currentUserna
     }));
   }, []);
 
-  // Handle reply submission
+  // Handle reply submission (calls backend and updates localPost)
   const handleReply = useCallback(async (postId, replyText, commentId, onReply, onComment, setError) => {
     setLoadingReply(prev => ({ ...prev, [commentId]: true }));
     setError?.(null);
     try {
-      if (onReply) {
-        const updatedPost = await onReply(postId, replyText, commentId);
-        if (updatedPost) setLocalPost(updatedPost);
+      // Call backend to add reply
+      const updatedPost = await addReplyToComment(postId, commentId, replyText);
+      if (updatedPost && !updatedPost.error && updatedPost._id) {
+        // Find the parent comment and the new reply
+        const parentComment = (updatedPost.comments || []).find(c => String(c._id) === String(commentId));
+        let newReply = null;
+        if (parentComment && Array.isArray(parentComment.replies) && parentComment.replies.length > 0) {
+          // Find the reply with the highest createdAt or last in array
+          newReply = parentComment.replies[parentComment.replies.length - 1];
+        }
+        // Log the new reply object and its author for debugging profile image issues
+        if (newReply) {
+          // eslint-disable-next-line no-console
+          console.log('[DEBUG][useReplies] New reply after add:', newReply);
+          // eslint-disable-next-line no-console
+          console.log('[DEBUG][useReplies] New reply author:', newReply.author);
+        } else {
+          // eslint-disable-next-line no-console
+          console.log('[DEBUG][useReplies] Could not find new reply after add. Parent comment:', parentComment);
+        }
+        // Sort replies so newest is first (by createdAt desc)
+        if (parentComment && Array.isArray(parentComment.replies)) {
+          parentComment.replies.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        }
+        // Update localPost with sorted replies
+        setLocalPost(updatedPost);
+        // Expand replies for this comment and set to first page (newest at top)
+        setExpandedReplies(prev => ({ ...prev, [commentId]: true }));
+        setReplyPages(prev => ({ ...prev, [commentId]: 1 }));
+        if (onReply) onReply(updatedPost);
+      } else {
+        setError?.(updatedPost?.error || 'Failed to add reply.');
       }
     } catch (e) {
       if (e.message && e.message.includes("Network Error")) {
         setError?.("Network error: Failed to post reply");
-      }
-      if (onComment) {
-        try {
-          const updatedPost = await onComment();
-          if (updatedPost) setLocalPost(updatedPost);
-        } catch (fetchError) {}
+      } else {
+        setError?.("Failed to post reply. Please try again.");
       }
     } finally {
       setLoadingReply(prev => ({ ...prev, [commentId]: false }));
     }
-  }, [currentUserId, currentUsername, currentUserVerified, setLocalPost]);
+  }, [setLocalPost, repliesPerComment]);
 
   // Handle edit reply
   const handleEditReply = useCallback((commentId, replyId, content) => {
