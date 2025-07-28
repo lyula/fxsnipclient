@@ -178,11 +178,28 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
 
   // Always re-run useUserStatus when selectedUserId changes
   const { typing: isUserStatusTyping } = useUserStatus(selectedUserId, token);
+
+  // Robust typing indicator logic with debug logs
   const isRecipientTyping = useMemo(() => {
-    if (!conversationId || !typingUsers[conversationId] || !selectedUserId || !myUserIdStr) return false;
-    const typingArr = Array.isArray(typingUsers[conversationId]) ? typingUsers[conversationId] : [];
-    // Only show typing if the selectedUser is typing (and not me)
-    return typingArr.includes(selectedUserId) && selectedUserId !== myUserIdStr;
+    if (!conversationId || !selectedUserId || !myUserIdStr) return false;
+    let typingArr = typingUsers[conversationId];
+    if (!Array.isArray(typingArr)) typingArr = [];
+    // Normalize all IDs to string for comparison
+    const typingArrStr = typingArr.map(id => (id && typeof id === 'object' && id.toString) ? id.toString() : String(id));
+    const result = typingArrStr.includes(selectedUserId) && selectedUserId !== myUserIdStr;
+    // Debug log for troubleshooting
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log('[TypingIndicator]', {
+        conversationId,
+        typingArr,
+        typingArrStr,
+        selectedUserId,
+        myUserIdStr,
+        result
+      });
+    }
+    return result;
   }, [typingUsers, conversationId, selectedUserId, myUserIdStr]);
 
   // --- Emoji picker logic ---
@@ -253,11 +270,21 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // --- Typing events ---
   const handleInputChange = (e) => {
     setInput(e.target.value);
-    // Always use selectedUser._id as recipientUserId for typing events
-    if (e.target.value.trim()) {
-      sendTyping(conversationId, selectedUser?._id);
-    } else {
-      sendStopTyping(conversationId, selectedUser?._id);
+    // Always send typing events to the other user (never to yourself)
+    const otherUserId = selectedUser?._id ? String(selectedUser._id) : undefined;
+    const myUserIdStr = myUserId ? String(myUserId) : undefined;
+    // Debug log for troubleshooting
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log('[TypingEventCheck]', { otherUserId, myUserIdStr, isSelf: otherUserId === myUserIdStr });
+    }
+    // Only emit if chatting with someone else
+    if (otherUserId && myUserIdStr && otherUserId !== myUserIdStr) {
+      if (e.target.value.trim()) {
+        sendTyping(conversationId, otherUserId);
+      } else {
+        sendStopTyping(conversationId, otherUserId);
+      }
     }
   };
 
