@@ -657,14 +657,27 @@ const handleView = async () => {
   }, [commentHook, replyHook]);
 
   // Use hook-based comment submit (no optimistic update)
+  // Remove optimistic update: only update UI after backend confirms
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
     setLoadingComment(true);
     setError(null);
     try {
-      // Use hook's handleCommentSubmit: (e, comment, setComment, loadingComment, setLoadingComment, setError, onComment)
-      await commentHook.handleCommentSubmit(e, comment, setComment, loadingComment, setLoadingComment, setError, onComment);
+      // Await backend save, do not update UI until confirmed
+      const result = await commentHook.handleCommentSubmit(
+        e,
+        comment,
+        setComment, // Pass the real setComment function
+        loadingComment,
+        setLoadingComment,
+        setError,
+        onComment,
+        { optimistic: false }
+      );
+      // Only clear input after backend confirms
+      // setComment(""); // Now handled in the hook after backend confirms
+      // Optionally, scroll to new comment or handle focus here
     } catch (error) {
       setError('Failed to post comment. Please try again.');
       console.error('[DEBUG] handleCommentSubmit: Error posting comment', error);
@@ -674,12 +687,20 @@ const handleView = async () => {
   };
 
   // Use hook-based reply submit (no optimistic update)
+  // Remove optimistic update: only update UI after backend confirms
   const handleReply = async (postId, replyText, commentId) => {
     setError(null);
-    setActiveReply(null);
     try {
-      // Use hook's handleReplySubmit: (postId, replyText, commentId, setError, onReply)
-      await replyHook.handleReplySubmit(postId, replyText, commentId, setError, onReply);
+      await replyHook.handleReplySubmit(
+        postId,
+        replyText,
+        commentId,
+        setError,
+        onReply,
+        { optimistic: false }
+      );
+      // Only close reply input after backend confirms
+      setActiveReply(null);
     } catch (error) {
       setError('Failed to post reply. Please try again.');
       console.error('[DEBUG] handleReply: Error posting reply', error);

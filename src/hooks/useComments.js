@@ -79,61 +79,21 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
     if (!comment.trim()) return;
     setLoadingComment(true);
     setError(null);
-
-    const tempComment = {
-      _id: `temp-comment-${Date.now()}`,
-      content: comment,
-      user: currentUserId,
-      author: {
-        username: currentUsername,
-        verified: currentUserVerified,
-        profile: currentUserProfile ? { profileImage: currentUserProfile.profileImage } : undefined
-      },
-      createdAt: new Date().toISOString(),
-      replies: [],
-      likes: [],
-    };
-
-    setLocalPost(prev => ({
-      ...prev,
-      comments: [
-        tempComment,
-        ...prev.comments.filter(c => !c._id.startsWith('temp-comment')) // Only remove previous temp comments, leave all others untouched
-      ],
-    }));
-
-    // Reset to first page when adding a new comment
-    setCurrentCommentPage(0);
-
     try {
       const res = await addCommentToPost(localPost._id, comment);
-      if (res && res.comment && !res.error) {
-        setLocalPost(prev => {
-          const updatedComments = prev.comments.map(c => {
-            if (c._id === tempComment._id) {
-              // Only update backend fields, but preserve author and profile from optimistic comment
-              return {
-                ...c,
-                _id: res.comment._id,
-                createdAt: res.comment.createdAt || c.createdAt,
-                replies: res.comment.replies || c.replies,
-                likes: res.comment.likes || c.likes,
-                // Do NOT replace author/profile with backend's author
-              };
-            }
-            return c;
-          });
-          return {
-            ...prev,
-            comments: updatedComments,
-            // Do NOT update post author from backend here
-          };
-        });
-      } else {
-        if (onComment) {
-          const updatedPost = await onComment();
-          if (updatedPost) setLocalPost(updatedPost);
-        }
+      if (res && !res.error && res._id) {
+        setLocalPost(res);
+        setCurrentCommentPage(0);
+      } else if (res && res.comment && !res.error) {
+        // Fallback: if only comment is returned, prepend it
+        setLocalPost(prev => ({
+          ...prev,
+          comments: [res.comment, ...(prev.comments || [])],
+        }));
+        setCurrentCommentPage(0);
+      } else if (onComment) {
+        const updatedPost = await onComment();
+        if (updatedPost) setLocalPost(updatedPost);
       }
     } catch (e) {
       if (e.message && e.message.includes("Network Error")) {
@@ -208,51 +168,18 @@ export const useComments = (localPost, setLocalPost, currentUserId, currentUsern
 
   // Handle like comment with optimistic updates
   const handleLikeComment = useCallback(async (commentId) => {
-    console.log('Comment like clicked:', { commentId, currentUserId });
-    
-    // Find the current comment to determine current like state
-    const currentComment = localPost.comments.find(c => c._id === commentId);
-    if (!currentComment) return;
-    
-    const currentLikes = Array.isArray(currentComment.likes) ? currentComment.likes : [];
-    const wasLiked = currentLikes.map(String).includes(String(currentUserId));
-    
-    console.log('Comment like state change:', { wasLiked, currentLikes, currentUserId });
-    
-    // Optimistically update the UI first
-    setLocalPost(prev => ({
-      ...prev,
-      comments: prev.comments.map(c => {
-        if (c._id === commentId) {
-          return {
-            ...c,
-            likes: wasLiked 
-              ? currentLikes.filter(id => String(id) !== String(currentUserId))
-              : [...currentLikes, currentUserId]
-          };
-        }
-        return c;
-      })
-    }));
-    
     setLoadingCommentLike(prev => ({ ...prev, [commentId]: true }));
-    
     try {
-      await likeComment(localPost._id, commentId);
-      console.log('Comment like API success');
+      const response = await likeComment(localPost._id, commentId);
+      if (response && !response.error && response._id) {
+        setLocalPost(response);
+      }
     } catch (error) {
-      console.error('Failed to like comment, reverting state:', error);
-      // Revert optimistic update on error
-      setLocalPost(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => 
-          c._id === commentId ? currentComment : c
-        )
-      }));
+      console.error('Failed to like comment:', error);
     } finally {
       setLoadingCommentLike(prev => ({ ...prev, [commentId]: false }));
     }
-  }, [localPost._id, localPost.comments, currentUserId, setLocalPost]);
+  }, [localPost._id, setLocalPost]);
 
   return {
     // State

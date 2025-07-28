@@ -151,25 +151,6 @@ export const useReplies = (localPost, setLocalPost, currentUserId, currentUserna
   const handleReply = useCallback(async (postId, replyText, commentId, onReply, onComment, setError) => {
     setLoadingReply(prev => ({ ...prev, [commentId]: true }));
     setError?.(null);
-
-    const tempReply = {
-      _id: `temp-reply-${Date.now()}`,
-      content: replyText,
-      user: currentUserId,
-      author: { username: currentUsername, verified: currentUserVerified },
-      createdAt: new Date().toISOString(),
-      likes: [],
-    };
-
-    setLocalPost(prev => ({
-      ...prev,
-      comments: prev.comments.map(c =>
-        c._id === commentId
-          ? { ...c, replies: [tempReply, ...(c.replies || [])] }
-          : c
-      ),
-    }));
-
     try {
       if (onReply) {
         const updatedPost = await onReply(postId, replyText, commentId);

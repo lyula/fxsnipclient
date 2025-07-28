@@ -2,6 +2,25 @@
 // Component for rendering a single comment and its actions (edit, delete, like, reply, etc.)
 // This file is intended to be imported and used in ChatPost.jsx
 
+// Log all comment objects after a new comment is added (for debugging profile images)
+// This must come after imports!
+function useLogComments(localPost) {
+  useEffect(() => {
+    if (Array.isArray(localPost?.comments)) {
+      console.log('[PostComment] All comments after update:', localPost.comments.map(c => ({
+        _id: c._id,
+        author: c.author,
+        content: c.content,
+        profile: c.author?.profile,
+        profileImage: c.author?.profileImage,
+      })));
+    }
+  }, [localPost?.comments]);
+}
+// postComment.jsx
+// Component for rendering a single comment and its actions (edit, delete, like, reply, etc.)
+// This file is intended to be imported and used in ChatPost.jsx
+
 import React, { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaUser, FaEdit, FaTrash, FaHeart, FaRegHeart, FaSave, FaTimes, FaEllipsisV } from "react-icons/fa";
@@ -10,6 +29,7 @@ import VerifiedBadge from "../../../components/VerifiedBadge";
 import CommentReplies from "./commentReplies";
 import { formatPostDate } from "../../../utils/formatDate";
 import ReactDOM from "react-dom";
+
 
 function isContentEdited(item) {
   if (item.editedAt) return true;
@@ -31,6 +51,22 @@ const EditedIndicator = ({ item, size = "xs" }) => {
   );
 };
 
+// Utility to robustly extract the profile image from any author object, handling all backend structures
+function getProfileImage(author) {
+  if (!author) return '';
+  // Deeply nested (modern)
+  if (author.profile && typeof author.profile === 'object' && author.profile.profileImage) return author.profile.profileImage;
+  // Flat (legacy)
+  if (author.profileImage) return author.profileImage;
+  // Some backends may return profile as a string (url)
+  if (typeof author.profile === 'string') return author.profile;
+  // Some backends may return profileImage as a property of a nested profile object
+  if (author.profile && typeof author.profile === 'object' && author.profile.profileImage) return author.profile.profileImage;
+  // Some backends may return profileImage as a property of the author object directly
+  if (author.profileImage) return author.profileImage;
+  return '';
+}
+
 export default function PostComment({
   comment,
   currentUserId,
@@ -49,6 +85,8 @@ export default function PostComment({
   CommentReplies,
   ...props
 }) {
+  // Log all comment objects after a new comment is added (for debugging profile images)
+  useLogComments(localPost);
   const [showMenu, setShowMenu] = useState(false);
   const menuButtonRef = useRef(null);
   const menuRef = useRef(null);
@@ -171,20 +209,34 @@ export default function PostComment({
       {modal}
       <div key={comment._id} data-comment-id={comment._id} className="mt-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4 w-full max-w-full overflow-x-hidden relative">
         <div className="flex items-start gap-3 w-full min-w-0">
-          <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden cursor-pointer"
-            onClick={() => (comment.author?.profile?.profileImage || comment.author?.profileImage) && setZoomProfile({ profileImage: comment.author.profile?.profileImage || comment.author.profileImage, username: comment.author.username })}
+
+          <div
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden cursor-pointer"
+            onClick={() => {
+              const profileImage = getProfileImage(comment.author);
+              if (profileImage) {
+                setZoomProfile({ profileImage, username: comment.author.username });
+              }
+            }}
             title="View profile picture"
           >
-            {comment.author?.profile?.profileImage || comment.author?.profileImage
-              ? (<img
-                  src={comment.author.profile?.profileImage || comment.author.profileImage}
-                  alt="Profile"
-                  className="w-8 h-8 rounded-full object-cover"
-                  onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
-                />)
-              : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
-            }
+            {(() => {
+              const profileImage = getProfileImage(comment.author);
+              if (profileImage) {
+                return (
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="w-8 h-8 rounded-full object-cover"
+                    onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+                  />
+                );
+              } else {
+                return <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />;
+              }
+            })()}
           </div>
+
           <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-center w-full">
               <div className="flex items-center mb-1">
@@ -254,6 +306,7 @@ export default function PostComment({
                 )}
               </div>
             </div>
+
             <div className="flex-1 min-w-0 overflow-hidden">
               {isEditMode ? (
                 <div className="space-y-2 w-full max-w-full">
@@ -302,12 +355,13 @@ export default function PostComment({
                   aria-label="Like comment"
                 >
                   {Array.isArray(comment.likes) && currentUserId && comment.likes.map(String).includes(String(currentUserId))
-                    ? <FaHeart /> 
+                    ? <FaHeart />
                     : <FaRegHeart />
                   }
                   <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
                 </button>
               </div>
+
               {activeReply === comment._id && (
                 <div className="mt-2 w-full max-w-full overflow-x-hidden">
                   {/* ReplyInput should be passed as a prop or imported if needed */}
@@ -322,6 +376,7 @@ export default function PostComment({
                   )}
                 </div>
               )}
+
               {repliesCount > 0 && (
                 <button
                   onClick={() => replyHook.setExpandedReplies(prev => ({ ...prev, [comment._id]: !isRepliesExpanded }))}
@@ -331,6 +386,7 @@ export default function PostComment({
                   {isRepliesExpanded ? `Hide Replies (${repliesCount})` : `Show Replies (${repliesCount})`}
                 </button>
               )}
+
               {isRepliesExpanded && repliesCount > 0 && (
                 <CommentReplies
                   comment={comment}
@@ -346,6 +402,7 @@ export default function PostComment({
                   localPost={localPost}
                 />
               )}
+
             </div>
           </div>
         </div>

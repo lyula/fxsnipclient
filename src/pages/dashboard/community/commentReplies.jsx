@@ -3,6 +3,14 @@
 // This file is intended to be imported and used in postComment.jsx or ChatPost.jsx
 
 import React, { useState } from "react";
+// Import getProfileImage from postComment.jsx or redefine here for replies
+function getProfileImage(author) {
+  if (!author) return '';
+  if (author.profile && typeof author.profile === 'object' && author.profile.profileImage) return author.profile.profileImage;
+  if (author.profileImage) return author.profileImage;
+  if (typeof author.profile === 'string') return author.profile;
+  return '';
+}
 import { Link } from "react-router-dom";
 import { FaUser, FaEdit, FaTrash, FaHeart, FaRegHeart, FaSave, FaTimes, FaEllipsisV } from "react-icons/fa";
 import FloatingMenu from "../../../components/common/FloatingMenu";
@@ -112,16 +120,21 @@ export default function CommentReplies({
           >
             <div className="flex items-start gap-2 mb-1 flex-nowrap">
               <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 overflow-hidden mt-1">
-                {reply.author?.profile?.profileImage || reply.author?.profileImage ? (
-                  <img
-                    src={reply.author.profile?.profileImage || reply.author.profileImage}
-                    alt="Profile"
-                    className="w-8 h-8 rounded-full object-cover"
-                    onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
-                  />
-                ) : (
-                  <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />
-                )}
+                {(() => {
+                  const profileImage = getProfileImage(reply.author);
+                  if (profileImage) {
+                    return (
+                      <img
+                        src={profileImage}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+                      />
+                    );
+                  } else {
+                    return <FaUser className="text-gray-400 dark:text-gray-500 text-sm" />;
+                  }
+                })()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
