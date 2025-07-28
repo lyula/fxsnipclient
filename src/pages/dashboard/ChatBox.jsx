@@ -172,12 +172,18 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // For input: use context typingUsers to show if anyone else is typing in this conversation
 // ...existing imports...
 
-  const { typing: isUserStatusTyping } = useUserStatus(selectedUser?._id, token);
+  // Defensive: always use string for user IDs
+  const selectedUserId = selectedUser?._id ? String(selectedUser._id) : undefined;
+  const myUserIdStr = myUserId ? String(myUserId) : undefined;
+
+  // Always re-run useUserStatus when selectedUserId changes
+  const { typing: isUserStatusTyping } = useUserStatus(selectedUserId, token);
   const isRecipientTyping = useMemo(() => {
-    if (!conversationId || !typingUsers[conversationId]) return false;
-    // Show typing if anyone in the conversation except me is typing
-    return typingUsers[conversationId].some(id => id !== myUserId);
-  }, [typingUsers, conversationId, myUserId]);
+    if (!conversationId || !typingUsers[conversationId] || !selectedUserId || !myUserIdStr) return false;
+    const typingArr = Array.isArray(typingUsers[conversationId]) ? typingUsers[conversationId] : [];
+    // Only show typing if the selectedUser is typing (and not me)
+    return typingArr.includes(selectedUserId) && selectedUserId !== myUserIdStr;
+  }, [typingUsers, conversationId, selectedUserId, myUserIdStr]);
 
   // --- Emoji picker logic ---
   useEffect(() => {
