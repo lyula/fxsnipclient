@@ -656,108 +656,32 @@ const handleView = async () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [commentHook, replyHook]);
 
-  // Use hook functions for comment operations
+  // Use hook-based comment submit (no optimistic update)
   const handleCommentSubmit = async (e) => {
     e.preventDefault();
     if (!comment.trim()) return;
     setLoadingComment(true);
     setError(null);
-    // Create optimistic comment
-    const tempId = `temp-${Date.now()}`;
-    const optimisticComment = {
-      _id: tempId,
-      content: comment,
-      author: {
-        _id: currentUserId,
-        username: currentUsername,
-        verified: currentUserVerified,
-        profile: { profileImage: null } // Show blank until backend returns real image
-      },
-      createdAt: new Date().toISOString(),
-      sending: true,
-      isOptimistic: true,
-      replies: []
-    };
-    setLocalPost(prev => ({
-      ...prev,
-      comments: [optimisticComment, ...(prev.comments || [])]
-    }));
-    setComment("");
     try {
-      console.log('[DEBUG] handleCommentSubmit: Sending comment to backend', { postId: localPost._id, comment });
-      const response = await onComment?.(localPost._id, comment);
-      console.log('[DEBUG] handleCommentSubmit: Backend response', response);
-      if (response && response.comment) {
-        // Replace optimistic comment with real one
-        setLocalPost(prev => ({
-          ...prev,
-          comments: prev.comments.map(c => c._id === tempId ? response.comment : c)
-        }));
-      }
+      // Use hook's handleCommentSubmit: (e, comment, setComment, loadingComment, setLoadingComment, setError, onComment)
+      await commentHook.handleCommentSubmit(e, comment, setComment, loadingComment, setLoadingComment, setError, onComment);
     } catch (error) {
       setError('Failed to post comment. Please try again.');
-      // Optionally mark as failed
-      setLocalPost(prev => ({
-        ...prev,
-        comments: prev.comments.map(c => c._id === tempId ? { ...c, failed: true, sending: false } : c)
-      }));
       console.error('[DEBUG] handleCommentSubmit: Error posting comment', error);
     } finally {
       setLoadingComment(false);
     }
   };
 
-  // Use hook functions for reply operations
+  // Use hook-based reply submit (no optimistic update)
   const handleReply = async (postId, replyText, commentId) => {
-    // Create optimistic reply
-    const tempId = `temp-${Date.now()}`;
-    const optimisticReply = {
-      _id: tempId,
-      content: replyText,
-      author: {
-        _id: currentUserId,
-        username: currentUsername,
-        verified: currentUserVerified,
-        profile: { profileImage: null }
-      },
-      createdAt: new Date().toISOString(),
-      sending: true,
-      isOptimistic: true
-    };
-    setLocalPost(prev => ({
-      ...prev,
-      comments: prev.comments.map(c =>
-        c._id === commentId
-          ? { ...c, replies: [optimisticReply, ...(c.replies || [])] }
-          : c
-      )
-    }));
+    setError(null);
     setActiveReply(null);
     try {
-      console.log('[DEBUG] handleReply: Sending reply to backend', { postId, commentId, replyText });
-      const response = await onReply?.(postId, replyText, commentId);
-      console.log('[DEBUG] handleReply: Backend response', response);
-      if (response && response.reply) {
-        // Replace optimistic reply with real one
-        setLocalPost(prev => ({
-          ...prev,
-          comments: prev.comments.map(c =>
-            c._id === commentId
-              ? { ...c, replies: c.replies.map(r => r._id === tempId ? response.reply : r) }
-              : c
-          )
-        }));
-      }
+      // Use hook's handleReplySubmit: (postId, replyText, commentId, setError, onReply)
+      await replyHook.handleReplySubmit(postId, replyText, commentId, setError, onReply);
     } catch (error) {
       setError('Failed to post reply. Please try again.');
-      setLocalPost(prev => ({
-        ...prev,
-        comments: prev.comments.map(c =>
-          c._id === commentId
-            ? { ...c, replies: c.replies.map(r => r._id === tempId ? { ...r, failed: true, sending: false } : r) }
-            : c
-        )
-      }));
       console.error('[DEBUG] handleReply: Error posting reply', error);
     }
   };
