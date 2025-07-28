@@ -193,23 +193,25 @@ export function DashboardProvider({ children }) {
     socketRef.current.on("typing", ({ conversationId, userId: typingId }) => {
       console.log('[DashboardContext] typing event received:', { conversationId, typingId });
       setTypingUsers(prev => {
-        const updated = { ...prev };
-        if (!updated[conversationId]) updated[conversationId] = [];
-        if (!updated[conversationId].includes(typingId)) {
-          updated[conversationId].push(typingId);
-        }
-        return updated;
+        // Always create a new array for the updated conversation
+        const prevList = prev[conversationId] || [];
+        if (prevList.includes(typingId)) return prev; // No change
+        return {
+          ...prev,
+          [conversationId]: [...prevList, typingId]
+        };
       });
     });
 
     socketRef.current.on("stop-typing", ({ conversationId, userId: typingId }) => {
       console.log('[DashboardContext] stop-typing event received:', { conversationId, typingId });
       setTypingUsers(prev => {
-        const updated = { ...prev };
-        if (updated[conversationId]) {
-          updated[conversationId] = updated[conversationId].filter(id => id !== typingId);
-        }
-        return updated;
+        const prevList = prev[conversationId] || [];
+        if (!prevList.includes(typingId)) return prev; // No change
+        return {
+          ...prev,
+          [conversationId]: prevList.filter(id => id !== typingId)
+        };
       });
     });
 
