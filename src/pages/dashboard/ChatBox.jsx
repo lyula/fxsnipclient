@@ -11,6 +11,7 @@ import UserStatus from '../../components/UserStatus';
 import { getReplyPreview, findMessageById } from '../../utils/replyUtils.jsx';
 import { uploadToCloudinary } from '../../utils/cloudinaryUpload';
 import MessageMedia, { useAudioRecorder } from '../../components/message/MessageMedia';
+import useUserStatus from '../../hooks/useUserStatus';
 
 // Helper to generate a unique conversationId for 1:1 chats
 function getConversationId(userId1, userId2) {
@@ -166,7 +167,12 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     return msgs;
   }, [inboxMessages, conversationId]);
 
-  // --- Typing indicator from context ---
+  // --- Typing indicator for header (UserStatus) and input (context) ---
+  // For header: useUserStatus detects if selectedUser is typing to me (1:1)
+  // For input: use context typingUsers to show if anyone else is typing in this conversation
+// ...existing imports...
+
+  const { typing: isUserStatusTyping } = useUserStatus(selectedUser?._id, token);
   const isRecipientTyping = useMemo(() => {
     if (!conversationId || !typingUsers[conversationId]) return false;
     // Show typing if anyone in the conversation except me is typing
@@ -682,7 +688,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
               {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
             </button>
-            <UserStatus userId={selectedUser._id} token={token} typing={isRecipientTyping} online={isRecipientOnline} />
+            {/* Use isUserStatusTyping for header (1:1 typing to me) */}
+            <UserStatus userId={selectedUser._id} token={token} typing={isUserStatusTyping} online={isRecipientOnline} />
           </div>
         </div>
         <div
@@ -872,6 +879,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             ))
           )}
         </div>
+        {/* Use isRecipientTyping for indicator above input (anyone else typing in this conversation) */}
         {isRecipientTyping && (
           <div className="flex items-center pl-4 pb-1">
             <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1" style={{ backgroundColor: '#a99d6b', animationDelay: '0ms' }}></span>
