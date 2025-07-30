@@ -654,7 +654,7 @@ function Journal() {
                               <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.strategy}</div>
                             </div>
                             <div>
-                              <span className="font-semibold text-gray-800 dark:text-gray-100">Emotions & Confluences:</span>
+                              <span className="font-semibold text-gray-800 dark:text-gray-100">Emotions:</span>
                               <div className="text-gray-700 dark:text-gray-200 whitespace-pre-line">{entry.emotions}</div>
                             </div>
                             {entry.confluences && (
