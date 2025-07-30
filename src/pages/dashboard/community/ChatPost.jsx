@@ -38,7 +38,7 @@ function AutoPlayVideo({ src, className, style, ...props }) {
 // Header above media for images and for videos not taller than 16:9
 function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDeletePost, canEditDelete, canDeleteAsPostOwner, showPostMenu, setShowPostMenu, localPost }) {
   return (
-    <div className="flex items-center p-2 gap-3 w-full" style={{ background: 'none' }}>
+    <div className="flex items-center p-2 gap-3 w-full" style={{ background: 'none', position: 'relative' }}>
       <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer ml-2"
         onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
         title="View profile picture"
@@ -63,29 +63,31 @@ function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDel
       <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
         {typeof formatPostDate === 'function' ? formatPostDate(post.createdAt) : ''}
       </span>
-      {/* Follow button after time display */}
-      {post.author && (
-        <FollowButton 
-          authorId={post.author._id || post.author}
-          followersHashed={Array.isArray(post.author.followersHashed) ? post.author.followersHashed : []}
-          buttonClass="ml-2"
-          onFollow={() => {
-            // Add current user to author's followersHashed
-            const currentUserId = localStorage.getItem('userId') || (window.user && window.user._id);
-            const { hashId } = require('../../utils/hash');
-            const hashedCurrentUserId = hashId(String(currentUserId));
-            setLocalPost(prev => ({
-              ...prev,
-              author: {
-                ...prev.author,
-                followersHashed: Array.isArray(prev.author.followersHashed)
-                  ? [...prev.author.followersHashed, hashedCurrentUserId]
-                  : [hashedCurrentUserId]
-              }
-            }));
-          }}
-        />
-      )}
+      {/* Move Follow button even closer to the right edge, before the three dots menu */}
+      <div style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
+        {post.author && (
+          <FollowButton 
+            authorId={post.author._id || post.author}
+            followersHashed={Array.isArray(post.author.followersHashed) ? post.author.followersHashed : []}
+            buttonClass="ml-2"
+            onFollow={() => {
+              // Add current user to author's followersHashed
+              const currentUserId = localStorage.getItem('userId') || (window.user && window.user._id);
+              const { hashId } = require('../../utils/hash');
+              const hashedCurrentUserId = hashId(String(currentUserId));
+              setLocalPost(prev => ({
+                ...prev,
+                author: {
+                  ...prev.author,
+                  followersHashed: Array.isArray(prev.author.followersHashed)
+                    ? [...prev.author.followersHashed, hashedCurrentUserId]
+                    : [hashedCurrentUserId]
+                }
+              }));
+            }}
+          />
+        )}
+      </div>
       {(canEditDelete?.(post.author?._id || post.author) || canDeleteAsPostOwner?.()) && (
         <div className="ml-auto relative">
           <button
