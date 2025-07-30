@@ -63,6 +63,29 @@ function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDel
       <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
         {typeof formatPostDate === 'function' ? formatPostDate(post.createdAt) : ''}
       </span>
+      {/* Follow button after time display */}
+      {post.author && (
+        <FollowButton 
+          authorId={post.author._id || post.author}
+          followersHashed={Array.isArray(post.author.followersHashed) ? post.author.followersHashed : []}
+          buttonClass="ml-2"
+          onFollow={() => {
+            // Add current user to author's followersHashed
+            const currentUserId = localStorage.getItem('userId') || (window.user && window.user._id);
+            const { hashId } = require('../../utils/hash');
+            const hashedCurrentUserId = hashId(String(currentUserId));
+            setLocalPost(prev => ({
+              ...prev,
+              author: {
+                ...prev.author,
+                followersHashed: Array.isArray(prev.author.followersHashed)
+                  ? [...prev.author.followersHashed, hashedCurrentUserId]
+                  : [hashedCurrentUserId]
+              }
+            }));
+          }}
+        />
+      )}
       {(canEditDelete?.(post.author?._id || post.author) || canDeleteAsPostOwner?.()) && (
         <div className="ml-auto relative">
           <button
@@ -95,6 +118,7 @@ function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDel
   );
 }
 import React, { useState, useRef, useEffect } from "react";
+import FollowButton from '../../../components/FollowButton';
 import ConfirmModal from '../../../components/common/ConfirmModal';
 import { Link, useLocation } from "react-router-dom";
 import { FaUser, FaEllipsisV, FaEdit, FaTrash, FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar, FaSave, FaTimes, FaSort, FaSpinner } from "react-icons/fa";
@@ -358,6 +382,14 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
           <span className="text-sm text-gray-200 font-medium" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.7)' }}>
             {typeof formatPostDate === 'function' ? formatPostDate(post.createdAt) : ''}
           </span>
+          {/* Follow button after time display */}
+          {post.author && (
+            <FollowButton 
+              authorId={post.author._id || post.author}
+              followersHashed={Array.isArray(post.author.followersHashed) ? post.author.followersHashed : []}
+              buttonClass="ml-2"
+            />
+          )}
         </div>
       </div>
       {/* Three dots menu at top right */}
@@ -988,7 +1020,23 @@ const handleView = async () => {
               className="mt-0 pt-0" // remove top margin and padding for username row
             />
           </>
-        ) : null}
+        ) : (
+          <>
+            <hr className="border-gray-200/50 dark:border-gray-700/50" />
+            <VideoHeaderAboveMedia
+              post={post}
+              setZoomProfile={setZoomProfile}
+              handleEditPost={handleEditPost}
+              handleDeletePost={handleDeletePost}
+              canEditDelete={canEditDelete}
+              canDeleteAsPostOwner={canDeleteAsPostOwner}
+              showPostMenu={showPostMenu}
+              setShowPostMenu={setShowPostMenu}
+              localPost={localPost}
+              className="mt-0 pt-0"
+            />
+          </>
+        )}
 
 
 
@@ -1052,65 +1100,7 @@ const handleView = async () => {
           style={{ maxWidth: "100%" }}
         >
           {/* Views count display removed from here; will be shown only in PostInteractionBar */}
-          {!(post.image || post.video) && (
-            <div className="flex items-center p-2 gap-3">
-              <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer"
-                onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
-                title="View profile picture"
-              >
-                {post.author?.profile?.profileImage
-                  ? (<img
-                      src={post.author.profile.profileImage}
-                      alt="Profile"
-                      className="w-10 h-10 rounded-full object-cover"
-                      onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
-                    />)
-                  : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
-                }
-              </div>
 
-              <Link 
-                to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-                className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
-              >
-                <span className="flex items-center">{post.author?.username || post.user}{(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (<VerifiedBadge />)}</span>
-              </Link>
-              <span className="mx-2 font-bold text-gray-400 dark:text-gray-500">•</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                {formatPostDate(post.createdAt)}
-                <EditedIndicator item={localPost} />
-              </span>
-              
-              {(canEditDelete(post.author?._id || post.author) || canDeleteAsPostOwner()) && (
-                <div className="ml-auto relative">
-                  <button
-                    onClick={() => setShowPostMenu(!showPostMenu)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <FaEllipsisV />
-                  </button>
-                  {showPostMenu && (
-                    <div className="absolute right-0 top-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl z-20 w-48 py-2">
-                      {canEditDelete(post.author?._id || post.author) && (
-                        <button
-                          onClick={handleEditPost}
-                          className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 w-full text-left text-sm text-gray-700 dark:text-gray-300 transition-colors"
-                        >
-                          <FaEdit className="text-blue-500 dark:text-blue-400" /> Edit Post
-                        </button>
-                      )}
-                      <button
-                        onClick={handleDeletePost}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 w-full text-left text-sm text-red-600 dark:text-red-400 transition-colors"
-                      >
-                        <FaTrash className="text-red-500 dark:text-red-400" /> Delete Post
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="mb-4">
             {editingPost ? (
