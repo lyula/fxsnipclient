@@ -340,6 +340,28 @@ export function DashboardProvider({ children }) {
       }));
     });
 
+    // Listen for real-time post view updates
+    socketRef.current.on("post-view-updated", ({ postId, views }) => {
+      console.log('🔌 [CLIENT SOCKET] Received post-view-updated:', { postId, views });
+      
+      // Update the view count in both community posts and following posts
+      setCommunityPosts(prev => {
+        const updated = prev.map(post => 
+          post._id === postId ? { ...post, views } : post
+        );
+        console.log('📊 [CLIENT] Updated community posts for postId:', postId);
+        return updated;
+      });
+      
+      setFollowingPosts(prev => {
+        const updated = prev.map(post => 
+          post._id === postId ? { ...post, views } : post
+        );
+        console.log('📊 [CLIENT] Updated following posts for postId:', postId);
+        return updated;
+      });
+    });
+
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();

@@ -799,12 +799,8 @@ function isValidPost(post) {
       if (res.ok) {
         const data = await res.json();
         console.log('[DEBUG][Community] Backend responded with:', data);
-        // Optionally update post in state with new view count
+        // No manual update needed - real-time socket will handle the update
         const currentPost = communityPosts.find(p => p._id === postId) || followingPosts.find(p => p._id === postId);
-        if (currentPost && typeof data.views === 'number') {
-          updatePost(postId, { ...currentPost, views: data.views });
-          console.log('[DEBUG][Community] updatePost called for', postId, 'with views', data.views);
-        }
         return { ...currentPost, views: data.views };
       } else {
         console.error('[DEBUG][Community] Backend view increment failed for', postId, res.status);
