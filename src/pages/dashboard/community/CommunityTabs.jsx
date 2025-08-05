@@ -35,7 +35,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
       <div className="mx-0">
         <div className="bg-white dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 border-b-0 shadow-sm">
           {/* Mobile-first design - Google Material Design inspired */}
-          <div className="w-full px-3 py-2">
+          <div className="w-full px-2 py-1.5">
             {/* Mobile Layout */}
             <div className="flex md:hidden">
           {!searchMode ? (
@@ -44,7 +44,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
               {/* Left side - Tab navigation */}
               <div className="flex items-center space-x-4 flex-shrink-0">
                 <button
-                  className={`relative py-3 text-base font-semibold transition-all duration-200 ${
+                  className={`relative py-2 text-base font-semibold transition-all duration-200 ${
                     activeTab === "forYou"
                       ? "text-[#a99d6b]"
                       : "text-gray-600 dark:text-gray-400"
@@ -62,7 +62,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                   )}
                 </button>
                 <button
-                  className={`relative py-3 text-base font-semibold transition-all duration-200 ${
+                  className={`relative py-2 text-base font-semibold transition-all duration-200 ${
                     activeTab === "following"
                       ? "text-[#a99d6b]"
                       : "text-gray-600 dark:text-gray-400"
@@ -121,7 +121,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-base placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
+                    className="w-full pl-10 pr-4 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-base placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
                     placeholder="Search posts..."
                     value={searchValue}
                     onChange={e => setSearchValue(e.target.value)}
@@ -156,7 +156,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
           {/* Left side - Tab navigation */}
           <div className="flex items-center space-x-6">
             <button
-              className={`relative py-4 px-2 text-lg font-semibold transition-all duration-200 ${
+              className={`relative py-3 px-2 text-lg font-semibold transition-all duration-200 ${
                 activeTab === "forYou"
                   ? "text-[#a99d6b]"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
@@ -174,7 +174,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
               )}
             </button>
             <button
-              className={`relative py-4 px-2 text-lg font-semibold transition-all duration-200 ${
+              className={`relative py-3 px-2 text-lg font-semibold transition-all duration-200 ${
                 activeTab === "following"
                   ? "text-[#a99d6b]"
                   : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
