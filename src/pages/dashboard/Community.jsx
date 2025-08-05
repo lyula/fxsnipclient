@@ -1168,10 +1168,9 @@ function isValidPost(post) {
           {/* Enhanced "Load New Posts" button - Modern design */}
           {activeTab === 'forYou' && showLoadNewButton && !isLoadingFresh && (
             <button
-              className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-2 px-5 py-3 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-300 text-sm border-2 border-white/20"
+              className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-2 px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-300 text-sm border-2 border-white/20"
               onClick={handleLoadFreshPosts}
             >
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
               <span>Load New Posts</span>
             </button>
           )}

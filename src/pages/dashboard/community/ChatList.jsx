@@ -7,12 +7,12 @@ export default function ChatList({
 }) {
   return (
     <div className="w-full mx-auto overflow-hidden">
-      <div className="bg-white dark:bg-gray-800 mx-2 md:mx-3 rounded-b-xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 border-t-0">
+      <div className="bg-white dark:bg-gray-800 mx-1 md:mx-1 rounded-b-xl shadow-sm border-l border-r border-b border-gray-200/50 dark:border-gray-700/50">
         {posts.filter(post => post && post._id).map((post, idx, arr) => (
           <React.Fragment key={post._id}>
             <div
               ref={el => postRefs && postRefs.current && (postRefs.current[post._id] = el)}
-              className="w-full py-3 overflow-hidden"
+              className="w-full py-2 overflow-hidden"
             >
               <ChatPost
                 post={post}

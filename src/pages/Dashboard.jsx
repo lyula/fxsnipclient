@@ -288,7 +288,7 @@ export default function Dashboard() {
     <div className="fixed inset-0 flex bg-gradient-to-b from-white via-blue-50 to-blue-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300">
       {/* Sidebar */}
       <aside
-        className={`fixed z-30 inset-y-0 left-0 transform
+        className={`fixed z-40 inset-y-0 left-0 transform
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           md:translate-x-0 md:static md:inset-0 transition-all duration-300 ease-in-out
           bg-white dark:bg-gray-900 border-r border-blue-100 dark:border-gray-800 flex flex-col

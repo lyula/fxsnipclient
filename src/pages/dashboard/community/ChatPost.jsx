@@ -38,8 +38,8 @@ function AutoPlayVideo({ src, className, style, ...props }) {
 // Header above media for images and for videos not taller than 16:9
 function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDeletePost, canEditDelete, canDeleteAsPostOwner, showPostMenu, setShowPostMenu, localPost }) {
   return (
-    <div className="flex items-center p-2 gap-3 w-full" style={{ background: 'none', position: 'relative' }}>
-      <div className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer ml-2"
+    <div className="flex items-center p-1.5 gap-3 w-full" style={{ background: 'none', position: 'relative' }}>
+      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 transition-opacity flex-shrink-0 overflow-hidden cursor-pointer ml-2"
         onClick={() => post.author?.profile?.profileImage && setZoomProfile({ profileImage: post.author.profile.profileImage, username: post.author?.username || post.user })}
         title="View profile picture"
       >
@@ -47,7 +47,7 @@ function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDel
           ? (<img
               src={post.author.profile.profileImage}
               alt="Profile"
-              className="w-10 h-10 rounded-full object-cover"
+              className="w-8 h-8 rounded-full object-cover"
               onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
             />)
           : (<FaUser className="text-gray-400 dark:text-gray-500 text-sm" />)
