@@ -333,7 +333,7 @@ export default function PostComment({
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full">
+                <p className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full leading-relaxed">
                   {renderHighlightedContent(comment.content)}
                 </p>
               )}

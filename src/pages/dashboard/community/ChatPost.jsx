@@ -55,7 +55,7 @@ function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDel
       </div>
       <Link 
         to={`/dashboard/community/user/${encodeURIComponent(post.author?.username || post.user)}`}
-        className="font-bold text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
+        className="font-bold text-sm sm:text-base text-gray-800 dark:text-white flex items-center hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors truncate max-w-[120px] sm:max-w-none"
       >
         <span className="flex items-center">{post.author?.username || post.user}{(post.author?.verified || post.verified === true || post.verified === "blue" || post.verified === "grey") && (<VerifiedBadge />)}</span>
       </Link>
@@ -1122,7 +1122,7 @@ const handleView = async () => {
                 </div>
               </div>
             ) : (
-              <div className="block text-base font-normal text-gray-900 dark:text-gray-100 break-words hyphens-auto w-full max-w-full overflow-wrap-anywhere">
+              <div className="block text-sm sm:text-base font-normal text-gray-900 dark:text-gray-100 break-words hyphens-auto w-full max-w-full overflow-wrap-anywhere leading-relaxed">
                 {hasMoreThanThreeLines(localPost.content || '') && !showFullContent ? (
                   <> 
                     <span>

@@ -221,7 +221,7 @@ export default function CommentReplies({
                   </div>
                 ) : (
                   <>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full mt-1">
+                    <p className="text-xs sm:text-sm text-gray-900 dark:text-gray-100 break-words break-keep-all overflow-wrap-normal mb-2 w-full max-w-full mt-1 leading-relaxed">
                       {renderHighlightedContent(reply.content)}
                     </p>
                     <div className="flex items-center gap-4 text-xs">

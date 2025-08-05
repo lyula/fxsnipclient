@@ -555,7 +555,7 @@ useEffect(() => {
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const pullThreshold = 200; // px to trigger refresh (Instagram-like)
   const minDragToTrack = 40; // px before we even start tracking a pull
-  const minDragToShowSpinner = 120; // px before spinner shows
+  const minDragToShowSpinner = 60; // px before spinner shows (reduced for better visibility)
 
   // Pull-to-refresh handlers for forYou tab
   const handleFeedTouchStart = (e) => {
@@ -988,6 +988,56 @@ function isValidPost(post) {
             display: none;
           }
           
+          /* Instagram-like mobile font optimizations */
+          @media (max-width: 640px) {
+            body, .community-container {
+              font-size: 14px;
+              line-height: 1.4;
+            }
+            
+            /* Optimize text rendering for mobile */
+            * {
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+              text-rendering: optimizeLegibility;
+            }
+            
+            /* Mobile-first post content sizing - Instagram-like */
+            .mobile-post-content {
+              font-size: 14px;
+              line-height: 1.43;
+              font-weight: 400;
+              letter-spacing: -0.005em;
+            }
+            
+            /* Mobile comment and reply sizing - Instagram-like */
+            .mobile-comment-text {
+              font-size: 12px;
+              line-height: 1.33;
+              font-weight: 400;
+              letter-spacing: -0.003em;
+            }
+            
+            /* Mobile interaction elements - smaller and more compact */
+            .mobile-interactions {
+              font-size: 13px;
+              font-weight: 500;
+            }
+            
+            /* Username and timestamp optimizations */
+            .mobile-username {
+              font-size: 13px;
+              font-weight: 600;
+              letter-spacing: -0.01em;
+            }
+            
+            .mobile-timestamp {
+              font-size: 11px;
+              font-weight: 400;
+              opacity: 0.8;
+            }
+          }
+          
           /* Modern focus states */
           .modern-focus:focus {
             outline: 2px solid #a99d6b;
@@ -1028,10 +1078,18 @@ function isValidPost(post) {
           onTouchMove={handleFeedTouchMove}
           onTouchEnd={handleFeedTouchEnd}
         >
-          {/* Modern pull-to-refresh indicator */}
+          {/* Enhanced pull-to-refresh indicator with better visibility */}
           {activeTab === 'forYou' && (pullDistance > minDragToShowSpinner || isPullRefreshing) && (
             <div className="w-full flex justify-center items-center py-4" style={{ minHeight: 48 }}>
-              <div className={`w-8 h-8 rounded-full border-3 border-[#a99d6b]/30 border-t-[#a99d6b] animate-spin ${isPullRefreshing ? 'opacity-100' : 'opacity-70'}`}></div>
+              <div 
+                className={`w-8 h-8 rounded-full border-3 border-[#a99d6b]/30 border-t-[#a99d6b] transition-all duration-200 ${
+                  isPullRefreshing ? 'animate-spin opacity-100' : 'opacity-70'
+                }`}
+                style={{
+                  transform: isPullRefreshing ? 'scale(1)' : `scale(${Math.min(pullDistance / 100, 1)})`,
+                  animation: isPullRefreshing ? 'spin 1s linear infinite' : 'none'
+                }}
+              ></div>
             </div>
           )}
 
