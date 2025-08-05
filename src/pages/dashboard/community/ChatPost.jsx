@@ -70,21 +70,6 @@ function VideoHeaderAboveMedia({ post, setZoomProfile, handleEditPost, handleDel
             authorId={post.author._id || post.author}
             followersHashed={Array.isArray(post.author.followersHashed) ? post.author.followersHashed : []}
             buttonClass="ml-2"
-            onFollow={() => {
-              // Add current user to author's followersHashed
-              const currentUserId = localStorage.getItem('userId') || (window.user && window.user._id);
-              const { hashId } = require('../../utils/hash');
-              const hashedCurrentUserId = hashId(String(currentUserId));
-              setLocalPost(prev => ({
-                ...prev,
-                author: {
-                  ...prev.author,
-                  followersHashed: Array.isArray(prev.author.followersHashed)
-                    ? [...prev.author.followersHashed, hashedCurrentUserId]
-                    : [hashedCurrentUserId]
-                }
-              }));
-            }}
           />
         )}
       </div>

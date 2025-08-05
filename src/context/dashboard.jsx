@@ -55,6 +55,108 @@ export function DashboardProvider({ children }) {
   const [cyclingInfo, setCyclingInfo] = useState(null);
   const [followingCyclingInfo, setFollowingCyclingInfo] = useState({});
 
+  // Follow state management
+  const [followedUsers, setFollowedUsers] = useState(new Set());
+
+  // Initialize followed users from backend API when user is logged in
+  useEffect(() => {
+    const currentUserId = localStorage.getItem('userId') || (window.user && window.user._id);
+    const token = localStorage.getItem('token');
+    
+    if (!currentUserId) {
+      setFollowedUsers(new Set()); // Clear if no user
+      console.log('[Dashboard] No user ID found, clearing followed users');
+      return;
+    }
+    
+    if (!token) {
+      setFollowedUsers(new Set()); // Clear if no token
+      console.log('[Dashboard] No authentication token found, clearing followed users');
+      return;
+    }
+
+    // Fetch the user's following list directly from the API
+    const initializeFollowedUsers = async () => {
+      try {
+        console.log('[Dashboard] Attempting to fetch following list from API...');
+        
+        // Import the API function dynamically
+        const { getCurrentUserFollowing } = await import('../utils/api');
+        
+        const followingList = await getCurrentUserFollowing();
+        console.log('[Dashboard] Fetched following list from API:', followingList);
+        
+        if (Array.isArray(followingList) && followingList.length > 0) {
+          // Extract user IDs from the following list
+          const followedUserIds = followingList.map(user => user._id).filter(Boolean);
+          const newFollowedUsers = new Set(followedUserIds);
+          
+          console.log('[Dashboard] Followed users initialized from API:', Array.from(newFollowedUsers));
+          setFollowedUsers(newFollowedUsers);
+        } else {
+          console.log('[Dashboard] No users being followed according to API');
+          setFollowedUsers(new Set());
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error fetching following list from API:', error);
+        
+        // Check if it's an authentication error
+        if (error.message && error.message.includes('401')) {
+          console.warn('[Dashboard] Authentication failed - token may be invalid or expired');
+          // Don't clear tokens here as user might still be able to use other features
+          // Just set followed users to empty for now
+          setFollowedUsers(new Set());
+          return;
+        }
+        
+        // Fallback: try to initialize from post data if available
+        console.log('[Dashboard] Attempting fallback initialization from post data...');
+        try {
+          const { hashId } = await import('../utils/hash');
+          const hashedCurrentUserId = hashId(String(currentUserId));
+          const newFollowedUsers = new Set();
+
+          // Check community posts as fallback
+          communityPosts.forEach((post) => {
+            if (post.author && Array.isArray(post.author.followersHashed)) {
+              if (post.author.followersHashed.includes(hashedCurrentUserId)) {
+                const authorId = post.author._id || post.author;
+                newFollowedUsers.add(authorId);
+              }
+            }
+          });
+
+          // Check following posts as fallback
+          followingPosts.forEach((post) => {
+            if (post.author && Array.isArray(post.author.followersHashed)) {
+              if (post.author.followersHashed.includes(hashedCurrentUserId)) {
+                const authorId = post.author._id || post.author;
+                newFollowedUsers.add(authorId);
+              }
+            }
+          });
+
+          if (newFollowedUsers.size === 0) {
+            console.warn('[Dashboard] Fallback: No followed users found in post data either', {
+              hashedCurrentUserId,
+              communityPostsCount: communityPosts.length,
+              followingPostsCount: followingPosts.length,
+            });
+          } else {
+            console.log('[Dashboard] Fallback: Followed users initialized from post data:', Array.from(newFollowedUsers));
+          }
+
+          setFollowedUsers(newFollowedUsers);
+        } catch (fallbackError) {
+          console.error('[Dashboard] Fallback initialization also failed:', fallbackError);
+          setFollowedUsers(new Set());
+        }
+      }
+    };
+
+    initializeFollowedUsers();
+  }, []);
+
   // Polling state
   const [pollingInterval, setPollingInterval] = useState(null);
   const [lastConversationFetch, setLastConversationFetch] = useState(0);
@@ -101,6 +203,7 @@ export function DashboardProvider({ children }) {
     setUserId(null);
     lastEmittedUserId.current = null;
     setSocketConnected(false);
+    setFollowedUsers(new Set()); // Clear followed users on logout
     setOnlineUsers(new Set()); // Clear online users on logout
   }, [userId]);
 
@@ -1016,6 +1119,151 @@ export function DashboardProvider({ children }) {
     };
   }, [userId]);
 
+  // Follow state management functions
+  const addFollowedUser = useCallback((userId) => {
+    setFollowedUsers(prev => new Set([...prev, userId]));
+  }, []);
+
+  const removeFollowedUser = useCallback((userId) => {
+    setFollowedUsers(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(userId);
+      return newSet;
+    });
+  }, []);
+
+  const isUserFollowed = useCallback((userId) => {
+    return followedUsers.has(userId);
+  }, [followedUsers]);
+
+  // Global follow function that updates all posts by the same author
+  const followUserGlobally = useCallback(async (userId) => {
+    if (!userId) return false;
+    
+    try {
+      // Import the API function dynamically to avoid circular imports
+      const { followUser } = await import("../utils/api");
+      const { hashId } = await import("../utils/hash");
+      
+      await followUser(userId);
+      
+      // Add to followed users set
+      addFollowedUser(userId);
+      
+      // Update all posts by this author in both community and following feeds
+      const currentUserId = localStorage.getItem('userId') || (window.user && window.user._id);
+      if (!currentUserId) return false;
+      
+      const hashedCurrentUserId = hashId(String(currentUserId));
+      
+      // Update community posts
+      setCommunityPosts(prevPosts => {
+        const updatedPosts = prevPosts.map(post => {
+          if (post.author && (post.author._id === userId || post.author === userId)) {
+            return {
+              ...post,
+              author: {
+                ...post.author,
+                followersHashed: Array.isArray(post.author.followersHashed)
+                  ? [...post.author.followersHashed, hashedCurrentUserId]
+                  : [hashedCurrentUserId]
+              }
+            };
+          }
+          return post;
+        });
+        return updatedPosts;
+      });
+      
+      // Update following posts
+      setFollowingPosts(prevPosts => {
+        const updatedPosts = prevPosts.map(post => {
+          if (post.author && (post.author._id === userId || post.author === userId)) {
+            return {
+              ...post,
+              author: {
+                ...post.author,
+                followersHashed: Array.isArray(post.author.followersHashed)
+                  ? [...post.author.followersHashed, hashedCurrentUserId]
+                  : [hashedCurrentUserId]
+              }
+            };
+          }
+          return post;
+        });
+        return updatedPosts;
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error following user globally:', error);
+      return false;
+    }
+  }, [addFollowedUser]);
+
+  // Global unfollow function that updates all posts by the same author
+  const unfollowUserGlobally = useCallback(async (userId) => {
+    if (!userId) return false;
+    
+    try {
+      // Import the API function dynamically to avoid circular imports
+      const { unfollowUser } = await import("../utils/api");
+      const { hashId } = await import("../utils/hash");
+      
+      await unfollowUser(userId);
+      
+      // Remove from followed users set
+      removeFollowedUser(userId);
+      
+      // Update all posts by this author in both community and following feeds
+      const currentUserId = localStorage.getItem('userId') || (window.user && window.user._id);
+      if (!currentUserId) return false;
+      
+      const hashedCurrentUserId = hashId(String(currentUserId));
+      
+      // Update community posts
+      setCommunityPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post.author && (post.author._id === userId || post.author === userId)) {
+            return {
+              ...post,
+              author: {
+                ...post.author,
+                followersHashed: Array.isArray(post.author.followersHashed)
+                  ? post.author.followersHashed.filter(hash => hash !== hashedCurrentUserId)
+                  : []
+              }
+            };
+          }
+          return post;
+        })
+      );
+      
+      // Update following posts
+      setFollowingPosts(prevPosts => 
+        prevPosts.map(post => {
+          if (post.author && (post.author._id === userId || post.author === userId)) {
+            return {
+              ...post,
+              author: {
+                ...post.author,
+                followersHashed: Array.isArray(post.author.followersHashed)
+                  ? post.author.followersHashed.filter(hash => hash !== hashedCurrentUserId)
+                  : []
+              }
+            };
+          }
+          return post;
+        })
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Error unfollowing user globally:', error);
+      return false;
+    }
+  }, [removeFollowedUser]);
+
   // Context value
   const value = useMemo(() => ({
     conversations,
@@ -1066,6 +1314,13 @@ export function DashboardProvider({ children }) {
     forceSocketReconnect,
     getConversationId,
     markAllNotificationsRead,
+    // Follow state management
+    followedUsers,
+    addFollowedUser,
+    removeFollowedUser,
+    isUserFollowed,
+    followUserGlobally,
+    unfollowUserGlobally,
   }), [
     conversations,
     fetchConversations,
@@ -1112,6 +1367,12 @@ export function DashboardProvider({ children }) {
     forceSocketReconnect,
     getConversationId,
     markAllNotificationsRead,
+    followedUsers,
+    addFollowedUser,
+    removeFollowedUser,
+    isUserFollowed,
+    followUserGlobally,
+    unfollowUserGlobally,
   ]);
 
   // Always sync userId from localStorage and emit online status on mount and when dashboard loads

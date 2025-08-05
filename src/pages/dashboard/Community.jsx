@@ -633,22 +633,6 @@ useEffect(() => {
       return post.createdAt && !isNaN(Date.parse(post.createdAt));
     });
     setRotatedPosts(deduped);
-    // Debug: Log createdAt for all posts and their authors
-    if (deduped && deduped.length) {
-      deduped.forEach((post, idx) => {
-        console.log(`[NaN-debug] [communityPosts] Post #${idx} _id:`, post._id, 'createdAt:', post.createdAt, 'author.createdAt:', post.author?.createdAt, 'author:', post.author);
-        if (Array.isArray(post.comments)) {
-          post.comments.forEach((comment, cidx) => {
-            console.log(`[NaN-debug] [communityPosts]   Comment #${cidx} _id:`, comment._id, 'createdAt:', comment.createdAt, 'author.createdAt:', comment.author?.createdAt, 'author:', comment.author);
-            if (Array.isArray(comment.replies)) {
-              comment.replies.forEach((reply, ridx) => {
-                console.log(`[NaN-debug] [communityPosts]     Reply #${ridx} _id:`, reply._id, 'createdAt:', reply.createdAt, 'author.createdAt:', reply.author?.createdAt, 'author:', reply.author);
-              });
-            }
-          });
-        }
-      });
-    }
   }, [communityPosts]);
 
   // Add posting and postError state

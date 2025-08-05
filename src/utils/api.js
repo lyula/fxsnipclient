@@ -75,6 +75,58 @@ export async function unfollowUser(userId) {
   return res.json();
 }
 
+// Get current user's following list
+export async function getCurrentUserFollowing() {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    // First get current user's profile to get username
+    const profileRes = await fetch(`${API_BASE}/user/profile`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    
+    if (!profileRes.ok) {
+      if (profileRes.status === 401) {
+        throw new Error('Authentication failed - token may be invalid or expired (401)');
+      }
+      throw new Error(`Failed to get user profile (${profileRes.status})`);
+    }
+    
+    const profile = await profileRes.json();
+    if (!profile || !profile.username) {
+      throw new Error('No username found in profile');
+    }
+    
+    console.log('[API] Got user profile, fetching following list for:', profile.username);
+    
+    // Then get following list using username
+    const followingRes = await fetch(`${API_BASE}/user/following/${profile.username}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    
+    if (!followingRes.ok) {
+      if (followingRes.status === 401) {
+        throw new Error('Authentication failed - token may be invalid or expired (401)');
+      }
+      throw new Error(`Failed to get following list (${followingRes.status})`);
+    }
+    
+    const data = await followingRes.json();
+    console.log('[API] Following list response:', data);
+    return data.following || [];
+  } catch (error) {
+    console.error('Error fetching current user following:', error);
+    throw error; // Re-throw to let caller handle it
+  }
+}
+
 // Search users by username or email
 export async function searchUsers(query) {
   const res = await fetch(
