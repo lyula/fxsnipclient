@@ -22,7 +22,6 @@ export default function CreatePostBox({ onPost, onClose, posting, postError }) {
   const modalRef = useRef(null);
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
-  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -282,7 +281,7 @@ export default function CreatePostBox({ onPost, onClose, posting, postError }) {
               <div className="relative w-full">
                 {/* Highlight layer */}
                 <div
-                  className="pointer-events-none absolute inset-0 p-3 rounded-lg"
+                  className="pointer-events-none absolute inset-0 p-3 rounded-lg bg-white dark:bg-gray-800"
                   aria-hidden="true"
                   style={{
                     whiteSpace: "pre-wrap",
@@ -309,10 +308,7 @@ export default function CreatePostBox({ onPost, onClose, posting, postError }) {
                 {/* Actual textarea */}
                 <textarea
                   ref={textareaRef}
-                  className={
-                    `w-full rounded-lg border border-gray-300 dark:border-gray-700 p-3 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] resize-none bg-transparent relative min-h-[120px] text-base ` +
-                    (dragging ? 'text-transparent' : 'text-gray-900 dark:text-gray-100')
-                  }
+                  className="w-full rounded-lg border border-gray-300 dark:border-gray-700 p-3 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] resize-none bg-white dark:bg-gray-800 relative min-h-[120px] text-base text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                   placeholder="What's on your mind?"
                   rows={5}
                   value={content}
@@ -320,23 +316,16 @@ export default function CreatePostBox({ onPost, onClose, posting, postError }) {
                   style={{
                     position: "relative",
                     zIndex: 2,
-                    caretColor: dragging ? "transparent" : undefined,
-                    background: "transparent",
                     fontFamily: "inherit",
                     fontSize: "16px",
                     lineHeight: "inherit",
                     letterSpacing: "inherit",
                     fontWeight: "inherit",
-                    WebkitTextFillColor: dragging ? "transparent" : undefined,
                     boxSizing: "border-box",
                     overflowWrap: "break-word",
                     wordBreak: "break-word",
                     whiteSpace: "pre-wrap",
                   }}
-                  onMouseDown={() => setDragging(true)}
-                  onMouseUp={() => setDragging(false)}
-                  onTouchStart={() => setDragging(true)}
-                  onTouchEnd={() => setDragging(false)}
                 />
               </div>
 
