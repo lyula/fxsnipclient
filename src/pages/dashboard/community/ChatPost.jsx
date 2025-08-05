@@ -306,26 +306,57 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
   }, [post.video]);
 
   return (
-    <div style={{ position: 'relative', width: '100vw', maxWidth: '100vw', minWidth: '100vw', margin: 0, padding: 0 }}>
-      <video
-        ref={videoRef}
-        src={post.video}
-        className="w-full h-auto object-contain m-0 p-0"
-        style={{
-          display: 'block',
-          background: 'black',
-          width: '100vw',
-          maxWidth: '100vw',
-          minWidth: '100vw',
-          borderRadius: 0,
-          margin: 0,
-          padding: 0,
-          objectFit: 'contain',
-        }}
-        controls
-        playsInline
-        preload="metadata"
-      />
+    <>
+      {/* Responsive video container styles */}
+      <style>{`
+        .video-container {
+          position: relative;
+          width: 100vw;
+          max-width: 100vw;
+          min-width: 100vw;
+          margin: 0;
+          padding: 0;
+        }
+        
+        @media (min-width: 768px) {
+          .video-container {
+            width: 100%;
+            max-width: 100%;
+            min-width: 100%;
+          }
+        }
+        
+        .video-container video {
+          display: block;
+          background: black;
+          width: 100vw;
+          max-width: 100vw;
+          height: auto;
+          border-radius: 0;
+          margin: 0;
+          padding: 0;
+          object-fit: cover;
+        }
+        
+        @media (min-width: 768px) {
+          .video-container video {
+            width: 100%;
+            max-width: 100%;
+            max-height: 70vh;
+            object-fit: contain;
+          }
+        }
+      `}</style>
+      
+      <div className="video-container">
+        <video
+          ref={videoRef}
+          src={post.video}
+          className="w-full h-auto object-contain m-0 p-0"
+          controls
+          playsInline
+          preload="metadata"
+        />
       {/* Username and avatar, no background */}
       <div
         style={{
@@ -417,6 +448,7 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
         </div>
       )}
     </div>
+    </>
   );
 }
 
