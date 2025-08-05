@@ -995,49 +995,40 @@ const handleView = async () => {
   >
         {/* Always render VideoUsernameOverlay for videos, and header for images */}
         {post.video ? (
-          <>
-            <hr className="border-gray-200/50 dark:border-gray-700/50" />
-            <VideoUsernameOverlay
-              post={post}
-              setZoomProfile={setZoomProfile}
-              onEditPost={handleEditPost}
-              onDeletePost={handleDeletePost}
-              canEditDelete={canEditDelete}
-              canDeleteAsPostOwner={canDeleteAsPostOwner}
-            />
-          </>
+          <VideoUsernameOverlay
+            post={post}
+            setZoomProfile={setZoomProfile}
+            onEditPost={handleEditPost}
+            onDeletePost={handleDeletePost}
+            canEditDelete={canEditDelete}
+            canDeleteAsPostOwner={canDeleteAsPostOwner}
+          />
         ) : post.image ? (
-          <>
-            <hr className="border-gray-200/50 dark:border-gray-700/50" />
-            <VideoHeaderAboveMedia
-              post={post}
-              setZoomProfile={setZoomProfile}
-              handleEditPost={handleEditPost}
-              handleDeletePost={handleDeletePost}
-              canEditDelete={canEditDelete}
-              canDeleteAsPostOwner={canDeleteAsPostOwner}
-              showPostMenu={showPostMenu}
-              setShowPostMenu={setShowPostMenu}
-              localPost={localPost}
-              className="mt-0 pt-0" // remove top margin and padding for username row
-            />
-          </>
+          <VideoHeaderAboveMedia
+            post={post}
+            setZoomProfile={setZoomProfile}
+            handleEditPost={handleEditPost}
+            handleDeletePost={handleDeletePost}
+            canEditDelete={canEditDelete}
+            canDeleteAsPostOwner={canDeleteAsPostOwner}
+            showPostMenu={showPostMenu}
+            setShowPostMenu={setShowPostMenu}
+            localPost={localPost}
+            className="mt-0 pt-0" // remove top margin and padding for username row
+          />
         ) : (
-          <>
-            <hr className="border-gray-200/50 dark:border-gray-700/50" />
-            <VideoHeaderAboveMedia
-              post={post}
-              setZoomProfile={setZoomProfile}
-              handleEditPost={handleEditPost}
-              handleDeletePost={handleDeletePost}
-              canEditDelete={canEditDelete}
-              canDeleteAsPostOwner={canDeleteAsPostOwner}
-              showPostMenu={showPostMenu}
-              setShowPostMenu={setShowPostMenu}
-              localPost={localPost}
-              className="mt-0 pt-0"
-            />
-          </>
+          <VideoHeaderAboveMedia
+            post={post}
+            setZoomProfile={setZoomProfile}
+            handleEditPost={handleEditPost}
+            handleDeletePost={handleDeletePost}
+            canEditDelete={canEditDelete}
+            canDeleteAsPostOwner={canDeleteAsPostOwner}
+            showPostMenu={showPostMenu}
+            setShowPostMenu={setShowPostMenu}
+            localPost={localPost}
+            className="mt-0 pt-0"
+          />
         )}
 
 

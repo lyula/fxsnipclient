@@ -26,105 +26,115 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
 
   return (
     <div
-      className="w-full"
+      className="w-full overflow-hidden"
       id="main-tabs-content"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="flex flex-col items-center w-full">
-        {/* Centered Tab Row */}
-        <div className="flex gap-4 items-center justify-center w-full max-w-3xl mx-auto">
-          {/* Mobile: show search icon with tabs, on click show search bar only */}
-          {/* Desktop: show all elements */}
-          {/* Mobile view logic */}
-          <div className="flex items-center w-full justify-between md:hidden">
-            {!searchMode ? (
-              <div className="flex w-full items-center justify-between">
+      {/* Mobile-first design - Google Material Design inspired */}
+      <div className="w-full max-w-2xl mx-auto px-3 md:px-4">
+        {/* Mobile Layout */}
+        <div className="flex md:hidden">
+          {!searchMode ? (
+            /* Normal Mode - Balanced distribution with centered search */
+            <div className="flex items-center w-full min-w-0">
+              {/* Left side - Tab navigation */}
+              <div className="flex items-center space-x-6 flex-shrink-0">
                 <button
-                  className={`flex-1 pb-2 text-base font-semibold border-b-2 transition-all duration-200 whitespace-nowrap ${
+                  className={`relative py-3 text-lg font-semibold transition-all duration-200 ${
                     activeTab === "forYou"
-                      ? "text-[#d4af37] border-[#d4af37]"
-                      : "text-gray-400 border-transparent hover:text-gray-300"
+                      ? "text-[#a99d6b]"
+                      : "text-gray-600 dark:text-gray-400"
                   }`}
                   onClick={() => setActiveTab("forYou")}
                   role="tab"
                   aria-selected={activeTab === "forYou"}
                 >
                   For you
-                  {newPostsCount > 0 && (
-                    <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full whitespace-nowrap">
-                      {newPostsCount > 99 ? "99+" : newPostsCount}
-                    </span>
+                  {activeTab === "forYou" && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#a99d6b] rounded-full"></div>
+                  )}
+                  {newPostsCount > 0 && activeTab === "forYou" && (
+                    <span className="absolute -top-1 -right-2 w-2 h-2 bg-red-500 rounded-full"></span>
                   )}
                 </button>
                 <button
-                  className={`flex-1 pb-2 text-base font-semibold border-b-2 transition-all duration-200 whitespace-nowrap ${
+                  className={`relative py-3 text-lg font-semibold transition-all duration-200 ${
                     activeTab === "following"
-                      ? "text-[#d4af37] border-[#d4af37]"
-                      : "text-gray-400 border-transparent hover:text-gray-300"
+                      ? "text-[#a99d6b]"
+                      : "text-gray-600 dark:text-gray-400"
                   }`}
                   onClick={() => setActiveTab("following")}
                   role="tab"
                   aria-selected={activeTab === "following"}
                 >
                   Following
+                  {activeTab === "following" && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#a99d6b] rounded-full"></div>
+                  )}
                 </button>
-                <div className="flex-1 flex justify-center">
-                  <button
-                    className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full"
-                    aria-label="Search"
-                    type="button"
-                    onClick={() => setSearchMode(true)}
-                  >
-                    <FaSearch className="w-3 h-3" />
-                  </button>
-                </div>
+              </div>
+              
+              {/* Center - Search icon */}
+              <div className="flex-1 flex justify-center">
+                <button
+                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 dark:bg-white dark:hover:bg-gray-200"
+                  aria-label="Search posts"
+                  onClick={() => setSearchMode(true)}
+                >
+                  <FaSearch className="w-4 h-4 text-gray-600 dark:text-gray-800" />
+                </button>
+              </div>
+              
+              {/* Right side - Create Post button */}
+              <div className="flex items-center flex-shrink-0">
                 {onCreatePost && (
                   <button
                     onClick={onCreatePost}
-                    className="ml-2 px-3 py-2 bg-[#a99d6b] hover:bg-[#968B5C] text-white font-medium rounded-full transition-all duration-200 flex items-center gap-2 text-xs"
+                    className="px-4 py-2 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full transition-colors duration-200 flex items-center space-x-2 text-sm font-medium"
                     aria-label="Create new post"
                   >
-                    <FaPlus className="w-3 h-3" />
-                    <span className="hidden xs:inline sm:inline">Create Post</span>
-                    <span className="inline xs:hidden sm:hidden">Create Post</span>
+                    <FaPlus className="w-3.5 h-3.5" />
+                    <span>Create Post</span>
                   </button>
                 )}
               </div>
-            ) : (
+            </div>
+          ) : (
+            /* Search Mode - Full width search */
+            <div className="flex items-center w-full space-x-3">
               <form
-                className="flex items-center w-full max-w-[180px] pl-1.5"
+                className="flex-1 flex items-center space-x-2"
                 onSubmit={e => {
                   e.preventDefault();
-                  if (searchValue && onSearch) onSearch(searchValue);
-                  setSearchMode(false);
-                  setSearchValue("");
+                  if (searchValue.trim() && onSearch) {
+                    onSearch(searchValue.trim());
+                    setSearchMode(false);
+                    setSearchValue("");
+                  }
                 }}
               >
-                <span className="flex items-center">
-                  <FaSearch className="w-4 h-4 text-gray-500 mr-2" />
-                </span>
-                <input
-                  type="text"
-                  className="px-3 py-2 rounded-full border border-gray-300 focus:outline-none focus:border-[#d4af37] text-sm overflow-x-auto text-black"
-                  style={{ width: "160px" }}
-                  placeholder="Search..."
-                  value={searchValue}
-                  onChange={e => setSearchValue(e.target.value)}
-                  tabIndex={0}
-                  autoFocus
-                />
+                <div className="flex-1 relative">
+                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-base placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
+                    placeholder="Search posts..."
+                    value={searchValue}
+                    onChange={e => setSearchValue(e.target.value)}
+                    autoFocus
+                  />
+                </div>
                 <button
                   type="submit"
-                  className="ml-2 px-3 py-2 bg-[#d4af37] text-white rounded-full text-xs font-medium"
-                  disabled={!searchValue}
-                  style={{ opacity: searchValue ? 1 : 0.5, cursor: searchValue ? 'pointer' : 'not-allowed' }}
+                  className="px-4 py-2.5 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full text-sm font-medium transition-colors duration-200 disabled:opacity-50"
+                  disabled={!searchValue.trim()}
                 >
-                  Go
+                  Search
                 </button>
                 <button
                   type="button"
-                  className="ml-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-medium"
+                  className="px-3 py-2.5 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium transition-colors duration-200"
                   onClick={() => {
                     setSearchMode(false);
                     setSearchValue("");
@@ -134,92 +144,92 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                   Cancel
                 </button>
               </form>
-            )}
-          </div>
-          {/* Desktop view logic */}
-          <div className="hidden md:flex gap-4 items-center justify-center w-full">
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Layout - Clean and spacious */}
+        <div className="hidden md:flex items-center justify-between w-full max-w-2xl mx-auto px-3 md:px-4">
+          {/* Left side - Tab navigation */}
+          <div className="flex items-center space-x-8">
             <button
-              className={`min-w-fit pb-2 text-base font-semibold border-b-2 transition-all duration-200 whitespace-nowrap ${
+              className={`relative py-4 px-2 text-lg font-semibold transition-all duration-200 ${
                 activeTab === "forYou"
-                  ? "text-[#d4af37] border-[#d4af37]"
-                  : "text-gray-400 border-transparent hover:text-gray-300"
+                  ? "text-[#a99d6b]"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               }`}
               onClick={() => setActiveTab("forYou")}
               role="tab"
               aria-selected={activeTab === "forYou"}
             >
               For you
-              {newPostsCount > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full whitespace-nowrap">
-                  {newPostsCount > 99 ? "99+" : newPostsCount}
-                </span>
+              {activeTab === "forYou" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#a99d6b] rounded-full"></div>
+              )}
+              {newPostsCount > 0 && activeTab === "forYou" && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full"></span>
               )}
             </button>
             <button
-              className={`min-w-fit pb-2 text-base font-semibold border-b-2 transition-all duration-200 whitespace-nowrap ${
+              className={`relative py-4 px-2 text-lg font-semibold transition-all duration-200 ${
                 activeTab === "following"
-                  ? "text-[#d4af37] border-[#d4af37]"
-                  : "text-gray-400 border-transparent hover:text-gray-300"
+                  ? "text-[#a99d6b]"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
               }`}
               onClick={() => setActiveTab("following")}
               role="tab"
               aria-selected={activeTab === "following"}
             >
               Following
+              {activeTab === "following" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#a99d6b] rounded-full"></div>
+              )}
             </button>
+          </div>
+          
+          {/* Right side - Search and actions */}
+          <div className="flex items-center space-x-3">
             <form
-              className="flex items-center max-w-[180px] ml-2"
+              className="flex items-center"
               onSubmit={e => {
                 e.preventDefault();
-                if (searchValue && onSearch) onSearch(searchValue);
-                setSearchMode(false);
-                setSearchValue("");
+                if (searchValue.trim() && onSearch) {
+                  onSearch(searchValue.trim());
+                  setSearchValue("");
+                }
               }}
             >
-              <span className="flex items-center">
-                <FaSearch className="w-4 h-4 text-gray-500 mr-2" />
-              </span>
-              <input
-                type="text"
-                className="px-3 py-2 rounded-full border border-gray-300 focus:outline-none focus:border-[#d4af37] text-sm overflow-x-auto text-black"
-                style={{ width: "160px" }}
-                placeholder="Search..."
-                value={searchValue}
-                onChange={e => setSearchValue(e.target.value)}
-                tabIndex={0}
-                autoFocus
-              />
-              {searchValue && (
-                <>
-                  <button
-                    type="submit"
-                    className="ml-2 px-3 py-2 bg-[#d4af37] text-white rounded-full text-xs font-medium"
-                  >
-                    Go
-                  </button>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  className="pl-10 pr-4 py-2 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-sm placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 transition-all duration-200"
+                  placeholder="Search posts..."
+                  value={searchValue}
+                  onChange={e => setSearchValue(e.target.value)}
+                />
+                {searchValue && (
                   <button
                     type="button"
-                    className="ml-2 px-3 py-2 bg-gray-200 text-gray-700 rounded-full text-xs font-medium"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                     onClick={() => {
-                      setSearchMode(false);
                       setSearchValue("");
                       if (onCancelSearch) onCancelSearch();
                     }}
                   >
-                    Cancel
+                    ×
                   </button>
-                </>
-              )}
+                )}
+              </div>
             </form>
             {onCreatePost && (
               <button
                 onClick={onCreatePost}
-                className="ml-2 px-3 py-2 bg-[#a99d6b] hover:bg-[#968B5C] text-white font-medium rounded-full transition-all duration-200 flex items-center gap-2 text-xs sm:text-sm"
+                className="px-4 py-2.5 bg-[#a99d6b] hover:bg-[#968B5C] text-white font-medium rounded-full transition-all duration-200 flex items-center space-x-2 text-sm shadow-sm hover:shadow-md"
                 aria-label="Create new post"
               >
-                <FaPlus className="w-3 h-3" />
-                <span className="hidden xs:inline sm:inline">Create Post</span>
-                <span className="inline xs:hidden sm:hidden">Create Post</span>
+                <FaPlus className="w-4 h-4" />
+                <span>Create Post</span>
               </button>
             )}
           </div>

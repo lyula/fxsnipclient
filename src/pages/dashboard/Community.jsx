@@ -883,7 +883,7 @@ function isValidPost(post) {
 
   return (
     <div 
-      className="w-full h-full flex flex-col overflow-x-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-gray-900 dark:via-slate-900 dark:to-gray-800"
+      className="w-full h-full flex flex-col overflow-hidden bg-gradient-to-br from-slate-50/80 via-white to-blue-50/40 dark:from-gray-900 dark:via-slate-900 dark:to-gray-800"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -894,79 +894,106 @@ function isValidPost(post) {
         fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', Arial, sans-serif`,
         fontSize: 'inherit',
         width: '100%',
+        maxWidth: '100vw',
         boxSizing: 'border-box',
         display: 'flex',
-        justifyContent: 'center',
         flex: 1,
       }}
     >
-      {/* Custom Delete Confirmation Dialog */}
+      {/* Custom Delete Confirmation Dialog - Modern design */}
       {pendingDeleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-xs w-full text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center border border-gray-200 dark:border-gray-700">
             <div className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Delete Post?</div>
-            <div className="text-gray-700 dark:text-gray-300 mb-4">Are you sure you want to delete this post? This action cannot be undone.</div>
-            {deleteError && <div className="text-red-500 text-sm mb-2">{deleteError}</div>}
-            <div className="flex justify-center gap-4">
-              <button onClick={confirmDeletePost} className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition">Delete</button>
-              <button onClick={cancelDeletePost} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition">Cancel</button>
+            <div className="text-gray-600 dark:text-gray-300 mb-6 text-sm leading-relaxed">
+              This action cannot be undone. The post will be permanently removed from your profile and feed.
+            </div>
+            {deleteError && <div className="text-red-500 text-sm mb-4 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg">{deleteError}</div>}
+            <div className="flex gap-3">
+              <button 
+                onClick={cancelDeletePost} 
+                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeletePost} 
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors duration-200"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
       )}
-      {/* Enhanced tabs container and posts container */}
+      
+      {/* Enhanced main container with proper constraints */}
       <div
+        className="w-full max-w-4xl mx-auto min-h-0 flex-1 flex flex-col overflow-hidden"
         style={{
           width: '100%',
-          maxWidth: '900px',
           minHeight: 0,
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          marginLeft: 'auto',
-          marginRight: 'auto',
         }}
       >
-        {/* Responsive video styles for posts */}
+        {/* Responsive media styles - Senior-level optimization */}
         <style>{`
           .community-post-media video,
           .community-post-media img {
             width: 100%;
             height: auto;
-            max-width: 100vw;
-            max-height: 50vh;
+            max-width: calc(100vw - 2rem);
+            max-height: 60vh;
             border-radius: 12px;
             background: #000;
             object-fit: contain;
-            box-shadow: 0 2px 12px 0 rgba(0,0,0,0.08);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             margin: 0 auto;
             display: block;
-            aspect-ratio: 16/9;
           }
           @media (min-width: 768px) {
             .community-post-media video,
             .community-post-media img {
-              max-width: 40vw;
-              max-height: 28vh;
-              aspect-ratio: 16/9;
+              max-width: 600px;
+              max-height: 400px;
+              border-radius: 16px;
             }
           }
-          @media (min-width: 1200px) {
+          @media (min-width: 1024px) {
             .community-post-media video,
             .community-post-media img {
-              max-width: 32vw;
-              max-height: 24vh;
-              aspect-ratio: 16/9;
+              max-width: 640px;
+              max-height: 420px;
             }
           }
+          
+          /* Enhanced scrollbar styling */
+          .hide-scrollbar {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+          }
+          .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+          
+          /* Modern focus states */
+          .modern-focus:focus {
+            outline: 2px solid #a99d6b;
+            outline-offset: 2px;
+          }
         `}</style>
+        
+        {/* Modern sticky header with enhanced design */}
         <div 
-          className={`flex-shrink-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-20 transition-all duration-300 ${
-            showTabs ? "opacity-100 translate-y-0 h-auto py-2" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
+          className={`flex-shrink-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-700/60 sticky top-0 z-30 transition-all duration-300 shadow-sm ${
+            showTabs ? "opacity-100 translate-y-0 h-auto" : "opacity-0 -translate-y-full h-0 overflow-hidden pointer-events-none"
           }`}
           style={{ willChange: "transform, opacity, height" }}
         >
-          <div className="w-full overflow-x-hidden px-2 sm:px-4 md:px-6">
+          <div className="w-full overflow-hidden">
             <CommunityTabs
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -977,12 +1004,11 @@ function isValidPost(post) {
             />
           </div>
         </div>
-        {/* Enhanced posts container */}
+        
+        {/* Enhanced posts container with modern layout */}
         <div 
           ref={activeTab === 'forYou' ? containerRef : followingContainerRef}
-          className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-br from-gray-50 via-blue-50/20 to-purple-50/10 dark:from-gray-800 dark:via-gray-900/90 dark:to-slate-900 hide-scrollbar ${
-            activeTab === 'following' ? '' : 'py-0'
-          }`}
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-gray-50/50 via-white to-gray-50/30 dark:from-gray-900/50 dark:via-gray-800 dark:to-gray-900/30 hide-scrollbar"
           style={{ 
             overscrollBehavior: 'contain',
             WebkitOverflowScrolling: 'touch',
@@ -993,26 +1019,30 @@ function isValidPost(post) {
           onTouchMove={handleFeedTouchMove}
           onTouchEnd={handleFeedTouchEnd}
         >
-          {/* Pull-to-refresh spinner */}
+          {/* Modern pull-to-refresh indicator */}
           {activeTab === 'forYou' && (pullDistance > minDragToShowSpinner || isPullRefreshing) && (
-            <div className="w-full flex justify-center items-center pt-2 pb-1" style={{ minHeight: 32 }}>
-              <div className={`animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 ${isPullRefreshing ? '' : 'opacity-60'}`}></div>
+            <div className="w-full flex justify-center items-center py-4" style={{ minHeight: 48 }}>
+              <div className={`w-8 h-8 rounded-full border-3 border-[#a99d6b]/30 border-t-[#a99d6b] animate-spin ${isPullRefreshing ? 'opacity-100' : 'opacity-70'}`}></div>
             </div>
           )}
 
           {showCreate && (
-            <CreatePostBox
-              onPost={handleNewPost}
-              onClose={() => setShowCreate(false)}
-              posting={posting}
-              postError={postError}
-            />
+            <div className="w-full max-w-2xl mx-auto px-3 md:px-4 pt-4">
+              <CreatePostBox
+                onPost={handleNewPost}
+                onClose={() => setShowCreate(false)}
+                posting={posting}
+                postError={postError}
+              />
+            </div>
           )}
 
           {showLoading ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              Loading posts...
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <div className="w-10 h-10 rounded-full border-3 border-[#a99d6b]/30 border-t-[#a99d6b] animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400 font-medium">Loading posts...</p>
+              </div>
             </div>
           ) : activeTab === "following" ? (
             <FollowingFeed 
@@ -1028,37 +1058,59 @@ function isValidPost(post) {
             />
           ) : searchQuery ? (
             searchLoading ? (
-              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                Searching posts...
+              <div className="flex justify-center items-center py-20">
+                <div className="text-center">
+                  <div className="w-10 h-10 rounded-full border-3 border-[#a99d6b]/30 border-t-[#a99d6b] animate-spin mx-auto mb-4"></div>
+                  <p className="text-gray-600 dark:text-gray-400 font-medium">Searching posts...</p>
+                </div>
               </div>
             ) : searchResults && searchResults.length > 0 ? (
-              <div className="w-full max-w-full overflow-x-hidden">
-                <ChatList
-                  posts={searchResults}
-                  postRefs={postRefs}
-                  onReply={handleReply}
-                  onComment={handleComment}
-                  onLike={handleLike}
-                  onView={handleView}
-                  onDelete={handleDeletePost}
-                  currentUserId={user?._id}
-                  currentUsername={user?.username}
-                  currentUserVerified={user?.verified}
-                />
-              </div>
+              <ChatList
+                posts={searchResults}
+                postRefs={postRefs}
+                onReply={handleReply}
+                onComment={handleComment}
+                onLike={handleLike}
+                onView={handleView}
+                onDelete={handleDeletePost}
+                currentUserId={user?._id}
+                currentUsername={user?.username}
+                currentUserVerified={user?.verified}
+              />
             ) : (
-              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-                No posts found for "{searchQuery}".
+              <div className="flex justify-center items-center py-20 px-6">
+                <div className="text-center max-w-sm">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                    <FaSearch className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 text-lg font-medium mb-2">No posts found</p>
+                  <p className="text-gray-500 dark:text-gray-500 text-sm">
+                    Try searching with different keywords or check your spelling
+                  </p>
+                </div>
               </div>
             )
           ) : rotatedPosts.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400">
-              No posts yet. Be the first to share something!
+            <div className="flex justify-center items-center py-20 px-6">
+              <div className="text-center max-w-sm">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-[#a99d6b]/20 to-[#a99d6b]/10 flex items-center justify-center">
+                  <FaPlus className="w-6 h-6 text-[#a99d6b]" />
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 text-lg font-medium mb-2">No posts yet</p>
+                <p className="text-gray-500 dark:text-gray-500 text-sm mb-4">
+                  Be the first to share something with the community
+                </p>
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="px-6 py-2.5 bg-[#a99d6b] hover:bg-[#968B5C] text-white font-medium rounded-full transition-colors duration-200"
+                >
+                  Create Post
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <div className="w-full max-w-full overflow-x-hidden">
+              <div className="pb-4">
                 <ChatList
                   posts={rotatedPosts.filter(isValidPost)}
                   postRefs={postRefs}
@@ -1074,43 +1126,49 @@ function isValidPost(post) {
               </div>
               
               {isLoadingMore && (
-                <div className="p-6 text-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">Loading more posts...</p>
+                <div className="flex justify-center items-center py-8">
+                  <div className="text-center">
+                    <div className="w-6 h-6 rounded-full border-2 border-[#a99d6b]/30 border-t-[#a99d6b] animate-spin mx-auto mb-2"></div>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Loading more posts...</p>
+                  </div>
                 </div>
               )}
               
               {!isLoadingMore && communityPosts.length > 0 && (
-                <div className="p-6 text-center">
-                  {cyclingInfo?.isRepeatingContent ? (
-                    <p className="text-blue-400 dark:text-blue-300 text-xs">
-                      🔄 Cycling through posts (Round {cyclingInfo.completedCycles + 1})
-                    </p>
-                  ) : hasMore ? (
-                    <p className="text-gray-400 dark:text-gray-500 text-xs">
-                      ∞ Scroll for more content ∞
-                    </p>
-                  ) : (
-                    <p className="text-gray-400 dark:text-gray-500 text-xs">
-                      🔄 Scroll more to see posts again
-                    </p>
-                  )}
+                <div className="flex justify-center items-center py-8">
+                  <div className="text-center">
+                    {cyclingInfo?.isRepeatingContent ? (
+                      <p className="text-[#a99d6b] dark:text-[#a99d6b] text-xs font-medium">
+                        🔄 Cycling through posts (Round {cyclingInfo.completedCycles + 1})
+                      </p>
+                    ) : hasMore ? (
+                      <p className="text-gray-400 dark:text-gray-500 text-xs font-medium">
+                        ∞ Scroll for more content ∞
+                      </p>
+                    ) : (
+                      <p className="text-gray-400 dark:text-gray-500 text-xs font-medium">
+                        🔄 Scroll more to see posts again
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </>
           )}
 
-          {/* Enhanced load new posts buttons - ONLY for forYou tab */}
+          {/* Enhanced "Load New Posts" button - Modern design */}
           {activeTab === 'forYou' && showLoadNewButton && !isLoadingFresh && (
             <button
-              className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 sm:px-4 sm:py-2.5 bg-blue-500 text-white rounded-full font-medium shadow-lg hover:bg-blue-600 transition-all duration-300 animate-pulse whitespace-nowrap text-xs sm:text-sm"
+              className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 flex items-center space-x-2 px-5 py-3 bg-[#a99d6b] hover:bg-[#968B5C] text-white rounded-full font-medium shadow-lg hover:shadow-xl transition-all duration-300 text-sm border-2 border-white/20"
               onClick={handleLoadFreshPosts}
             >
-              Load New Posts
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+              <span>Load New Posts</span>
             </button>
           )}
         </div>
-        {/* Mobile floating create post button */}
+        
+        {/* Modern floating action button */}
         <FloatingPlusButton onClick={() => setShowCreate(true)} visible={showTabs} />
       </div>
     </div>
