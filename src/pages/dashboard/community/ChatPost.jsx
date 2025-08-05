@@ -503,6 +503,11 @@ export default function ChatPost({
   // Fix: get search from useLocation
   const { search } = useLocation();
 
+  // Sync post prop changes with localPost state (for real-time updates)
+  useEffect(() => {
+    setLocalPost(post);
+  }, [post]);
+
   // Example: get top 4 people from your conversation list (replace with real data)
   useEffect(() => {
     async function fetchConversations() {

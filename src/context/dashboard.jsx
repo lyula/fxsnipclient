@@ -229,6 +229,7 @@ export function DashboardProvider({ children }) {
     });
     // On connect, emit user-online and get-online-users
     socketRef.current.on("connect", () => {
+      console.log('🔌 [SOCKET] Connected successfully! Socket ID:', socketRef.current?.id);
       setSocketConnected(true);
       socketRef.current.emit("user-online", { userId });
       socketRef.current.emit("get-online-users");
@@ -343,21 +344,31 @@ export function DashboardProvider({ children }) {
     // Listen for real-time post view updates
     socketRef.current.on("post-view-updated", ({ postId, views }) => {
       console.log('🔌 [CLIENT SOCKET] Received post-view-updated:', { postId, views });
+      console.log('📊 [CLIENT STATE] Current communityPosts count:', communityPosts.length);
+      console.log('📊 [CLIENT STATE] Current followingPosts count:', followingPosts.length);
       
       // Update the view count in both community posts and following posts
       setCommunityPosts(prev => {
-        const updated = prev.map(post => 
-          post._id === postId ? { ...post, views } : post
-        );
-        console.log('📊 [CLIENT] Updated community posts for postId:', postId);
+        console.log('📊 [CLIENT] Updating community posts for postId:', postId);
+        const updated = prev.map(post => {
+          if (post._id === postId) {
+            console.log('✅ [CLIENT] Found matching community post:', post._id, 'updating views from', post.views, 'to', views);
+            return { ...post, views };
+          }
+          return post;
+        });
         return updated;
       });
       
       setFollowingPosts(prev => {
-        const updated = prev.map(post => 
-          post._id === postId ? { ...post, views } : post
-        );
-        console.log('📊 [CLIENT] Updated following posts for postId:', postId);
+        console.log('📊 [CLIENT] Updating following posts for postId:', postId);
+        const updated = prev.map(post => {
+          if (post._id === postId) {
+            console.log('✅ [CLIENT] Found matching following post:', post._id, 'updating views from', post.views, 'to', views);
+            return { ...post, views };
+          }
+          return post;
+        });
         return updated;
       });
     });

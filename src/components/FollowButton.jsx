@@ -74,8 +74,7 @@ export default function FollowButton({ authorId, followersHashed, buttonClass = 
 
   return (
     <button
-      className={`ml-2 px-3 py-1 rounded-full font-semibold transition text-xs ${buttonClass} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-      style={{ backgroundColor: '#a99d6b', color: 'white', ...style }}
+      className={`ml-2 px-3 py-1 rounded-md font-semibold transition text-xs bg-transparent border border-white text-white hover:bg-white hover:text-gray-900 ${buttonClass} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
       onClick={handleFollow}
       disabled={isLoading}
     >
