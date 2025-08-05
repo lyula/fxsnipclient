@@ -1135,6 +1135,17 @@ const handleView = async () => {
                 box-shadow: none !important;
                 border: none !important;
               }
+              
+              @media (min-width: 768px) {
+                .media-container img {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  min-width: 100% !important;
+                  max-height: 70vh !important;
+                  object-fit: contain !important;
+                }
+              }
+              
               .media-container {
                 overflow: hidden !important;
                 width: 100vw !important;
@@ -1148,6 +1159,15 @@ const handleView = async () => {
                 box-shadow: none !important;
                 position: relative !important;
               }
+              
+              @media (min-width: 768px) {
+                .media-container {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  min-width: 100% !important;
+                }
+              }
+              
               @media (prefers-color-scheme: dark) {
                 .media-container,
                 .media-container img {
