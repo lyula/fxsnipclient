@@ -137,9 +137,6 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
 
   return (
     <div className="relative bg-white dark:bg-gray-900 border-b border-blue-100 dark:border-gray-800 p-2 mb-2 rounded">
-      <div className="flex justify-between items-center mb-2">
-        <span className="font-semibold text-[#1E3A8A] dark:text-[#a99d6b]">Search users to follow</span>
-      </div>
       <div className="flex gap-2 mb-2">
         <input
           type="text"

@@ -940,23 +940,33 @@ function isValidPost(post) {
       >
         {/* Responsive media styles - Senior-level optimization */}
         <style>{`
+          .community-post-media {
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            display: block;
+            box-sizing: border-box;
+          }
           .community-post-media video,
           .community-post-media img {
-            width: 100%;
-            height: auto;
-            max-width: calc(100vw - 2rem);
+            width: 100% !important;
+            height: auto !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
             max-height: 60vh;
             border-radius: 12px;
             background: #000;
             object-fit: contain;
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            margin: 0 auto;
+            margin: 0;
+            padding: 0;
             display: block;
+            box-sizing: border-box;
+            flex-shrink: 1;
           }
           @media (min-width: 768px) {
             .community-post-media video,
             .community-post-media img {
-              max-width: 600px;
               max-height: 400px;
               border-radius: 16px;
             }
@@ -964,7 +974,6 @@ function isValidPost(post) {
           @media (min-width: 1024px) {
             .community-post-media video,
             .community-post-media img {
-              max-width: 640px;
               max-height: 420px;
             }
           }
