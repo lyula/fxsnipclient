@@ -1070,6 +1070,24 @@ function isValidPost(post) {
           </div>
         </div>
         
+        {/* Pull-to-refresh spinner in the space between tabs and posts */}
+        {activeTab === 'forYou' && (pullDistance > minDragToShowSpinner || isPullRefreshing) && (
+          <div className="w-full flex flex-col justify-center items-center py-6 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200/30 dark:border-gray-700/30">
+            <div 
+              className={`w-8 h-8 rounded-full border-3 border-[#a99d6b]/30 border-t-[#a99d6b] transition-all duration-200 ${
+                isPullRefreshing ? 'animate-spin opacity-100' : 'opacity-70'
+              }`}
+              style={{
+                transform: isPullRefreshing ? 'scale(1)' : `scale(${Math.min(pullDistance / 100, 1)})`,
+                animation: isPullRefreshing ? 'spin 1s linear infinite' : 'none'
+              }}
+            ></div>
+            <span className="mt-2 text-sm text-[#a99d6b] font-medium">
+              {isPullRefreshing ? 'Loading more posts...' : 'Pull to refresh'}
+            </span>
+          </div>
+        )}
+        
         {/* Enhanced posts container with modern layout */}
         <div 
           ref={activeTab === 'forYou' ? containerRef : followingContainerRef}
@@ -1084,24 +1102,6 @@ function isValidPost(post) {
           onTouchMove={handleFeedTouchMove}
           onTouchEnd={handleFeedTouchEnd}
         >
-          {/* Enhanced pull-to-refresh indicator with better visibility */}
-          {activeTab === 'forYou' && (pullDistance > minDragToShowSpinner || isPullRefreshing) && (
-            <div className="w-full flex justify-center items-center py-4" style={{ minHeight: 48 }}>
-              <div 
-                className={`w-8 h-8 rounded-full border-3 border-[#a99d6b]/30 border-t-[#a99d6b] transition-all duration-200 ${
-                  isPullRefreshing ? 'animate-spin opacity-100' : 'opacity-70'
-                }`}
-                style={{
-                  transform: isPullRefreshing ? 'scale(1)' : `scale(${Math.min(pullDistance / 100, 1)})`,
-                  animation: isPullRefreshing ? 'spin 1s linear infinite' : 'none'
-                }}
-              ></div>
-              {isPullRefreshing && (
-                <span className="ml-3 text-sm text-[#a99d6b] font-medium">Refreshing...</span>
-              )}
-            </div>
-          )}
-
           {showCreate && (
             <div className="w-full max-w-2xl mx-auto px-3 md:px-4 pt-4">
               <CreatePostBox
