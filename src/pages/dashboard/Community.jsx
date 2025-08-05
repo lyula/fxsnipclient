@@ -1078,8 +1078,7 @@ function isValidPost(post) {
                 isPullRefreshing ? 'animate-spin opacity-100' : 'opacity-70'
               }`}
               style={{
-                transform: isPullRefreshing ? 'scale(1)' : `scale(${Math.min(pullDistance / 100, 1)})`,
-                animation: isPullRefreshing ? 'spin 1s linear infinite' : 'none'
+                transform: isPullRefreshing ? 'scale(1)' : `scale(${Math.min(pullDistance / 100, 1)})`
               }}
             ></div>
             <span className="mt-2 text-sm text-[#a99d6b] font-medium">
