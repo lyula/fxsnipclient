@@ -31,9 +31,9 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Container with minimal margins for edge-to-edge feel */}
-      <div className="mx-1 md:mx-1">
-        <div className="bg-white dark:bg-gray-800 border border-gray-200/50 dark:border-gray-700/50 border-b-0 shadow-sm">
+      {/* Container with no margins for true edge-to-edge feel */}
+      <div className="mx-0">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 border-b-0 shadow-sm">
           {/* Mobile-first design - Google Material Design inspired */}
           <div className="w-full px-3 py-2">
             {/* Mobile Layout */}
