@@ -587,7 +587,8 @@ useEffect(() => {
     }
     if (pullDistance > pullThreshold) {
       setIsPullRefreshing(true);
-      setPullDistance(0);
+      // Don't reset pullDistance immediately - keep it for spinner visibility
+      
       // Clear search state and results when refreshing
       if (searchQuery || searchResults) {
         setSearchQuery("");
@@ -610,7 +611,12 @@ useEffect(() => {
         // If new posts, reset rotation
         setRotatedPosts(communityPosts);
       }
-      setTimeout(() => setIsPullRefreshing(false), 800);
+      
+      // Reset pullDistance and loading state after delay
+      setTimeout(() => {
+        setIsPullRefreshing(false);
+        setPullDistance(0);
+      }, 800);
     } else {
       setPullDistance(0);
     }
@@ -1090,6 +1096,9 @@ function isValidPost(post) {
                   animation: isPullRefreshing ? 'spin 1s linear infinite' : 'none'
                 }}
               ></div>
+              {isPullRefreshing && (
+                <span className="ml-3 text-sm text-[#a99d6b] font-medium">Refreshing...</span>
+              )}
             </div>
           )}
 
