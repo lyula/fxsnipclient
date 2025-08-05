@@ -964,6 +964,67 @@ const handleView = async () => {
         </div>
       )}
 
+      {/* Post Image Zoom Modal */}
+      {zoomProfile && zoomProfile.postImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-70 transition-opacity duration-300"
+          onClick={(e) => {
+            // Only close if clicking directly on the background overlay
+            if (e.target === e.currentTarget) {
+              setZoomProfile(null);
+            }
+          }}
+        >
+          <div className="absolute inset-0 flex items-center justify-center p-4">
+            <div className="relative">
+              <img
+                src={zoomProfile.postImage}
+                alt="Post Image Zoom"
+                className="max-w-[95vw] max-h-[95vh] object-contain shadow-2xl cursor-grab active:cursor-grabbing"
+                style={{
+                  display: 'block',
+                  borderRadius: '12px',
+                  minWidth: '70vw',
+                  minHeight: '70vh',
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onLoad={(e) => {
+                  // Ensure the image is displayed at full resolution
+                  e.target.style.transition = 'transform 0.3s ease-in-out';
+                }}
+                onDragStart={(e) => e.preventDefault()}
+              />
+              {/* Desktop close button - bottom right */}
+              <button
+                className="hidden md:flex absolute bottom-6 right-6 text-white text-lg font-bold rounded-full w-12 h-12 items-center justify-center transition-all duration-200 z-10 shadow-lg"
+                style={{ backgroundColor: '#a99d6b' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#968a5c'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#a99d6b'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomProfile(null);
+                }}
+                aria-label="Close image zoom"
+              >
+                ←
+              </button>
+              {/* Mobile close button - bottom left */}
+              <button
+                className="flex md:hidden absolute bottom-6 left-6 text-white text-lg font-bold rounded-full w-12 h-12 items-center justify-center transition-all duration-200 z-10 shadow-lg"
+                style={{ backgroundColor: '#a99d6b' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomProfile(null);
+                }}
+                aria-label="Close image zoom"
+              >
+                ←
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {floatingHearts.map(heart => (
         <FloatingHeart
           key={heart.id}
@@ -1064,14 +1125,26 @@ const handleView = async () => {
             `}</style>
             <div
               ref={postRef}
-              className="media-container w-full flex justify-center items-center overflow-hidden p-0 m-0"
+              className="media-container w-full flex justify-center items-center overflow-hidden p-0 m-0 cursor-zoom-in relative group"
               style={{ marginLeft: 0, marginRight: 0 }}
+              onClick={() => {
+                // Use the original image URL, or try to get a higher resolution version
+                const imageUrl = post.image;
+                setZoomProfile({ postImage: imageUrl });
+              }}
+              title="Click to view full size image"
             >
               <MediaDisplay 
                 imageUrl={post.image}
                 altText={`${post.author?.username || 'User'}'s post media`}
-                className={'w-full h-auto object-contain max-h-[60vh] m-0 p-0'}
+                className={'w-full h-auto object-contain max-h-[60vh] m-0 p-0 transition-transform duration-200 group-hover:scale-[1.02]'}
               />
+              {/* Zoom indicator overlay */}
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                <div className="bg-white bg-opacity-90 text-gray-800 px-3 py-1 rounded-full text-sm font-medium shadow-lg">
+                  🔍 Click to zoom
+                </div>
+              </div>
             </div>
           </>
         )}
