@@ -1013,17 +1013,23 @@ const handleView = async () => {
               <img
                 src={zoomProfile.postImage}
                 alt="Post Image Zoom"
-                className="max-w-[95vw] max-h-[95vh] object-contain shadow-2xl cursor-grab active:cursor-grabbing"
+                className="object-contain shadow-2xl cursor-grab active:cursor-grabbing"
                 style={{
                   display: 'block',
                   borderRadius: '12px',
-                  minWidth: '70vw',
-                  minHeight: '70vh',
+                  width: 'auto',
+                  height: 'auto',
+                  maxWidth: '90vw',
+                  maxHeight: '90vh',
+                  minWidth: 'unset',
+                  minHeight: 'unset',
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onLoad={(e) => {
                   // Ensure the image is displayed at full resolution
                   e.target.style.transition = 'transform 0.3s ease-in-out';
+                  console.log('Zoomed image loaded:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+                  console.log('Displayed size:', e.target.width, 'x', e.target.height);
                 }}
                 onDragStart={(e) => e.preventDefault()}
               />
@@ -1181,8 +1187,10 @@ const handleView = async () => {
               className="media-container w-full flex justify-center items-center overflow-hidden p-0 m-0 cursor-zoom-in relative group"
               style={{ marginLeft: 0, marginRight: 0 }}
               onClick={() => {
-                // Use the original image URL, or try to get a higher resolution version
+                // Try to get the highest quality version of the image
                 const imageUrl = post.image;
+                // Log the image URL for debugging
+                console.log('Opening zoom for image:', imageUrl);
                 setZoomProfile({ postImage: imageUrl });
               }}
               title="Click to view full size image"
@@ -1191,10 +1199,23 @@ const handleView = async () => {
                 imageUrl={post.image}
                 altText={`${post.author?.username || 'User'}'s post media`}
                 className={'w-full h-auto object-contain max-h-[60vh] m-0 p-0 transition-transform duration-200 group-hover:scale-[1.02]'}
+                onZoom={(imageUrl) => {
+                  console.log('Opening zoom via MediaDisplay expand icon for image:', imageUrl);
+                  setZoomProfile({ postImage: imageUrl });
+                }}
               />
               {/* Zoom indicator overlay */}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                <div className="bg-white bg-opacity-90 text-gray-800 px-3 py-1 rounded-full text-sm font-medium shadow-lg">
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 opacity-0 group-hover:opacity-100">
+                <div 
+                  className="absolute bottom-4 right-4 bg-white bg-opacity-90 text-gray-800 px-3 py-1 rounded-full text-sm font-medium shadow-lg cursor-pointer hover:bg-opacity-100 transition-all duration-200"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Try to get the highest quality version of the image
+                    const imageUrl = post.image;
+                    console.log('Opening zoom via indicator for image:', imageUrl);
+                    setZoomProfile({ postImage: imageUrl });
+                  }}
+                >
                   🔍 Click to zoom
                 </div>
               </div>

@@ -58,7 +58,8 @@ export default function MediaDisplay({
   altText = "Media content", 
   caption = "", 
   showCaptionOverlay = false,
-  className = ""
+  className = "",
+  onZoom = null // Add onZoom prop to override internal modal behavior
 }) {
   const { isMuted, setIsMuted } = useContext(MuteContext);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -648,7 +649,15 @@ export default function MediaDisplay({
                 loading="lazy"
                 onError={() => setMediaError(true)}
                 style={{ cursor: isImageCropped ? "zoom-in" : "default" }}
-                onClick={() => isImageCropped && setShowImageModal(true)}
+                onClick={() => {
+                  if (isImageCropped) {
+                    if (onZoom) {
+                      onZoom(imageUrl);
+                    } else {
+                      setShowImageModal(true);
+                    }
+                  }
+                }}
                 onLoad={() => {
                   if (imgRef.current) {
                     const cropped =
@@ -662,7 +671,11 @@ export default function MediaDisplay({
                 <FaExpand
                   onClick={e => {
                     e.stopPropagation();
-                    setShowImageModal(true);
+                    if (onZoom) {
+                      onZoom(imageUrl);
+                    } else {
+                      setShowImageModal(true);
+                    }
                   }}
                   className="absolute bottom-2 right-2 cursor-pointer shadow-md"
                   size={28}
