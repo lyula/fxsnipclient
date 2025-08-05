@@ -332,6 +332,7 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
           width: 100vw;
           max-width: 100vw;
           height: auto;
+          max-height: 74vh;
           border-radius: 0;
           margin: 0;
           padding: 0;
