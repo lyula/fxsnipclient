@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import ChatPost from "./ChatPost";
 import ProfileSuggestions from "../../../components/ProfileSuggestions";
 
@@ -8,6 +8,43 @@ export default function ChatList({
   currentUser // Add currentUser prop for profile suggestions
 }) {
   const [dismissedSuggestions, setDismissedSuggestions] = useState(new Set());
+  const [suggestionIntervals, setSuggestionIntervals] = useState(() => {
+    // Get stored intervals or initialize with first suggestion at 5
+    const stored = localStorage.getItem('profileSuggestion_intervals');
+    return stored ? JSON.parse(stored) : [5]; // First suggestion always at index 4 (5th post)
+  });
+
+  // Generate next random interval (5, 7, or 10 posts)
+  const generateNextInterval = () => {
+    const intervals = [5, 7, 10];
+    return intervals[Math.floor(Math.random() * intervals.length)];
+  };
+
+  // Update suggestion intervals when posts change
+  useEffect(() => {
+    const postCount = posts.filter(post => post && post._id).length;
+    const lastInterval = suggestionIntervals[suggestionIntervals.length - 1] || 0;
+    
+    // If we need more intervals for the current post count
+    if (postCount > lastInterval) {
+      let newIntervals = [...suggestionIntervals];
+      let currentInterval = lastInterval;
+      
+      // Generate intervals until we cover all posts
+      while (currentInterval < postCount) {
+        const nextRandomInterval = generateNextInterval();
+        currentInterval += nextRandomInterval;
+        if (currentInterval <= postCount) {
+          newIntervals.push(currentInterval);
+        }
+      }
+      
+      if (newIntervals.length > suggestionIntervals.length) {
+        setSuggestionIntervals(newIntervals);
+        localStorage.setItem('profileSuggestion_intervals', JSON.stringify(newIntervals));
+      }
+    }
+  }, [posts.length, suggestionIntervals]);
 
   // Handle dismissing suggestion sections
   const handleDismissSuggestion = (index) => {
@@ -46,8 +83,11 @@ export default function ChatList({
         </React.Fragment>
       );
 
-      // Add profile suggestions after every 5 posts (indices 4, 9, 14, etc.)
-      if ((idx + 1) % 5 === 0 && currentUser && !dismissedSuggestions.has(idx)) {
+      // Add profile suggestions at randomized intervals
+      // Check if current position (idx + 1) matches any of our suggestion intervals
+      const shouldShowSuggestion = suggestionIntervals.includes(idx + 1);
+      
+      if (shouldShowSuggestion && currentUser && !dismissedSuggestions.has(idx)) {
         items.push(
           <React.Fragment key={`suggestions-${idx}`}>
             <div className="w-full overflow-hidden">

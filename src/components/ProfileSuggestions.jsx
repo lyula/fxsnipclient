@@ -25,7 +25,7 @@ function getProfileImage(user) {
 /**
  * ProfileSuggestions component
  * Shows suggested profiles for users to follow
- * Appears after every 5 posts in the feed
+ * Appears at randomized intervals in the feed (first at 5 posts, then random 5/7/10)
  */
 export default function ProfileSuggestions({ 
   currentUser, 
