@@ -142,14 +142,29 @@ export default function Community({ user }) {
           
           let finalPosition = targetScrollPosition;
           
-          // If we have a suggestionOffset, adjust for better visibility
+          // If we have a suggestionOffset, position to show the suggestion card optimally
           if (suggestionOffset !== undefined) {
-            finalPosition = Math.max(0, suggestionOffset - 120); // Show suggestion with good margin
+            // Position the suggestion card near the top of the viewport for best visibility
+            // Use a smaller offset so the suggestion card appears in the upper portion of the screen
+            finalPosition = Math.max(0, suggestionOffset - 80); 
+            
+            console.log('📍 Adjusting for suggestion visibility:', {
+              originalOffset: suggestionOffset,
+              adjustedPosition: finalPosition,
+              adjustment: suggestionOffset - finalPosition
+            });
           }
           
           // Ensure position is within bounds
           const maxScroll = container.scrollHeight - container.clientHeight;
           finalPosition = Math.min(finalPosition, maxScroll);
+          
+          console.log('📐 Final scroll position:', {
+            calculated: finalPosition,
+            maxScroll,
+            containerHeight: container.scrollHeight,
+            clientHeight: container.clientHeight
+          });
           
           container.scrollTop = finalPosition;
           

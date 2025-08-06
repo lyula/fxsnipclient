@@ -53,15 +53,20 @@ export default function ProfileSuggestions({
         // Find the scroll container (the one with overflow-y-auto)
         const container = suggestionElement.closest('.overflow-y-auto');
         if (container) {
-          // Calculate the offset from the top of the container to this suggestion component
+          // Calculate the exact offset from the top of the scrollable content to this suggestion component
           const containerRect = container.getBoundingClientRect();
           const suggestionRect = suggestionElement.getBoundingClientRect();
           
-          // Use the current scroll position plus the relative position
+          // Use the current scroll position plus the relative position within the viewport
           suggestionOffset = container.scrollTop + (suggestionRect.top - containerRect.top);
           
-          // Add a small buffer to account for any margin/padding
-          suggestionOffset = Math.max(0, suggestionOffset - 20);
+          console.log('📍 Capturing suggestion offset:', {
+            containerScrollTop: container.scrollTop,
+            suggestionTop: suggestionRect.top,
+            containerTop: containerRect.top,
+            relativeDifference: suggestionRect.top - containerRect.top,
+            finalOffset: suggestionOffset
+          });
         }
       }
       
