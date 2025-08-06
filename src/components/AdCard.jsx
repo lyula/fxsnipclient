@@ -118,13 +118,16 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
     // Handle video (can be string or array)
     const videoUrl = Array.isArray(ad.video) ? ad.video[0] : ad.video;
     
+    // Determine media height based on context
+    const mediaHeight = isInFeed ? "h-48" : "h-40"; // Larger height for feed ads
+    
     if (videoUrl && !videoError) {
       return (
         <div className="relative group">
           <video
             id={`video-${ad._id}`}
             src={videoUrl}
-            className="w-full h-40 object-cover rounded-lg"
+            className={`w-full ${mediaHeight} object-cover rounded-lg`}
             muted={isMuted}
             playsInline
             loop
@@ -174,7 +177,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
           <img
             src={imageUrl}
             alt={ad.title}
-            className="w-full h-40 object-cover rounded-lg"
+            className={`w-full ${mediaHeight} object-cover rounded-lg`}
             onError={(e) => {
               e.target.src = '/api/placeholder/400/200?text=Image+Not+Found';
             }}
@@ -185,7 +188,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
     
     // No media
     return (
-      <div className="w-full h-40 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+      <div className={`w-full ${mediaHeight} bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center`}>
         <div className="text-gray-500 dark:text-gray-400 text-center">
           <FaEye className="mx-auto mb-2 text-2xl" />
           <p>No media</p>
@@ -214,7 +217,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
   };
 
   return (
-    <div className={`rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 h-[520px] flex flex-col ${
+    <div className={`rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 ${isInFeed ? 'h-auto' : 'h-[520px]'} flex flex-col ${
       isInFeed 
         ? 'bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20' 
         : 'bg-white dark:bg-gray-800'
@@ -260,12 +263,12 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
       )}
 
       {/* Media Section */}
-      <div className="p-4 pb-0">
+      <div className={isInFeed ? "p-3 pb-0" : "p-4 pb-0"}>
         {renderMedia()}
       </div>
 
       {/* Content Section */}
-      <div className="p-4 flex-1 flex flex-col justify-between">
+      <div className={`${isInFeed ? "p-3" : "p-4"} flex-1 flex flex-col justify-between`}>
         {!isInFeed && showDetails ? (
           /* Detailed View - only shows back button and hidden details */
           <div className="space-y-2">
@@ -353,7 +356,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
           </div>
         ) : (
           /* Normal View - default content */
-          <div className="flex flex-col h-full justify-between">
+          <div className={`flex flex-col h-full ${isInFeed ? '' : 'justify-between'}`}>
             <div>
               {/* Status Badge - Admin only */}
               {!isInFeed && (
@@ -371,7 +374,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
                 {ad.title}
               </h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm mb-3 line-clamp-2">
+              <p className={`text-gray-600 dark:text-gray-300 text-sm ${isInFeed ? 'mb-2' : 'mb-3'} line-clamp-2`}>
                 {ad.description}
               </p>
 
@@ -414,7 +417,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 mt-auto">
+            <div className={`flex gap-2 ${isInFeed ? 'mt-2' : 'mt-auto'}`}>
               {isInFeed ? (
                 /* Feed view - show CTA button */
                 <button
