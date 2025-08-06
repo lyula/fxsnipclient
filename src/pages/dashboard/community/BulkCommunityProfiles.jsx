@@ -175,7 +175,7 @@ function FilterSelector({ activeFilter, onFilterChange }) {
   ];
 
   return (
-    <div className="flex flex-wrap gap-2 mb-6">
+    <div className="flex flex-wrap gap-2 mb-1">
       {filters.map(({ key, label, icon: Icon }) => (
         <button
           key={key}
@@ -209,9 +209,14 @@ export default function BulkCommunityProfiles({ currentUser }) {
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   const searchTimeoutRef = useRef(null);
   const containerRef = useRef(null);
+  const headerRef = useRef(null);
+  const lastScrollY = useRef(0);
+  const scrollTimeout = useRef(null);
 
   // Function to handle returning to community with preserved state
   const handleReturn = useCallback(() => {
@@ -250,7 +255,8 @@ export default function BulkCommunityProfiles({ currentUser }) {
         search,
         filter,
         page: currentPage,
-        limit: 20
+        limit: 20,
+        sort: filter === 'recent' ? 'newest' : undefined
       });
 
       if (resetPage) {
@@ -315,30 +321,96 @@ export default function BulkCommunityProfiles({ currentUser }) {
     );
   };
 
-  // Infinite scroll handler
+  // Infinite scroll handler with header visibility logic
   useEffect(() => {
     const handleScroll = () => {
-      if (!containerRef.current || loadingMore || !hasMore) return;
+      if (!containerRef.current) return;
 
       const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
       const scrollBottom = scrollHeight - scrollTop - clientHeight;
 
-      if (scrollBottom < 500) {
+      // Handle infinite scroll (only if not already loading and has more)
+      if (scrollBottom < 500 && !loadingMore && hasMore) {
         loadUsers(false);
       }
+
+      // Handle header visibility on mobile
+      const currentScrollY = scrollTop;
+      const scrollDifference = currentScrollY - lastScrollY.current;
+
+      // Clear any existing timeout
+      if (scrollTimeout.current) {
+        clearTimeout(scrollTimeout.current);
+      }
+
+      // Only apply header hiding on mobile/tablet (screens smaller than lg)
+      if (isMobile) {
+        // Minimum scroll distance to trigger header hide/show
+        const minScrollDistance = 3; // Very sensitive detection
+        
+        if (Math.abs(scrollDifference) > minScrollDistance) {
+          if (scrollDifference > 0 && currentScrollY > 30) {
+            // Scrolling down and past initial scroll - hide header
+            setHeaderVisible(false);
+          } else if (scrollDifference < 0) {
+            // Scrolling up - show header immediately
+            setHeaderVisible(true);
+          }
+        }
+
+        // Show header after scroll stops (debounced) - only if currently hidden
+        if (!headerVisible) {
+          scrollTimeout.current = setTimeout(() => {
+            setHeaderVisible(true);
+          }, 600); // Faster response
+        }
+      } else {
+        // Always show header on desktop
+        setHeaderVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
     };
 
     const container = containerRef.current;
     if (container) {
       container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => container.removeEventListener('scroll', handleScroll);
+      return () => {
+        container.removeEventListener('scroll', handleScroll);
+        if (scrollTimeout.current) {
+          clearTimeout(scrollTimeout.current);
+        }
+      };
     }
-  }, [loadUsers, loadingMore, hasMore]);
+  }, [loadUsers, loadingMore, hasMore, headerVisible]);
+
+  // Handle window resize to reset header visibility on desktop
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setHeaderVisible(true);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
-    <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-900">
+    <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-gray-900 relative">
       {/* Header */}
-      <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 py-4">
+      <div 
+        ref={headerRef}
+        className={`${isMobile ? 'fixed' : 'flex-shrink-0'} w-full bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-2 py-4 transition-transform duration-300 ease-in-out ${
+          headerVisible ? 'translate-y-0' : '-translate-y-full'
+        }`}
+        style={{ 
+          top: isMobile ? '50px' : '0', // Connect directly with main site header
+          zIndex: 10
+        }}
+      >
         <div className="max-w-6xl mx-auto">
           {/* Title and Back Button */}
           <div className="flex items-center space-x-4 mb-4">
@@ -395,6 +467,10 @@ export default function BulkCommunityProfiles({ currentUser }) {
       <div 
         ref={containerRef}
         className="flex-1 overflow-y-auto"
+        style={{
+          paddingTop: isMobile ? (headerRef.current?.offsetHeight || 200) + 'px' : '0', // Just filter header height on mobile
+          marginTop: isMobile ? '0' : '0' // No negative margin needed since header connects to main header
+        }}
       >
         <div className="max-w-6xl mx-auto px-2 py-4">
           {loading ? (
