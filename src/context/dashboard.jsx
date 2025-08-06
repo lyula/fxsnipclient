@@ -295,25 +295,31 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("typing", ({ conversationId, userId: typingId }) => {
+      console.log('[Dashboard] Received typing event:', { conversationId, typingId });
       setTypingUsers(prev => {
         // Always create a new array for the updated conversation
         const prevList = prev[conversationId] || [];
         if (prevList.includes(typingId)) return prev; // No change
-        return {
+        const newState = {
           ...prev,
           [conversationId]: [...prevList, typingId]
         };
+        console.log('[Dashboard] Updated typing users:', newState);
+        return newState;
       });
     });
 
     socketRef.current.on("stop-typing", ({ conversationId, userId: typingId }) => {
+      console.log('[Dashboard] Received stop-typing event:', { conversationId, typingId });
       setTypingUsers(prev => {
         const prevList = prev[conversationId] || [];
         if (!prevList.includes(typingId)) return prev; // No change
-        return {
+        const newState = {
           ...prev,
           [conversationId]: prevList.filter(id => id !== typingId)
         };
+        console.log('[Dashboard] Updated typing users after stop:', newState);
+        return newState;
       });
     });
 
@@ -405,6 +411,7 @@ export function DashboardProvider({ children }) {
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
+    console.log('[Dashboard] Sending typing event:', { conversationId, to: recipientUserId });
     socketRef.current.emit("typing", { conversationId, to: recipientUserId });
   }, []);
 
@@ -418,6 +425,7 @@ export function DashboardProvider({ children }) {
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendStopTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
+    console.log('[Dashboard] Sending stop-typing event:', { conversationId, to: recipientUserId });
     socketRef.current.emit("stop-typing", { conversationId, to: recipientUserId });
   }, []);
 

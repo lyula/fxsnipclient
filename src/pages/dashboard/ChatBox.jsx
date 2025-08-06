@@ -169,9 +169,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     return msgs;
   }, [inboxMessages, conversationId]);
 
-  // --- Typing indicator for header (UserStatus) and input (context) ---
-  // For header: useUserStatus detects if selectedUser is typing to me (1:1)
-  // For input: use context typingUsers to show if anyone else is typing in this conversation
+  // --- Typing indicator for both header (UserStatus) and input ---
+  // Both use the same logic from useUserStatus hook with shared typingUsers data
 // ...existing imports...
 
   // Defensive: always use string for user IDs
@@ -179,30 +178,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const myUserIdStr = myUserId ? String(myUserId) : undefined;
 
   // Always re-run useUserStatus when selectedUserId changes
-  const { typing: isUserStatusTyping } = useUserStatus(selectedUserId, token);
+  const { typing: isUserStatusTyping } = useUserStatus(selectedUserId, token, typingUsers, conversationId);
 
-  // Robust typing indicator logic with debug logs
-  const isRecipientTyping = useMemo(() => {
-    if (!conversationId || !selectedUserId || !myUserIdStr) return false;
-    let typingArr = typingUsers[conversationId];
-    if (!Array.isArray(typingArr)) typingArr = [];
-    // Normalize all IDs to string for comparison
-    const typingArrStr = typingArr.map(id => (id && typeof id === 'object' && id.toString) ? id.toString() : String(id));
-    const result = typingArrStr.includes(selectedUserId) && selectedUserId !== myUserIdStr;
-    // Debug log for troubleshooting
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log('[TypingIndicator]', {
-        conversationId,
-        typingArr,
-        typingArrStr,
-        selectedUserId,
-        myUserIdStr,
-        result
-      });
-    }
-    return result;
-  }, [typingUsers, conversationId, selectedUserId, myUserIdStr]);
+  // Use isUserStatusTyping for both header and input indicators
+  const isRecipientTyping = isUserStatusTyping;
 
   // --- Emoji picker logic ---
   useEffect(() => {
@@ -770,7 +749,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
               {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
             </button>
-            {/* Use isUserStatusTyping for header (1:1 typing to me) */}
+            {/* Unified typing indicator for header */}
             <UserStatus userId={selectedUser._id} token={token} typing={isUserStatusTyping} online={isRecipientOnline} />
           </div>
         </div>
@@ -961,7 +940,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             ))
           )}
         </div>
-        {/* Use isRecipientTyping for indicator above input (anyone else typing in this conversation) */}
+        {/* Typing indicator above input - unified with header indicator */}
         {isRecipientTyping && (
           <div className="flex items-center pl-4 pb-1">
             <span className="inline-block w-2 h-2 rounded-full animate-bounce mr-1" style={{ backgroundColor: '#a99d6b', animationDelay: '0ms' }}></span>

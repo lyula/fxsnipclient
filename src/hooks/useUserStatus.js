@@ -3,12 +3,34 @@ import { io } from "socket.io-client";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
-// Usage: const { online, lastSeen, typing, emitTyping, emitStopTyping } = useUserStatus(userId, token)
-export default function useUserStatus(targetUserId, token) {
+// Usage: const { online, lastSeen, typing, emitTyping, emitStopTyping } = useUserStatus(userId, token, typingUsers, conversationId)
+export default function useUserStatus(targetUserId, token, typingUsers = {}, conversationId = null) {
   const [online, setOnline] = useState(false);
   const [lastSeen, setLastSeen] = useState(null);
   const [typing, setTyping] = useState(false);
   const socketRef = useRef(null);
+
+  // Calculate typing status from provided typingUsers
+  useEffect(() => {
+    if (!conversationId || !targetUserId || !typingUsers) {
+      setTyping(false);
+      return;
+    }
+
+    const typingArr = typingUsers[conversationId] || [];
+    const targetUserIdStr = String(targetUserId);
+    const isTyping = typingArr.some(id => String(id) === targetUserIdStr);
+    
+    console.log('[useUserStatus] Typing calculation:', { 
+      conversationId, 
+      targetUserId: targetUserIdStr, 
+      typingArr, 
+      isTyping,
+      typingUsers 
+    });
+    
+    setTyping(isTyping);
+  }, [typingUsers, conversationId, targetUserId]);
 
   useEffect(() => {
     if (!token) return;
@@ -35,14 +57,6 @@ export default function useUserStatus(targetUserId, token) {
     });
     socket.on("user-offline", ({ userId }) => {
       if (userId === targetUserId) setOnline(false);
-    });
-
-    // Listen for typing events
-    socket.on("typing", ({ fromUserId }) => {
-      if (fromUserId === targetUserId) setTyping(true);
-    });
-    socket.on("stop-typing", ({ fromUserId }) => {
-      if (fromUserId === targetUserId) setTyping(false);
     });
 
     // Fetch lastSeen from API on offline
