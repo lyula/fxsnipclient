@@ -43,6 +43,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const fetchTimeoutRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date()));
   const [hasMore, setHasMore] = useState(true);
   const [weekIndex, setWeekIndex] = useState(0);
@@ -267,26 +269,70 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     }
   }, [conversationId, messages.length]);
 
-  // --- Typing events ---
-  const handleInputChange = (e) => {
-    setInput(e.target.value);
-    // Always send typing events to the other user (never to yourself)
+  // --- Typing events with proper debouncing ---
+  const stopTypingWithDelay = useCallback(() => {
     const otherUserId = selectedUser?._id ? String(selectedUser._id) : undefined;
     const myUserIdStr = myUserId ? String(myUserId) : undefined;
-    // Debug log for troubleshooting
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.log('[TypingEventCheck]', { otherUserId, myUserIdStr, isSelf: otherUserId === myUserIdStr });
+    
+    if (otherUserId && myUserIdStr && otherUserId !== myUserIdStr && isTypingRef.current) {
+      sendStopTyping(conversationId, otherUserId);
+      isTypingRef.current = false;
     }
+  }, [conversationId, selectedUser?._id, myUserId, sendStopTyping]);
+
+  const debouncedStopTyping = useCallback(
+    debounce(stopTypingWithDelay, 2000), // Stop typing after 2 seconds of inactivity
+    [stopTypingWithDelay]
+  );
+
+  const handleInputChange = (e) => {
+    setInput(e.target.value);
+    
+    const otherUserId = selectedUser?._id ? String(selectedUser._id) : undefined;
+    const myUserIdStr = myUserId ? String(myUserId) : undefined;
+    
     // Only emit if chatting with someone else
     if (otherUserId && myUserIdStr && otherUserId !== myUserIdStr) {
       if (e.target.value.trim()) {
-        sendTyping(conversationId, otherUserId);
+        // Send typing event only if not already typing
+        if (!isTypingRef.current) {
+          sendTyping(conversationId, otherUserId);
+          isTypingRef.current = true;
+        }
+        
+        // Reset the stop typing timer
+        debouncedStopTyping.cancel();
+        debouncedStopTyping();
       } else {
-        sendStopTyping(conversationId, otherUserId);
+        // Input is empty, stop typing immediately
+        debouncedStopTyping.cancel();
+        stopTypingWithDelay();
       }
     }
   };
+
+  // Clear typing timeouts on component unmount or user change
+  useEffect(() => {
+    return () => {
+      debouncedStopTyping.cancel();
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [debouncedStopTyping]);
+
+  // Stop typing when user changes
+  useEffect(() => {
+    const otherUserId = selectedUser?._id ? String(selectedUser._id) : undefined;
+    const myUserIdStr = myUserId ? String(myUserId) : undefined;
+    
+    if (isTypingRef.current && otherUserId && myUserIdStr && otherUserId !== myUserIdStr) {
+      sendStopTyping(conversationId, otherUserId);
+      isTypingRef.current = false;
+    }
+    
+    debouncedStopTyping.cancel();
+  }, [selectedUser?._id, conversationId, debouncedStopTyping, sendStopTyping, myUserId]);
 
   // --- Send message using context ---
   const handleSendMessage = async (e) => {
@@ -326,7 +372,10 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       setIsSending(false);
       setError(null);
       setReplyToMessageId(null); // Clear reply after sending
-      sendStopTyping(conversationId, selectedUser?._id);
+      
+      // Stop typing when message is sent
+      debouncedStopTyping.cancel();
+      stopTypingWithDelay();
     } catch (err) {
       setIsSending(false);
       setError("An error occurred while sending the message.");

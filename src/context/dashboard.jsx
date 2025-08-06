@@ -295,7 +295,6 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("typing", ({ conversationId, userId: typingId }) => {
-      console.log('[DashboardContext] typing event received:', { conversationId, typingId });
       setTypingUsers(prev => {
         // Always create a new array for the updated conversation
         const prevList = prev[conversationId] || [];
@@ -308,7 +307,6 @@ export function DashboardProvider({ children }) {
     });
 
     socketRef.current.on("stop-typing", ({ conversationId, userId: typingId }) => {
-      console.log('[DashboardContext] stop-typing event received:', { conversationId, typingId });
       setTypingUsers(prev => {
         const prevList = prev[conversationId] || [];
         if (!prevList.includes(typingId)) return prev; // No change
@@ -407,7 +405,6 @@ export function DashboardProvider({ children }) {
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
-    console.log('[DashboardContext] sendTyping emit:', { conversationId, to: recipientUserId });
     socketRef.current.emit("typing", { conversationId, to: recipientUserId });
   }, []);
 
@@ -421,7 +418,6 @@ export function DashboardProvider({ children }) {
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendStopTyping: recipientUserId is missing!', { conversationId, recipientUserId });
     }
-    console.log('[DashboardContext] sendStopTyping emit:', { conversationId, to: recipientUserId });
     socketRef.current.emit("stop-typing", { conversationId, to: recipientUserId });
   }, []);
 
