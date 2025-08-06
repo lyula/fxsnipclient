@@ -77,7 +77,15 @@ export default function ProfileSuggestions({
             countryFlag: suggestion.countryFlag,
             commonFollower: suggestion.commonFollower,
             profile: suggestion.profile,
-            profileImageUrl: getProfileImage(suggestion)
+            profileImageUrl: getProfileImage(suggestion),
+            // Add detailed common follower debugging
+            commonFollowerDetails: suggestion.commonFollower ? {
+              username: suggestion.commonFollower.username,
+              profile: suggestion.commonFollower.profile,
+              profileImage: suggestion.commonFollower.profileImage,
+              profileImageUrl: getProfileImage(suggestion.commonFollower),
+              fullObject: suggestion.commonFollower
+            } : null
           });
         });
 
@@ -253,7 +261,22 @@ export default function ProfileSuggestions({
         </div>
 
         {/* Horizontal scrollable suggestions */}
-        <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div 
+          className="flex gap-4 overflow-x-auto pb-2" 
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          onTouchStart={(e) => {
+            // Prevent parent swipe detection when touching the suggestions
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            // Prevent parent swipe detection when swiping within suggestions
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            // Prevent parent swipe detection when ending touch on suggestions
+            e.stopPropagation();
+          }}
+        >
           <style jsx>{`
             div::-webkit-scrollbar {
               display: none;
@@ -312,7 +335,21 @@ function SuggestionCard({
   });
 
   return (
-    <div className="bg-slate-100 dark:bg-gray-900 rounded p-4 flex flex-col items-center min-w-[150px] max-w-[150px] relative">
+    <div 
+      className="bg-slate-100 dark:bg-gray-900 rounded p-4 flex flex-col items-center min-w-[150px] max-w-[150px] relative"
+      onTouchStart={(e) => {
+        // Prevent parent swipe detection when touching individual suggestion cards
+        e.stopPropagation();
+      }}
+      onTouchMove={(e) => {
+        // Prevent parent swipe detection when swiping on individual suggestion cards
+        e.stopPropagation();
+      }}
+      onTouchEnd={(e) => {
+        // Prevent parent swipe detection when ending touch on individual suggestion cards
+        e.stopPropagation();
+      }}
+    >
       {/* Close button */}
       <button
         onClick={onDismiss}
@@ -367,37 +404,37 @@ function SuggestionCard({
 
       {/* Common connection info */}
       {suggestion.commonFollower ? (
-        <div className="text-xs text-gray-500 dark:text-gray-400 text-center mb-3 max-w-[130px] flex items-center justify-center gap-1" style={{ fontSize: '10px' }}>
+        <div className="text-xs text-gray-500 dark:text-gray-400 text-center mb-3 max-w-[130px] flex items-center justify-center gap-1" style={{ fontSize: '11px' }}>
           {/* Common follower profile image */}
           <div className="w-3 h-3 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center overflow-hidden flex-shrink-0">
-            {getProfileImage(suggestion.commonFollower) ? (
-              <img
-                src={getProfileImage(suggestion.commonFollower)}
-                alt={`${suggestion.commonFollower.username}'s profile`}
-                className="w-full h-full object-cover"
-                onError={e => {
-                  console.log(`❌ Common follower image failed to load for ${suggestion.commonFollower.username}:`, getProfileImage(suggestion.commonFollower));
-                  e.target.style.display = 'none';
-                  // Show the default icon instead
-                  e.target.parentElement.innerHTML = '<svg class="text-gray-500 dark:text-gray-400 w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>';
-                }}
-              />
-            ) : (
-              <>
-                {console.log(`ℹ️ No profile image URL found for common follower ${suggestion.commonFollower.username}`)}
-                {console.log(`ℹ️ Common follower object:`, suggestion.commonFollower)}
-                <FaUser className="text-gray-500 dark:text-gray-400 w-2 h-2" />
-              </>
-            )}
+            {(() => {
+              // Now that the server includes profile data for common followers, use the standard helper
+              const commonFollowerImageUrl = getProfileImage(suggestion.commonFollower);
+              
+              if (commonFollowerImageUrl) {
+                return (
+                  <img
+                    src={commonFollowerImageUrl}
+                    alt={`${suggestion.commonFollower.username}'s profile`}
+                    className="w-full h-full object-cover"
+                    onLoad={() => console.log(`✅ Common follower image loaded successfully for ${suggestion.commonFollower.username}:`, commonFollowerImageUrl)}
+                    onError={e => {
+                      console.log(`❌ Common follower image failed to load for ${suggestion.commonFollower.username}:`, commonFollowerImageUrl);
+                      e.target.style.display = 'none';
+                      e.target.parentElement.innerHTML = '<svg class="text-gray-500 dark:text-gray-400 w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>';
+                    }}
+                  />
+                );
+              } else {
+                return <FaUser className="text-gray-500 dark:text-gray-400 w-2 h-2" />;
+              }
+            })()}
           </div>
-          <span className="truncate">
-            Followed by {suggestion.commonFollower.username}
-          </span>
-          {suggestion.commonFollower.verified && (
-            <div className="flex-shrink-0" style={{ transform: 'scale(0.6)', transformOrigin: 'center' }}>
-              <VerifiedBadge />
-            </div>
-          )}
+          <div className="flex items-center truncate">
+            <span className="truncate">
+              Followed by {suggestion.commonFollower.username}
+            </span>
+          </div>
         </div>
       ) : (
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-3" style={{ fontSize: '10px' }}>
