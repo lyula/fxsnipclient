@@ -243,9 +243,9 @@ export default function ProfileSuggestions({
 
   return (
     <div className={`w-full max-w-full overflow-hidden ${className}`}>
-      <div className="p-4">
+      <div className="p-4 md:p-4 pl-2 pr-2">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 px-2 md:px-0">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             Suggested for you
           </h3>
