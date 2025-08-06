@@ -27,14 +27,6 @@ export default function ChatList({
 
   // Update suggestion intervals when posts change
   useEffect(() => {
-    console.log('🔍 ChatList: Posts received:', posts.length);
-    console.log('📝 ChatList: First few posts:', posts.slice(0, 3).map(p => ({ 
-      id: p?._id, 
-      type: p?.type || 'post',
-      isAd: p?._isAd || false,
-      title: p?.title || p?.content?.substring(0, 30) 
-    })));
-    
     const postCount = posts.filter(post => post && post._id).length;
     const lastInterval = suggestionIntervals[suggestionIntervals.length - 1] || 0;
     
@@ -77,9 +69,8 @@ export default function ChatList({
       if (response.ok) {
         const data = await response.json();
         setAds(data.ads || []);
-        console.log('📢 Fetched active ads:', data.ads?.length || 0);
       } else {
-        console.error('Failed to fetch ads:', response.status);
+        console.error('Failed to fetch ads:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching ads:', error);
@@ -142,20 +133,9 @@ export default function ChatList({
   const renderItems = () => {
     const items = [];
     
-    console.log('🎨 ChatList: Rendering items, total posts:', posts.length);
-    
     posts.filter(post => post && post._id).forEach((item, idx) => {
       // Check if this is an ad or a regular post
       const isAd = item.type === 'ad' || item._isAd;
-      
-      console.log(`📦 Item ${idx}:`, { 
-        id: item._id, 
-        isAd, 
-        type: item.type,
-        _isAd: item._isAd,
-        title: item.title || 'No title',
-        content: item.content?.substring(0, 30) || 'No content'
-      });
       
       // Add the post or ad
       items.push(
@@ -236,7 +216,7 @@ export default function ChatList({
         if (selectedAd) {
           items.push(
             <React.Fragment key={`ad-${selectedAd._id}-${idx}`}>
-              <div className="w-full overflow-hidden">
+              <div className="w-full">
                 <AdCard
                   ad={selectedAd}
                   onView={() => handleAdImpression(selectedAd._id)}

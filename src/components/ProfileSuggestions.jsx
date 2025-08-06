@@ -59,14 +59,6 @@ export default function ProfileSuggestions({
           
           // Use the current scroll position plus the relative position within the viewport
           suggestionOffset = container.scrollTop + (suggestionRect.top - containerRect.top);
-          
-          console.log('📍 Capturing suggestion offset:', {
-            containerScrollTop: container.scrollTop,
-            suggestionTop: suggestionRect.top,
-            containerTop: containerRect.top,
-            relativeDifference: suggestionRect.top - containerRect.top,
-            finalOffset: suggestionOffset
-          });
         }
       }
       
@@ -113,31 +105,6 @@ export default function ProfileSuggestions({
       try {
         setLoading(true);
         const data = await getProfileSuggestions(currentUser._id);
-        console.log('Profile suggestions data:', data); // Debug log
-        console.log('First suggestion profile:', data.suggestions?.[0]?.profile); // Debug log
-        
-        // Debug each suggestion individually
-        data.suggestions?.forEach((suggestion, index) => {
-          console.log(`DEBUG Suggestion ${index + 1}:`, {
-            username: suggestion.username,
-            _id: suggestion._id,
-            verified: suggestion.verified,
-            reason: suggestion.reason,
-            country: suggestion.country,
-            countryFlag: suggestion.countryFlag,
-            commonFollower: suggestion.commonFollower,
-            profile: suggestion.profile,
-            profileImageUrl: getProfileImage(suggestion),
-            // Add detailed common follower debugging
-            commonFollowerDetails: suggestion.commonFollower ? {
-              username: suggestion.commonFollower.username,
-              profile: suggestion.commonFollower.profile,
-              profileImage: suggestion.commonFollower.profileImage,
-              profileImageUrl: getProfileImage(suggestion.commonFollower),
-              fullObject: suggestion.commonFollower
-            } : null
-          });
-        });
 
         // Get current shown suggestions from localStorage
         const stored = localStorage.getItem('profileSuggestions_shown');
@@ -180,7 +147,6 @@ export default function ProfileSuggestions({
         // If we don't have enough new suggestions, reset the shown list and try again
         const maxSuggestions = isDesktop ? 8 : 5;
         if (filteredSuggestions.length < Math.min(maxSuggestions, 3)) {
-          console.log('Not enough new suggestions, resetting shown list');
           localStorage.removeItem('profileSuggestions_shown');
           // Re-filter without the shown suggestions constraint
           filteredSuggestions = (data.suggestions || []).filter(suggestion => {
@@ -211,12 +177,6 @@ export default function ProfileSuggestions({
           // Update the local state
           setShownSuggestions(new Set());
         }
-
-        // Debug log the sorted suggestions
-        console.log('Sorted suggestions (profile image priority):');
-        filteredSuggestions.slice(0, maxSuggestions).forEach((suggestion, index) => {
-          console.log(`${index + 1}. ${suggestion.username} - Has Image: ${!!getProfileImage(suggestion)} - Verified: ${!!suggestion.verified}`);
-        });
 
         // Mark these suggestions as shown
         const newShownIds = filteredSuggestions.slice(0, maxSuggestions).map(s => s._id);
@@ -371,15 +331,6 @@ function SuggestionCard({
 
   // Get profile image using the same logic as posts
   const profileImageUrl = getProfileImage(suggestion);
-  
-  // Debug log for each suggestion card render
-  console.log(`DEBUG SuggestionCard render for ${suggestion.username}:`, {
-    profileImageUrl,
-    hasProfile: !!suggestion.profile,
-    profileObject: suggestion.profile,
-    reason: suggestion.reason,
-    commonFollower: suggestion.commonFollower
-  });
 
   return (
     <div 
@@ -417,21 +368,14 @@ function SuggestionCard({
               src={profileImageUrl}
               alt={`${suggestion.username}'s profile`}
               className="w-full h-full object-cover"
-              onLoad={() => console.log(`✅ Profile image loaded successfully for ${suggestion.username}:`, profileImageUrl)}
               onError={e => {
-                console.log(`❌ Profile image failed to load for ${suggestion.username}:`, profileImageUrl);
-                console.log(`❌ Error details:`, e);
                 e.target.style.display = 'none';
                 // Show the default icon instead
                 e.target.parentElement.innerHTML = '<svg class="text-gray-500 dark:text-gray-400 text-xl w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>';
               }}
             />
           ) : (
-            <>
-              {console.log(`ℹ️ No profile image URL found for ${suggestion.username}`)}
-              {console.log(`ℹ️ Full suggestion object:`, suggestion)}
-              <FaUser className="text-gray-500 dark:text-gray-400 text-xl" />
-            </>
+            <FaUser className="text-gray-500 dark:text-gray-400 text-xl" />
           )}
         </div>
       </Link>
@@ -464,9 +408,7 @@ function SuggestionCard({
                     src={commonFollowerImageUrl}
                     alt={`${suggestion.commonFollower.username}'s profile`}
                     className="w-full h-full object-cover"
-                    onLoad={() => console.log(`✅ Common follower image loaded successfully for ${suggestion.commonFollower.username}:`, commonFollowerImageUrl)}
                     onError={e => {
-                      console.log(`❌ Common follower image failed to load for ${suggestion.commonFollower.username}:`, commonFollowerImageUrl);
                       e.target.style.display = 'none';
                       e.target.parentElement.innerHTML = '<svg class="text-gray-500 dark:text-gray-400 w-2 h-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>';
                     }}
