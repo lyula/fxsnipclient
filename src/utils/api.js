@@ -422,3 +422,14 @@ export async function searchPosts(query, limit = 20, offset = 0) {
   );
   return res.json();
 }
+
+// Get profile suggestions for a user
+export async function getProfileSuggestions(userId) {
+  const res = await fetch(`${API_BASE}/user/suggestions/${userId}`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+  if (!res.ok) throw new Error("Failed to get profile suggestions");
+  return res.json();
+}

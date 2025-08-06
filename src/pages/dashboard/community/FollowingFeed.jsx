@@ -313,6 +313,7 @@ export default function FollowingFeed({
                   currentUserId={user?._id}
                   currentUsername={user?.username}
                   currentUserVerified={user?.verified}
+                  currentUser={user}
                 />
               </div>
             </div>

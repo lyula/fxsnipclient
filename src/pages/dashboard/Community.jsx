@@ -1131,6 +1131,7 @@ function isValidPost(post) {
                 currentUserId={user?._id}
                 currentUsername={user?.username}
                 currentUserVerified={user?.verified}
+                currentUser={user}
               />
             ) : (
               <div className="flex justify-center items-center py-20 px-6">
@@ -1177,6 +1178,7 @@ function isValidPost(post) {
                   currentUserId={user?._id}
                   currentUsername={user?.username}
                   currentUserVerified={user?.verified}
+                  currentUser={user}
                 />
               </div>
               
