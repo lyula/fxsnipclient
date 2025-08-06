@@ -38,7 +38,8 @@ export const COUNTRIES = [
 ];
 
 export const TIER_PRICING = {
-  1: 1000, // KES per day for first world
-  2: 500,  // KES per day for tier 2
-  3: 200   // KES per day for tier 3
+  1: 5.00, // USD per day for tier 1 countries (developed markets) - competitive with Facebook/Instagram
+  2: 2.50, // USD per day for tier 2 countries (emerging markets)
+  3: 1.00, // USD per day for tier 3 countries (developing markets)
+  global: 3.50 // USD per day for global targeting (weighted average across all markets)
 };

@@ -15,6 +15,7 @@ import {
   FaMoon,
   FaSun,
   FaCreditCard,
+  FaAd,
 } from "react-icons/fa";
 import { useState, useEffect } from "react";
 import { jwtDecode } from "jwt-decode";
@@ -27,6 +28,7 @@ import { useDashboard } from "../context/dashboard";
 import PostNotificationView from "./dashboard/community/PostNotificationView";
 import PaymentDetails from "./dashboard/PaymentDetails";
 import AdCreation from "./dashboard/AdCreation";
+import AdManagement from "./dashboard/AdManagement";
 
 // Import only dashboard subpages that are linked in the sidebar
 import Journal from "./dashboard/Journal";
@@ -45,6 +47,7 @@ const DASHBOARD_LABELS = {
   "/dashboard/community": "Vibe",
   "/dashboard/signals": "Signal Rooms",
   "/dashboard/inbox": "Inbox",
+  "/dashboard/ad-management": "Ads Service",
   "/dashboard/payments": "Payments",
 };
 
@@ -370,7 +373,7 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-        <nav className="flex-1 px-1 sm:px-2 py-6 flex flex-col gap-2 min-w-0 w-full items-center md:items-stretch">
+        <nav className="flex-1 px-1 sm:px-2 py-6 flex flex-col gap-2 min-w-0 w-full items-center md:items-stretch overflow-y-auto scrollbar-hide">
           <Link
             to="/dashboard"
             onClick={() => {
@@ -501,6 +504,28 @@ export default function Dashboard() {
                 : "inline-block")
             }>
               Inbox
+            </span>
+          </Link>
+          <Link
+            to="/dashboard/ad-management"
+            onClick={() => {
+              if (window.innerWidth < 768) setSidebarOpen(false);
+            }}
+            className={`flex items-center justify-start gap-3 px-2 sm:px-4 py-2 rounded-lg font-semibold
+              ${isActive("/dashboard/ad-management") ? "text-[#a99d6b] bg-blue-50 dark:bg-gray-800" : "text-[#1E3A8A] dark:text-white"}
+              hover:bg-blue-50 dark:hover:bg-gray-800 transition
+              ${sidebarCollapsed ? "justify-center md:px-2" : ""}
+              w-full md:w-auto
+            `}
+          >
+            <FaAd className="text-lg" />
+            <span className={
+              "truncate " +
+              (sidebarCollapsed
+                ? "hidden md:inline-block md:opacity-0 md:w-0 md:visible"
+                : "inline-block")
+            }>
+              Ads Service
             </span>
           </Link>
           <Link
@@ -673,6 +698,7 @@ export default function Dashboard() {
                   <Route path="profile" element={<Profile />} />
                   <Route path="notifications" element={<Notifications />} />
                   <Route path="ad-creation" element={<AdCreation />} />
+                  <Route path="ad-management" element={<AdManagement />} />
                 </Routes>
                 {/* Footer removed for all internal pages */}
               </div>

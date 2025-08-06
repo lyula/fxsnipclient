@@ -29,6 +29,8 @@ function AutoPlayVideo({ src, className, style, ...props }) {
       className={className}
       style={style}
       controls
+      controlsList="nodownload"
+      muted
       playsInline
       preload="metadata"
       {...props}
@@ -355,6 +357,8 @@ function VideoUsernameOverlay({ post, setZoomProfile, onEditPost, onDeletePost, 
           src={post.video}
           className="w-full h-auto object-contain m-0 p-0"
           controls
+          controlsList="nodownload"
+          muted
           playsInline
           preload="metadata"
         />

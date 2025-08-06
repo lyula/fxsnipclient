@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import ChatPost from "./ChatPost";
+import AdCard from "../../../components/AdCard";
 import ProfileSuggestions from "../../../components/ProfileSuggestions";
+import { API_BASE_URL } from "../../../utils/constants";
 
 export default function ChatList({ 
   posts, onReply, onComment, onLike, onView, onDelete,
@@ -9,6 +11,8 @@ export default function ChatList({
   getCurrentCommunityState // Add state preservation function
 }) {
   const [dismissedSuggestions, setDismissedSuggestions] = useState(new Set());
+  const [ads, setAds] = useState([]);
+  const [adsLoading, setAdsLoading] = useState(false);
   const [suggestionIntervals, setSuggestionIntervals] = useState(() => {
     // Get stored intervals or initialize with first suggestion at 5
     const stored = localStorage.getItem('profileSuggestion_intervals');
@@ -23,6 +27,14 @@ export default function ChatList({
 
   // Update suggestion intervals when posts change
   useEffect(() => {
+    console.log('🔍 ChatList: Posts received:', posts.length);
+    console.log('📝 ChatList: First few posts:', posts.slice(0, 3).map(p => ({ 
+      id: p?._id, 
+      type: p?.type || 'post',
+      isAd: p?._isAd || false,
+      title: p?.title || p?.content?.substring(0, 30) 
+    })));
+    
     const postCount = posts.filter(post => post && post._id).length;
     const lastInterval = suggestionIntervals[suggestionIntervals.length - 1] || 0;
     
@@ -47,34 +59,138 @@ export default function ChatList({
     }
   }, [posts.length, suggestionIntervals]);
 
+  // Fetch active ads from the database
+  const fetchAds = async () => {
+    if (adsLoading) return;
+    
+    try {
+      setAdsLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/ads/active`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAds(data.ads || []);
+        console.log('📢 Fetched active ads:', data.ads?.length || 0);
+      } else {
+        console.error('Failed to fetch ads:', response.status);
+      }
+    } catch (error) {
+      console.error('Error fetching ads:', error);
+    } finally {
+      setAdsLoading(false);
+    }
+  };
+
+  // Fetch ads when component mounts
+  useEffect(() => {
+    fetchAds();
+  }, []);
+
+  // Handle ad impression tracking
+  const handleAdImpression = async (adId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_BASE_URL}/api/posts/ads/${adId}/impression`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    } catch (error) {
+      console.error('Error tracking ad impression:', error);
+    }
+  };
+
+  // Handle ad click tracking
+  const handleAdClick = async (ad) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/api/posts/ads/${ad._id}/click`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Open ad target URL in new tab
+        if (data.targetUrl || ad.targetUrl) {
+          window.open(data.targetUrl || ad.targetUrl, '_blank');
+        }
+      }
+    } catch (error) {
+      console.error('Error tracking ad click:', error);
+    }
+  };
+
   // Handle dismissing suggestion sections
   const handleDismissSuggestion = (index) => {
     setDismissedSuggestions(prev => new Set([...prev, index]));
   };
 
-  // Create an array that includes posts and suggestion components
+  // Create an array that includes posts, ads, and suggestion components
   const renderItems = () => {
     const items = [];
     
-    posts.filter(post => post && post._id).forEach((post, idx) => {
-      // Add the post
+    console.log('🎨 ChatList: Rendering items, total posts:', posts.length);
+    
+    posts.filter(post => post && post._id).forEach((item, idx) => {
+      // Check if this is an ad or a regular post
+      const isAd = item.type === 'ad' || item._isAd;
+      
+      console.log(`📦 Item ${idx}:`, { 
+        id: item._id, 
+        isAd, 
+        type: item.type,
+        _isAd: item._isAd,
+        title: item.title || 'No title',
+        content: item.content?.substring(0, 30) || 'No content'
+      });
+      
+      // Add the post or ad
       items.push(
-        <React.Fragment key={post._id}>
+        <React.Fragment key={item._id}>
           <div
-            ref={el => postRefs && postRefs.current && (postRefs.current[post._id] = el)}
+            ref={el => postRefs && postRefs.current && (postRefs.current[item._id] = el)}
             className="w-full py-2 overflow-hidden"
           >
-            <ChatPost
-              post={post}
-              onReply={onReply}
-              onComment={onComment}
-              onLike={onLike}
-              onView={onView}
-              onDelete={onDelete}
-              currentUserId={currentUserId}
-              currentUsername={currentUsername}
-              currentUserVerified={currentUserVerified}
-            />
+            {isAd ? (
+              <div className="relative">
+                {/* Ad label */}
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 px-4 font-medium">
+                  Sponsored
+                </div>
+                <AdCard
+                  ad={item}
+                  onView={() => handleAdImpression(item._id)}
+                  onClick={() => handleAdClick(item)}
+                  showAnalytics={false}
+                  isInFeed={true}
+                />
+              </div>
+            ) : (
+              <ChatPost
+                post={item}
+                onReply={onReply}
+                onComment={onComment}
+                onLike={onLike}
+                onView={onView}
+                onDelete={onDelete}
+                currentUserId={currentUserId}
+                currentUsername={currentUsername}
+                currentUserVerified={currentUserVerified}
+              />
+            )}
           </div>
           {idx !== posts.filter(post => post && post._id).length - 1 && (
             <div className="">
@@ -106,6 +222,37 @@ export default function ChatList({
             )}
           </React.Fragment>
         );
+      }
+
+      // Add sponsored ads at regular intervals (every 4th post after the 3rd post)
+      const shouldShowAd = (idx + 1) % 4 === 0 && idx > 2 && ads.length > 0;
+      
+      if (shouldShowAd) {
+        // Cycle through ads based on the ad insertion position to ensure all ads are shown
+        const adInsertionCount = Math.floor((idx + 1 - 3) / 4); // Count how many ads we've inserted so far
+        const adIndex = adInsertionCount % ads.length; // Cycle through available ads
+        const selectedAd = ads[adIndex];
+
+        if (selectedAd) {
+          items.push(
+            <React.Fragment key={`ad-${selectedAd._id}-${idx}`}>
+              <div className="w-full overflow-hidden">
+                <AdCard
+                  ad={selectedAd}
+                  onView={() => handleAdImpression(selectedAd._id)}
+                  onClick={() => handleAdClick(selectedAd)}
+                  showAnalytics={false}
+                  isInFeed={true}
+                />
+              </div>
+              {idx !== posts.filter(post => post && post._id).length - 1 && (
+                <div className="">
+                  <hr className="border-t border-gray-100 dark:border-gray-700/50" />
+                </div>
+              )}
+            </React.Fragment>
+          );
+        }
       }
     });
 
