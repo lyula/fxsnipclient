@@ -75,6 +75,25 @@ export async function unfollowUser(userId) {
   return res.json();
 }
 
+// Browse all users with advanced filtering and pagination
+export async function browseUsers({ search = '', filter = 'recommended', page = 1, limit = 20 }) {
+  const params = new URLSearchParams({
+    search,
+    filter,
+    page: page.toString(),
+    limit: limit.toString()
+  });
+
+  const res = await fetch(`${API_BASE}/user/browse?${params}`, {
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
+    },
+  });
+
+  if (!res.ok) throw new Error("Failed to browse users");
+  return res.json();
+}
+
 // Get current user's following list
 export async function getCurrentUserFollowing() {
   try {

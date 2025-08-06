@@ -31,12 +31,22 @@ import { FaPlus } from "react-icons/fa";
 import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
 import FollowingFeed from "./community/FollowingFeed";
+import BulkCommunityProfiles from "./community/BulkCommunityProfiles";
 
 import { useDashboard } from "../../context/dashboard";
 import FloatingPlusButton from "../../components/common/FloatingPlusButton";
 import CreatePostBox from "../../pages/dashboard/community/CreatePostBox";
 
 export default function Community({ user }) {
+  const location = useLocation();
+  
+  // Check if we're on the suggestions page
+  const isOnSuggestionsPage = location.pathname.includes('/community/suggestions');
+  
+  // If on suggestions page, render the bulk profiles component
+  if (isOnSuggestionsPage) {
+    return <BulkCommunityProfiles currentUser={user} />;
+  }
   // Floating notification state (must be inside the component)
   const [floatingNotification, setFloatingNotification] = useState(null);
   // Search state (must be inside the component)
@@ -92,7 +102,6 @@ export default function Community({ user }) {
   const [followingButtonHideTimeout, setFollowingButtonHideTimeout] = useState(null);
   const [followingIsLoadingFresh, setFollowingIsLoadingFresh] = useState(false);
 
-  const location = useLocation();
   const postRefs = useRef({});
   const containerRef = useRef(null);
   const followingContainerRef = useRef(null);

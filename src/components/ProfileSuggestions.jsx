@@ -249,15 +249,12 @@ export default function ProfileSuggestions({
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             Suggested for you
           </h3>
-          {onDismiss && (
-            <button
-              onClick={onDismiss}
-              className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
-              aria-label="Dismiss suggestions"
-            >
-              <FaTimes size={14} />
-            </button>
-          )}
+          <Link
+            to="/dashboard/community/suggestions"
+            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium transition-colors"
+          >
+            View all
+          </Link>
         </div>
 
         {/* Horizontal scrollable suggestions */}
