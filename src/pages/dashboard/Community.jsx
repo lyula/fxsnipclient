@@ -47,6 +47,7 @@ export default function Community({ user }) {
   if (isOnSuggestionsPage) {
     return <BulkCommunityProfiles currentUser={user} />;
   }
+  
   // Floating notification state (must be inside the component)
   const [floatingNotification, setFloatingNotification] = useState(null);
   // Search state (must be inside the component)
@@ -55,6 +56,156 @@ export default function Community({ user }) {
   const [searchLoading, setSearchLoading] = useState(false);
   // Tab state
   const [activeTab, setActiveTab] = useState("forYou");
+  
+  // Refs for scroll containers
+  const containerRef = useRef(null);
+  const followingContainerRef = useRef(null);
+  const pendingRestoration = useRef(null); // Track pending restoration
+  
+  // Get dashboard data first (before using in effects)
+  const {
+    dedupedCommunityPosts: communityPosts,
+    cyclingInfo,
+    fetchCommunityPosts,
+    loadInitialPosts,
+    loadMorePosts,
+    loadNewerPosts,
+    loadingStates,
+    addPostOptimistically,
+    updatePost,
+    deletePost,
+    loadFreshContent,
+    followingPosts,
+    loadNewerFollowingPosts,
+    loadFreshFollowingContent
+  } = useDashboard();
+  
+  // State restoration effect - restore scroll position and tab when returning from suggestions
+  useEffect(() => {
+    if (location.state?.shouldRestore && location.state?.preservedState) {
+      const { activeTab: savedTab, scrollPosition, searchQuery: savedSearch, suggestionOffset } = location.state.preservedState;
+      
+      // Store restoration data
+      pendingRestoration.current = {
+        savedTab,
+        scrollPosition,
+        suggestionOffset,
+        timestamp: Date.now()
+      };
+      
+      // Restore tab first
+      if (savedTab) {
+        setActiveTab(savedTab);
+      }
+      
+      // Restore search state
+      if (savedSearch) {
+        setSearchQuery(savedSearch);
+      }
+      
+      // Clear the restoration state immediately to prevent re-execution
+      window.history.replaceState({}, '', location.pathname);
+    }
+  }, [location.state]);
+
+  // Separate effect for handling the actual scroll restoration
+  useEffect(() => {
+    if (!pendingRestoration.current) return;
+    
+    const { savedTab, scrollPosition, suggestionOffset } = pendingRestoration.current;
+    const targetScrollPosition = suggestionOffset !== undefined ? suggestionOffset : scrollPosition;
+    
+    if (targetScrollPosition !== undefined) {
+      let attempts = 0;
+      const maxAttempts = 15; // Increased attempts
+      
+      const attemptRestore = () => {
+        attempts++;
+        
+        const container = savedTab === 'following' ? followingContainerRef.current : containerRef.current;
+        
+        // Check if container exists and has content loaded
+        const hasContent = container && container.scrollHeight > container.clientHeight + 100; // Buffer for content
+        const isCorrectTab = activeTab === savedTab;
+        const hasPostsLoaded = (savedTab === 'following' ? followingPosts.length > 0 : communityPosts.length > 0);
+        
+        if (hasContent && isCorrectTab && hasPostsLoaded) {
+          // Content is ready, proceed with restoration
+          console.log('🔄 Restoring scroll to:', targetScrollPosition, 'suggestionOffset:', suggestionOffset);
+          
+          // Force instant scrolling
+          const originalScrollBehavior = container.style.scrollBehavior;
+          const originalTransition = container.style.transition;
+          
+          container.style.scrollBehavior = 'auto';
+          container.style.transition = 'none';
+          
+          let finalPosition = targetScrollPosition;
+          
+          // If we have a suggestionOffset, adjust for better visibility
+          if (suggestionOffset !== undefined) {
+            finalPosition = Math.max(0, suggestionOffset - 120); // Show suggestion with good margin
+          }
+          
+          // Ensure position is within bounds
+          const maxScroll = container.scrollHeight - container.clientHeight;
+          finalPosition = Math.min(finalPosition, maxScroll);
+          
+          container.scrollTop = finalPosition;
+          
+          // Restore styles
+          requestAnimationFrame(() => {
+            if (originalScrollBehavior) {
+              container.style.scrollBehavior = originalScrollBehavior;
+            } else {
+              container.style.removeProperty('scroll-behavior');
+            }
+            
+            if (originalTransition) {
+              container.style.transition = originalTransition;
+            } else {
+              container.style.removeProperty('transition');
+            }
+          });
+          
+          // Clear pending restoration
+          pendingRestoration.current = null;
+          console.log('✅ Scroll restoration completed');
+          return;
+        }
+        
+        // If not ready and haven't exceeded max attempts, try again
+        if (attempts < maxAttempts) {
+          console.log(`⏳ Attempt ${attempts}/${maxAttempts} - waiting for content...`, {
+            hasContent,
+            isCorrectTab,
+            hasPostsLoaded,
+            containerHeight: container?.scrollHeight,
+            clientHeight: container?.clientHeight
+          });
+          setTimeout(attemptRestore, 100); // Increased delay
+        } else {
+          console.log('❌ Max restoration attempts reached');
+          pendingRestoration.current = null;
+        }
+      };
+      
+      // Start restoration
+      requestAnimationFrame(attemptRestore);
+    }
+  }, [activeTab, communityPosts, followingPosts, containerRef.current, followingContainerRef.current]);
+
+  // Function to get current community state for preservation
+  const getCurrentCommunityState = useCallback(() => {
+    const currentContainer = activeTab === 'following' ? followingContainerRef.current : containerRef.current;
+    const scrollPosition = currentContainer ? currentContainer.scrollTop : 0;
+    
+    return {
+      activeTab,
+      scrollPosition,
+      searchQuery
+    };
+  }, [activeTab, searchQuery]);
 
   // Handle search submit from CommunityTabs
   const handleSearch = async (query) => {
@@ -103,29 +254,9 @@ export default function Community({ user }) {
   const [followingIsLoadingFresh, setFollowingIsLoadingFresh] = useState(false);
 
   const postRefs = useRef({});
-  const containerRef = useRef(null);
-  const followingContainerRef = useRef(null);
   const isLoadingRef = useRef(false);
   const [showTabs, setShowTabs] = useState(true);
   const [rotatedPosts, setRotatedPosts] = useState([]); // NEW: for cycling
-
- const {
-  dedupedCommunityPosts: communityPosts,
-  cyclingInfo,
-  fetchCommunityPosts,
-  loadInitialPosts,
-  loadMorePosts,
-  loadNewerPosts,
-  loadingStates,
-  addPostOptimistically,
-  updatePost,
-  deletePost,
-  loadFreshContent,
-  followingPosts,
-  loadNewerFollowingPosts,
-  loadFreshFollowingContent
-} = useDashboard();
-
 
   // API base URL
   const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:5000/api").replace(/\/auth$/, "");
@@ -1141,6 +1272,7 @@ function isValidPost(post) {
                 currentUsername={user?.username}
                 currentUserVerified={user?.verified}
                 currentUser={user}
+                getCurrentCommunityState={getCurrentCommunityState}
               />
             ) : (
               <div className="flex justify-center items-center py-20 px-6">
@@ -1188,6 +1320,7 @@ function isValidPost(post) {
                   currentUsername={user?.username}
                   currentUserVerified={user?.verified}
                   currentUser={user}
+                  getCurrentCommunityState={getCurrentCommunityState}
                 />
               </div>
               

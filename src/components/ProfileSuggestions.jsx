@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaUser, FaTimes } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
 import { followUser, getProfileSuggestions } from '../utils/api';
 import { hashId } from '../utils/hash';
@@ -30,10 +30,55 @@ function getProfileImage(user) {
 export default function ProfileSuggestions({ 
   currentUser, 
   onDismiss, 
-  className = '' 
+  className = '',
+  getCurrentCommunityState 
 }) {
+  const navigate = useNavigate();
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const suggestionRef = useRef(null);
+  
+  // Function to handle navigation to suggestions page with state preservation
+  const handleViewAllClick = (e) => {
+    e.preventDefault();
+    
+    if (getCurrentCommunityState) {
+      const currentState = getCurrentCommunityState();
+      
+      // Get the position of this specific ProfileSuggestions component
+      const suggestionElement = suggestionRef.current;
+      let suggestionOffset = 0;
+      
+      if (suggestionElement) {
+        // Find the scroll container (the one with overflow-y-auto)
+        const container = suggestionElement.closest('.overflow-y-auto');
+        if (container) {
+          // Calculate the offset from the top of the container to this suggestion component
+          const containerRect = container.getBoundingClientRect();
+          const suggestionRect = suggestionElement.getBoundingClientRect();
+          
+          // Use the current scroll position plus the relative position
+          suggestionOffset = container.scrollTop + (suggestionRect.top - containerRect.top);
+          
+          // Add a small buffer to account for any margin/padding
+          suggestionOffset = Math.max(0, suggestionOffset - 20);
+        }
+      }
+      
+      navigate('/dashboard/community/suggestions', {
+        state: { 
+          returnState: {
+            ...currentState,
+            suggestionOffset, // Add the specific suggestion component offset
+            timestamp: Date.now() // Add timestamp to ensure state uniqueness
+          }
+        }
+      });
+    } else {
+      navigate('/dashboard/community/suggestions');
+    }
+  };
+  
   const [dismissedSuggestions, setDismissedSuggestions] = useState(new Set());
   const [followingStates, setFollowingStates] = useState({});
 
@@ -242,19 +287,19 @@ export default function ProfileSuggestions({
   }
 
   return (
-    <div className={`w-full max-w-full overflow-hidden ${className}`}>
+    <div ref={suggestionRef} className={`w-full max-w-full overflow-hidden ${className}`}>
       <div className="p-4 md:p-4 pl-2 pr-2">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 px-2 md:px-0">
           <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
             Suggested for you
           </h3>
-          <Link
-            to="/dashboard/community/suggestions"
+          <button
+            onClick={handleViewAllClick}
             className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium transition-colors"
           >
             View all
-          </Link>
+          </button>
         </div>
 
         {/* Horizontal scrollable suggestions */}

@@ -5,7 +5,8 @@ import ProfileSuggestions from "../../../components/ProfileSuggestions";
 export default function ChatList({ 
   posts, onReply, onComment, onLike, onView, onDelete,
   postRefs, currentUserId, currentUsername, currentUserVerified,
-  currentUser // Add currentUser prop for profile suggestions
+  currentUser, // Add currentUser prop for profile suggestions
+  getCurrentCommunityState // Add state preservation function
 }) {
   const [dismissedSuggestions, setDismissedSuggestions] = useState(new Set());
   const [suggestionIntervals, setSuggestionIntervals] = useState(() => {
@@ -95,6 +96,7 @@ export default function ChatList({
                 currentUser={currentUser}
                 onDismiss={() => handleDismissSuggestion(idx)}
                 className="my-2"
+                getCurrentCommunityState={getCurrentCommunityState}
               />
             </div>
             {idx !== posts.filter(post => post && post._id).length - 1 && (

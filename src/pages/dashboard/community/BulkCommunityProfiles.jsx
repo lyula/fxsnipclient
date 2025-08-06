@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FaSearch, FaUser, FaFilter, FaTimes, FaGlobe, FaUserFriends, FaCrown, FaMapMarkerAlt } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import VerifiedBadge from '../../../components/VerifiedBadge';
 import { followUser, unfollowUser, browseUsers } from '../../../utils/api';
 
@@ -198,6 +198,9 @@ function FilterSelector({ activeFilter, onFilterChange }) {
  * Main Bulk Community Profiles component
  */
 export default function BulkCommunityProfiles({ currentUser }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,6 +212,25 @@ export default function BulkCommunityProfiles({ currentUser }) {
 
   const searchTimeoutRef = useRef(null);
   const containerRef = useRef(null);
+
+  // Function to handle returning to community with preserved state
+  const handleReturn = useCallback(() => {
+    const returnState = location.state?.returnState;
+    
+    if (returnState) {
+      // Navigate back with the preserved state
+      navigate('/dashboard/community', { 
+        state: { 
+          preservedState: returnState,
+          shouldRestore: true 
+        },
+        replace: true 
+      });
+    } else {
+      // Fallback to simple navigation
+      navigate('/dashboard/community', { replace: true });
+    }
+  }, [navigate, location.state]);
 
   // Load users function
   const loadUsers = useCallback(async (resetPage = false, newSearch = '', newFilter = '') => {
@@ -320,12 +342,12 @@ export default function BulkCommunityProfiles({ currentUser }) {
         <div className="max-w-6xl mx-auto">
           {/* Title and Back Button */}
           <div className="flex items-center space-x-4 mb-4">
-            <Link
-              to="/dashboard/community"
+            <button
+              onClick={handleReturn}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               <FaTimes className="w-4 h-4" />
-            </Link>
+            </button>
             <div>
               <div className="flex items-center space-x-2 mb-1">
                 <FaUserFriends className="w-5 h-5 text-blue-500 dark:text-gray-400" />
