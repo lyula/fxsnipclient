@@ -245,8 +245,11 @@ export default function ChatList({
   };
 
   return (
-    <div className="w-full mx-auto overflow-hidden">
-      <div className="bg-white dark:bg-gray-800 mx-0 rounded-b-xl shadow-sm border-l border-r border-b border-gray-200/50 dark:border-gray-700/50">
+    <div className="w-full mx-auto overflow-hidden" style={{ WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}>
+      <div
+        className="bg-white dark:bg-gray-800 mx-0 rounded-b-xl shadow-sm border-l border-r border-b border-gray-200/50 dark:border-gray-700/50"
+        style={{ scrollBehavior: 'smooth' }}
+      >
         {renderItems()}
       </div>
     </div>

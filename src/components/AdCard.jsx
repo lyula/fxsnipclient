@@ -256,7 +256,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
               )}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              Sponsored • {formatDate(ad.createdAt)}
+              Sponsored
             </div>
           </div>
         </div>
