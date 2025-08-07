@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
-import ChatPost from "./ChatPost";
-import AdCard from "../../../components/AdCard";
-import ProfileSuggestions from "../../../components/ProfileSuggestions";
+import ReactMemo from "react";
+import ChatPostOrig from "./ChatPost";
+import AdCardOrig from "../../../components/AdCard";
+import ProfileSuggestionsOrig from "../../../components/ProfileSuggestions";
+// Memoize heavy components for better performance
+const ChatPost = React.memo(ChatPostOrig);
+const AdCard = React.memo(AdCardOrig);
+const ProfileSuggestions = React.memo(ProfileSuggestionsOrig);
 import { API_BASE_URL } from "../../../utils/constants";
 
 export default function ChatList({ 
@@ -134,15 +139,12 @@ export default function ChatList({
     setDismissedSuggestions(prev => new Set([...prev, index]));
   };
 
-  // Create an array that includes posts, ads, and suggestion components
-  const renderItems = () => {
+  // Memoize renderItems for better performance
+  const renderItems = React.useMemo(() => {
     const items = [];
-    
-    posts.filter(post => post && post._id).forEach((item, idx) => {
-      // Check if this is an ad or a regular post
+    const filteredPosts = posts.filter(post => post && post._id);
+    filteredPosts.forEach((item, idx) => {
       const isAd = item.type === 'ad' || item._isAd;
-      
-      // Add the post or ad
       items.push(
         <React.Fragment key={item._id}>
           <div
@@ -177,7 +179,7 @@ export default function ChatList({
               />
             )}
           </div>
-          {idx !== posts.filter(post => post && post._id).length - 1 && (
+          {idx !== filteredPosts.length - 1 && (
             <div className="">
               <hr className="border-t border-gray-100 dark:border-gray-700/50" />
             </div>
@@ -186,9 +188,7 @@ export default function ChatList({
       );
 
       // Add profile suggestions at randomized intervals
-      // Check if current position (idx + 1) matches any of our suggestion intervals
       const shouldShowSuggestion = suggestionIntervals.includes(idx + 1);
-      
       if (shouldShowSuggestion && currentUser && !dismissedSuggestions.has(idx)) {
         items.push(
           <React.Fragment key={`suggestions-${idx}`}>
@@ -200,7 +200,7 @@ export default function ChatList({
                 getCurrentCommunityState={getCurrentCommunityState}
               />
             </div>
-            {idx !== posts.filter(post => post && post._id).length - 1 && (
+            {idx !== filteredPosts.length - 1 && (
               <div className="">
                 <hr className="border-t border-gray-100 dark:border-gray-700/50" />
               </div>
@@ -211,13 +211,10 @@ export default function ChatList({
 
       // Add sponsored ads at regular intervals (every 4th post after the 3rd post)
       const shouldShowAd = (idx + 1) % 4 === 0 && idx > 2 && ads.length > 0;
-      
       if (shouldShowAd) {
-        // Cycle through ads based on the ad insertion position to ensure all ads are shown
-        const adInsertionCount = Math.floor((idx + 1 - 3) / 4); // Count how many ads we've inserted so far
-        const adIndex = adInsertionCount % ads.length; // Cycle through available ads
+        const adInsertionCount = Math.floor((idx + 1 - 3) / 4);
+        const adIndex = adInsertionCount % ads.length;
         const selectedAd = ads[adIndex];
-
         if (selectedAd) {
           items.push(
             <React.Fragment key={`ad-${selectedAd._id}-${idx}`}>
@@ -230,7 +227,7 @@ export default function ChatList({
                   isInFeed={true}
                 />
               </div>
-              {idx !== posts.filter(post => post && post._id).length - 1 && (
+              {idx !== filteredPosts.length - 1 && (
                 <div className="">
                   <hr className="border-t border-gray-100 dark:border-gray-700/50" />
                 </div>
@@ -240,9 +237,8 @@ export default function ChatList({
         }
       }
     });
-
     return items;
-  };
+  }, [posts, ads, suggestionIntervals, dismissedSuggestions, currentUser, getCurrentCommunityState, postRefs, onReply, onComment, onLike, onView, onDelete, currentUserId, currentUsername, currentUserVerified]);
 
   return (
     <div className="w-full mx-auto overflow-hidden" style={{ WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}>
@@ -250,7 +246,8 @@ export default function ChatList({
         className="bg-white dark:bg-gray-800 mx-0 rounded-b-xl shadow-sm border-l border-r border-b border-gray-200/50 dark:border-gray-700/50"
         style={{ scrollBehavior: 'smooth' }}
       >
-        {renderItems()}
+        {/* For very large lists, consider using react-window for virtualization */}
+        {renderItems}
       </div>
     </div>
   );
