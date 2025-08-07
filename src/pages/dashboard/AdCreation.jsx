@@ -82,7 +82,10 @@ export default function AdCreation() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [whatsappCountryCode, setWhatsappCountryCode] = useState("");
   const [countryQuery, setCountryQuery] = useState("");
+  const [contactMethod, setContactMethod] = useState("link"); // 'link', 'whatsapp', 'direct-message'
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [duration, setDuration] = useState(1);
   const [targetUserbase, setTargetUserbase] = useState("");
@@ -205,7 +208,7 @@ export default function AdCreation() {
     fetchExchangeRates();
     
     // Fetch countries data
-    fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags")
+    fetch("https://restcountries.com/v3.1/all?fields=name,cca2,flags,idd")
       .then((res) => res.json())
       .then((data) => {
         const list = data
@@ -214,17 +217,34 @@ export default function AdCreation() {
             const tierObj = COUNTRIES.find(
               (x) => x.name === c.name.common || x.code === c.cca2
             );
+            // Get country calling code (idd.root + idd.suffixes[0])
+            let callingCode = '';
+            if (c.idd && c.idd.root && Array.isArray(c.idd.suffixes) && c.idd.suffixes.length > 0) {
+              callingCode = `${c.idd.root}${c.idd.suffixes[0]}`;
+            }
             return {
               name: c.name.common,
               code: c.cca2,
               flag: c.flags && c.flags.png ? c.flags.png : "",
               tier: tierObj ? tierObj.tier : 3,
+              callingCode,
             };
           })
           .sort((a, b) => a.name.localeCompare(b.name));
         setCountryList(list);
       });
   }, []);
+
+  // Set WhatsApp country code when userCountry changes or on mount
+  useEffect(() => {
+    if (contactMethod === 'whatsapp') {
+      const country = countryList.find(c => c.name === userCountry);
+      if (country && country.callingCode) {
+        setWhatsappCountryCode(country.callingCode);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userCountry, contactMethod, countryList]);
 
   const CATEGORIES = [
     "Finance",
@@ -440,7 +460,7 @@ export default function AdCreation() {
       alert("Please upload either an image or video for your ad");
       return;
     }
-    if (!linkUrl.trim()) {
+    if (contactMethod === "link" && !linkUrl.trim()) {
       alert("Please enter a destination URL");
       return;
     }
@@ -453,6 +473,7 @@ export default function AdCreation() {
       return;
     }
 
+    // Only include linkUrl if contactMethod is 'link'
     const adData = {
       title,
       description,
@@ -461,7 +482,7 @@ export default function AdCreation() {
       imagePublicId,
       video,
       videoPublicId,
-      linkUrl,
+      contactMethod,
       targetingType: isGlobalTargeting ? 'global' : 'specific',
       targetCountries: isGlobalTargeting ? [] : selectedCountries.map(name => {
         const country = countryList.find(c => c.name === name);
@@ -475,6 +496,13 @@ export default function AdCreation() {
       targetUserbase,
       userCountry
     };
+    if (contactMethod === 'link') {
+      adData.linkUrl = linkUrl;
+    }
+    if (contactMethod === 'whatsapp') {
+      adData.whatsappNumber = whatsappNumber;
+      adData.whatsappCountryCode = whatsappCountryCode;
+    }
 
     try {
       const token = localStorage.getItem('token');
@@ -542,6 +570,8 @@ export default function AdCreation() {
     setDescription("");
     setCategory("");
     setLinkUrl("");
+    setWhatsappNumber("");
+    setContactMethod("link");
     setCountryQuery("");
     setSelectedCountries([]);
     setDuration(1);
@@ -729,20 +759,98 @@ export default function AdCreation() {
             </div>
           </div>
 
-          {/* Link URL Field */}
+          {/* Contact Method Selection and Contact Fields */}
           <div>
             <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
-              <FaLink className="inline mr-2" />
-              Destination URL (Where users go when they click your ad)
+              Contact Method
             </label>
-            <input
-              type="url"
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              placeholder="https://example.com/your-product"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              required
-            />
+            <div className="flex gap-4 mb-2">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="contactMethod"
+                  value="link"
+                  checked={contactMethod === "link"}
+                  onChange={() => setContactMethod("link")}
+                  style={{ accentColor: '#a99d6b' }}
+                />
+                <span className="ml-1 font-medium text-gray-800 dark:text-gray-100">Link</span>
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="contactMethod"
+                  value="whatsapp"
+                  checked={contactMethod === "whatsapp"}
+                  onChange={() => setContactMethod("whatsapp")}
+                  style={{ accentColor: '#a99d6b' }}
+                />
+                <span className="ml-1 font-medium text-gray-800 dark:text-gray-100">WhatsApp DMs</span>
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="contactMethod"
+                  value="direct-message"
+                  checked={contactMethod === "direct-message"}
+                  onChange={() => setContactMethod("direct-message")}
+                  style={{ accentColor: '#a99d6b' }}
+                />
+                <span className="ml-1 font-medium text-gray-800 dark:text-gray-100">In-app DMs</span>
+              </label>
+            </div>
+            {/* Show relevant input fields based on contact method */}
+            {contactMethod === "link" && (
+              <div>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                  <FaLink className="inline mr-2" />
+                  Destination URL (Where users go when they click your ad)
+                </label>
+                <input
+                  type="url"
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 mb-2"
+                  placeholder="https://example.com/your-product"
+                  value={linkUrl}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                />
+              </div>
+            )}
+            {contactMethod === "whatsapp" && (
+              <div>
+                <label className="block font-semibold mb-1 text-gray-700 dark:text-gray-200">
+                  WhatsApp Contact (required)
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <select
+                    className="p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-32"
+                    value={whatsappCountryCode}
+                    onChange={e => setWhatsappCountryCode(e.target.value)}
+                    required
+                  >
+                    <option value="" disabled>Select code</option>
+                    {countryList.filter(c => c.callingCode).map(c => (
+                      <option key={c.callingCode + c.name} value={c.callingCode}>
+                        {c.flag ? <img src={c.flag} alt={c.code} className="inline w-4 h-3 mr-1" /> : null}
+                        {c.callingCode} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    className="flex-1 p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    placeholder="WhatsApp number (no leading 0)"
+                    value={whatsappNumber}
+                    onChange={e => setWhatsappNumber(e.target.value.replace(/[^\d]/g, ''))}
+                    maxLength={15}
+                    required={contactMethod === "whatsapp"}
+                  />
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">Select your country code and enter your WhatsApp number (no leading 0). Users will contact you via WhatsApp.</span>
+              </div>
+            )}
+            {contactMethod === "direct-message" && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Users will be able to send you a direct message on the platform.</div>
+            )}
           </div>
 
           <div>
@@ -975,7 +1083,7 @@ export default function AdCreation() {
           </div>
 
           {/* Ad Preview Section */}
-          {(title || description || image || video || linkUrl) && (
+          {(title || description || image || video || linkUrl || whatsappNumber) && (
             <div>
               <label className="block font-semibold mb-2 text-gray-700 dark:text-gray-200">
                 Live Preview
@@ -985,7 +1093,9 @@ export default function AdCreation() {
                 description={description}
                 image={image}
                 video={video}
-                linkUrl={linkUrl}
+                {...(contactMethod === 'link' && linkUrl ? { linkUrl } : {})}
+                {...(contactMethod === 'whatsapp' && whatsappNumber ? { whatsappNumber } : {})}
+                contactMethod={contactMethod}
               />
             </div>
           )}

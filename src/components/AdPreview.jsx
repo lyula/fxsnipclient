@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaPlay, FaPause, FaExternalLinkAlt, FaImage, FaVideo } from 'react-icons/fa';
 
-const AdPreview = ({ title, description, image, video, linkUrl, className = "" }) => {
+const AdPreview = ({ title, description, image, video, linkUrl, whatsappNumber, contactMethod, className = "" }) => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   const toggleVideo = () => {
@@ -108,13 +108,38 @@ const AdPreview = ({ title, description, image, video, linkUrl, className = "" }
           )}
         </div>
 
-        {/* Call to Action Button */}
-        <button 
-          className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors"
-          disabled
-        >
-          Learn More
-        </button>
+        {/* Call to Action Button (matches feed logic) */}
+        {contactMethod === 'link' && linkUrl && (
+          <a
+            href={linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full mt-3 block bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors text-center"
+            style={{ textDecoration: 'none' }}
+          >
+            Learn More
+          </a>
+        )}
+        {contactMethod === 'whatsapp' && whatsappNumber && (
+          <a
+            href={`https://wa.me/${whatsappNumber}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full mt-3 block bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors text-center"
+            style={{ textDecoration: 'none' }}
+          >
+            WhatsApp
+          </a>
+        )}
+        {contactMethod === 'direct-message' && (
+          <button
+            type="button"
+            className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 px-3 rounded transition-colors text-center"
+            disabled
+          >
+            Send Direct Message
+          </button>
+        )}
       </div>
     </div>
   );

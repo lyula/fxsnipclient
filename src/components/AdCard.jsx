@@ -490,9 +490,16 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2 line-clamp-2">
                 {ad.title}
               </h3>
-              <p className={`text-gray-600 dark:text-gray-300 text-sm ${isInFeed ? 'mb-2' : 'mb-3'} line-clamp-2`}>
-                {ad.description}
-              </p>
+              {/* Description: scrollable if too long, under media */}
+              <div className="relative">
+                <div
+                  className={`text-gray-600 dark:text-gray-300 text-sm ${isInFeed ? 'mb-2' : 'mb-3'} max-h-24 overflow-y-auto pr-1 whitespace-pre-line`}
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: '#a99d6b #e5e7eb' }}
+                  tabIndex={0}
+                >
+                  {ad.description}
+                </div>
+              </div>
 
               {/* Link URL - Admin only */}
               {!isInFeed && ad.linkUrl && (
@@ -536,18 +543,38 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
             <div className={`flex gap-2 ${isInFeed ? 'mt-2' : 'mt-auto'}`}>
               {isInFeed ? (
                 <div className="w-full flex flex-col gap-2">
-                  <button
-                    onClick={() => {
-                      if (ad.linkUrl) {
-                        window.open(ad.linkUrl, '_blank');
-                      } else {
-                        onClick && onClick();
-                      }
-                    }}
-                    className="w-full bg-[#a99d6b] hover:bg-[#968B5C] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md"
-                  >
-                    {ad.linkUrl ? 'Visit Link' : (ad.buttonText || 'Learn More')}
-                  </button>
+                  {/* Contact Button: Render above AdsInteractionBar, using AdPreview logic */}
+                  {ad.contactMethod === 'link' && ad.linkUrl && (
+                    <a
+                      href={ad.linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-[#a99d6b] hover:bg-[#968B5C] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      Learn More
+                    </a>
+                  )}
+                  {ad.contactMethod === 'whatsapp' && ad.whatsappNumber && (
+                    <a
+                      href={`https://wa.me/${ad.whatsappNumber}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      WhatsApp
+                    </a>
+                  )}
+                  {ad.contactMethod === 'direct-message' && (
+                    <button
+                      type="button"
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
+                      disabled
+                    >
+                      Send Direct Message
+                    </button>
+                  )}
                   {/* Ads interaction bar below the button, using backend data */}
                   <AdsInteractionBar
                     liked={liked}
