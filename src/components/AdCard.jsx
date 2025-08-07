@@ -170,14 +170,30 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
     setVideoError(true);
   };
 
+  // Session media cache: preload and cache viewed media URLs
+  const cacheMediaInSession = (url, type) => {
+    if (!url) return;
+    const cacheKey = `adMediaCache:${url}`;
+    if (!sessionStorage.getItem(cacheKey)) {
+      // Preload
+      if (type === 'image') {
+        const img = new window.Image();
+        img.src = url;
+      } else if (type === 'video') {
+        const video = document.createElement('video');
+        video.src = url;
+      }
+      sessionStorage.setItem(cacheKey, '1');
+    }
+  };
+
   const renderMedia = () => {
     // Handle video (can be string or array)
     const videoUrl = Array.isArray(ad.video) ? ad.video[0] : ad.video;
-    
     // Determine media height based on context
     const mediaHeight = isInFeed ? "h-48" : "h-40"; // Larger height for feed ads
-    
     if (videoUrl && !videoError) {
+      cacheMediaInSession(videoUrl, 'video');
       return (
         <div className="relative group">
           <video
@@ -191,7 +207,6 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
             onError={handleVideoError}
             onClick={toggleVideo}
           />
-          
           {/* Play/Pause overlay - center */}
           <div 
             className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -205,7 +220,6 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
               )}
             </div>
           </div>
-
           {/* Mute/Unmute button - bottom right */}
           <div className="absolute bottom-2 right-2">
             <button
@@ -222,12 +236,11 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
           </div>
         </div>
       );
-    } 
-    
+    }
     // Handle image (can be string or array)
     const imageUrl = Array.isArray(ad.image) ? ad.image[0] : ad.image;
-    
     if (imageUrl) {
+      cacheMediaInSession(imageUrl, 'image');
       return (
         <div className="relative">
           <img
@@ -240,8 +253,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
           />
         </div>
       );
-    } 
-    
+    }
     // No media
     return (
       <div className={`w-full ${mediaHeight} bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center`}>

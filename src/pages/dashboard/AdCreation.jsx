@@ -1,3 +1,4 @@
+// ...existing code...
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { COUNTRIES, TIER_PRICING } from "./countries";
@@ -44,13 +45,8 @@ const COUNTRY_CURRENCIES = {
   "Rwanda": { code: "RWF", symbol: "RF" },
 };
 
-// Base pricing in USD (aligned with major social media platforms)
-const BASE_TIER_PRICING_USD = {
-  1: 5.00, // USD per day for tier 1 countries (similar to Facebook/Instagram)
-  2: 2.50, // USD per day for tier 2 countries  
-  3: 1.00, // USD per day for tier 3 countries
-  global: 3.50 // USD per day for global targeting (weighted average)
-};
+// Finance CPM (cost per 1000 views) in USD (should match backend)
+const FINANCE_CPM_USD = 10.00; // Example: $10 per 1000 views
 
 function filterCountries(query) {
   return COUNTRIES.filter((c) =>
@@ -79,6 +75,8 @@ function getNeighborSuggestions(selectedCountries) {
 }
 
 export default function AdCreation() {
+  // Currency mode state for toggling between local and USD
+  const [currencyMode, setCurrencyMode] = useState('local'); // 'local' or 'usd'
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -181,21 +179,20 @@ export default function AdCreation() {
     return usdAmount * rate;
   };
 
-  // Function to format currency display
+  // Function to format currency display with comma separators
   const formatCurrency = (usdAmount) => {
+    if (currencyMode === 'usd') {
+      return `$${usdAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
     const currency = getUserCurrency();
     const convertedAmount = convertFromUSD(usdAmount);
-    
     // Format based on currency
     let formattedAmount;
     if (currency.code === 'JPY' || currency.code === 'KRW') {
-      // No decimal places for currencies like JPY
       formattedAmount = Math.round(convertedAmount).toLocaleString();
     } else {
-      // Two decimal places for most currencies
-      formattedAmount = convertedAmount.toFixed(2);
+      formattedAmount = convertedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    
     return `${currency.symbol}${formattedAmount}`;
   };
 
@@ -250,28 +247,21 @@ export default function AdCreation() {
     { value: "1000000", label: "1M+ users (Maximum reach)", multiplier: 3.2 },
   ];
 
-  // Calculate payment: sum of (tier price * days * userbase multiplier) for each selected country
+  // CPM-based calculation
   const calculatePayment = () => {
     if (!targetUserbase) return 0;
-    
     const targetOption = TARGET_USERBASE_OPTIONS.find(option => option.value === targetUserbase);
-    const userbaseMultiplier = targetOption ? targetOption.multiplier : 1;
-    
-    if (isGlobalTargeting) {
-      // Global targeting uses a fixed rate
-      return BASE_TIER_PRICING_USD.global * duration * userbaseMultiplier;
-    }
-    
-    if (selectedCountries.length === 0) return 0;
-    
-    return selectedCountries.reduce((sum, c) => {
-      const country = countryList.find((x) => x.name === c);
-      const tier = country ? country.tier : 3;
-      return sum + (BASE_TIER_PRICING_USD[tier] * duration * userbaseMultiplier);
-    }, 0);
+    const audienceSize = targetOption ? Number(targetOption.value) : 1000;
+    const estimatedViews = audienceSize * duration;
+    return (estimatedViews / 1000) * FINANCE_CPM_USD;
   };
 
   const payment = calculatePayment();
+
+  // For UI display
+  const targetOption = TARGET_USERBASE_OPTIONS.find(option => option.value === targetUserbase);
+  const audienceSize = targetOption ? Number(targetOption.value) : 0;
+  const estimatedViews = audienceSize * duration;
 
   // Media upload functions
   const createFilePreview = (file, type) => {
@@ -857,7 +847,7 @@ export default function AdCreation() {
                       )}
                       <span className="text-gray-900 dark:text-gray-100">{name}</span>
                       <span className="ml-2 text-xs text-gray-400">
-                        (Tier {country?.tier || 3}, {formatCurrency(BASE_TIER_PRICING_USD[country?.tier || 3])}/day)
+                        (Tier {country?.tier || 3})
                       </span>
                     </div>
                   );
@@ -888,7 +878,7 @@ export default function AdCreation() {
                         {c.name}
                       </span>
                       <span className="ml-2 text-xs text-gray-400">
-                        (Tier {c.tier}, {formatCurrency(BASE_TIER_PRICING_USD[c.tier])}/day)
+                        (Tier {c.tier})
                       </span>
                     </div>
                   );
@@ -942,45 +932,40 @@ export default function AdCreation() {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block font-semibold text-gray-700 dark:text-gray-200">
-                Total Payment ({getUserCurrency().code})
+                Total Payment ({currencyMode === 'local' ? getUserCurrency().code : 'USD'})
               </label>
               <button
                 type="button"
-                onClick={fetchExchangeRates}
+                onClick={() => setCurrencyMode(currencyMode === 'local' ? 'usd' : 'local')}
+                className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 rounded"
+                style={{ color: '#a99d6b', border: '1px solid #a99d6b', background: 'transparent' }}
                 disabled={ratesLoading}
-                className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300 disabled:opacity-50"
               >
-                {ratesLoading ? "Updating..." : "Refresh Rates"}
+                {currencyMode === 'local' ? 'Show in USD' : `Show in ${getUserCurrency().code}`}
               </button>
             </div>
-            <input
-              type="text"
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-              value={
-                ratesLoading 
-                  ? "Loading exchange rates..." 
-                  : payment > 0 
-                    ? formatCurrency(payment) 
-                    : isGlobalTargeting 
-                      ? "Select target audience to see pricing"
-                      : "Select countries and target audience to see pricing"
-              }
-              readOnly
-            />
+            <div className="flex items-center gap-2 mb-1">
+              <input
+                type="text"
+                className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                value={
+                  ratesLoading 
+                    ? "Loading exchange rates..." 
+                    : payment > 0 
+                      ? formatCurrency(payment) 
+                      : isGlobalTargeting 
+                        ? "Select target audience to see pricing"
+                        : "Select countries and target audience to see pricing"
+                }
+                readOnly
+              />
+              {/* Currency toggle moved to button above, select removed */}
+            </div>
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {isGlobalTargeting ? (
-                <>
-                  Global targeting rate: ${BASE_TIER_PRICING_USD.global}/day (before audience multiplier)
-                  <br />
-                  Price calculation: ${BASE_TIER_PRICING_USD.global} × Duration × Audience multiplier
-                </>
-              ) : (
-                <>
-                  Base pricing (USD): Tier 1 = ${BASE_TIER_PRICING_USD[1]}, Tier 2 = ${BASE_TIER_PRICING_USD[2]}, Tier 3 = ${BASE_TIER_PRICING_USD[3]} per day per country (before audience multiplier)
-                  <br />
-                  Price calculation: Base price × Duration × Countries × Audience multiplier
-                </>
-              )}
+              CPM-based pricing: <b>${FINANCE_CPM_USD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per 1,000 views</b><br />
+              Estimated views: <b>{estimatedViews.toLocaleString()}</b><br />
+              Price calculation: <b>(Estimated Views / 1,000) × CPM</b><br />
+              Example: ({estimatedViews.toLocaleString()} / 1,000) × ${FINANCE_CPM_USD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} = <b>{formatCurrency(payment)}</b>
               {ratesLoading && <><br />Loading current exchange rates...</>}
             </span>
           </div>
@@ -1011,13 +996,43 @@ export default function AdCreation() {
         </form>
       </div>
 
-      {/* Success Modal */}
-      <AdSuccessModal
-        isOpen={showSuccessModal}
-        onClose={handleModalClose}
-        onViewAd={handleViewAd}
-        onManageAds={handleManageAds}
-      />
+      {/* Success Modal - Centered on screen */}
+      {showSuccessModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100dvh',
+            minWidth: '100vw',
+            padding: '0',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 400,
+              margin: 'auto', // 24px right, 16px left
+              boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AdSuccessModal
+              isOpen={showSuccessModal}
+              onClose={handleModalClose}
+              onViewAd={handleViewAd}
+              onManageAds={handleManageAds}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
