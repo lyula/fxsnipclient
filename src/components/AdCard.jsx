@@ -543,38 +543,52 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
             <div className={`flex gap-2 ${isInFeed ? 'mt-2' : 'mt-auto'}`}>
               {isInFeed ? (
                 <div className="w-full flex flex-col gap-2">
-                  {/* Contact Button: Render above AdsInteractionBar, using AdPreview logic */}
-                  {ad.contactMethod === 'link' && ad.linkUrl && (
-                    <a
-                      href={ad.linkUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-[#a99d6b] hover:bg-[#968B5C] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
-                      style={{ textDecoration: 'none' }}
-                    >
-                      Learn More
-                    </a>
-                  )}
-                  {ad.contactMethod === 'whatsapp' && ad.whatsappNumber && (
-                    <a
-                      href={`https://wa.me/${ad.whatsappNumber}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
-                      style={{ textDecoration: 'none' }}
-                    >
-                      WhatsApp
-                    </a>
-                  )}
-                  {ad.contactMethod === 'direct-message' && (
-                    <button
-                      type="button"
-                      className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
-                      disabled
-                    >
-                      Send Direct Message
-                    </button>
-                  )}
+                  {/* Contact Button: Always render above AdsInteractionBar, using AdPreview logic */}
+                  {(() => {
+                    // Defensive: fallback to empty string if missing
+                    const contactMethod = ad.contactMethod || '';
+                    const linkUrl = ad.linkUrl || '';
+                    const whatsappNumber = ad.whatsappNumber || '';
+                    if (contactMethod === 'link' && linkUrl) {
+                      return (
+                        <a
+                          href={linkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-[#a99d6b] hover:bg-[#968B5C] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          Learn More
+                        </a>
+                      );
+                    }
+                    if (contactMethod === 'whatsapp' && whatsappNumber) {
+                      return (
+                        <a
+                          href={`https://wa.me/${whatsappNumber}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
+                          style={{ textDecoration: 'none' }}
+                        >
+                          WhatsApp
+                        </a>
+                      );
+                    }
+                    if (contactMethod === 'direct-message') {
+                      return (
+                        <button
+                          type="button"
+                          className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
+                          disabled
+                        >
+                          Send Direct Message
+                        </button>
+                      );
+                    }
+                    // If no valid contact method, render nothing
+                    return null;
+                  })()}
                   {/* Ads interaction bar below the button, using backend data */}
                   <AdsInteractionBar
                     liked={liked}
