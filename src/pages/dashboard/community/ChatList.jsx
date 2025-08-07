@@ -51,6 +51,11 @@ export default function ChatList({
     }
   }, [posts.length, suggestionIntervals]);
 
+  // Log the API base URL for debugging
+  useEffect(() => {
+    console.log('API_BASE_URL used for ads:', API_BASE_URL);
+  }, []);
+
   // Fetch active ads from the database
   const fetchAds = async () => {
     if (adsLoading) return;
@@ -58,7 +63,7 @@ export default function ChatList({
     try {
       setAdsLoading(true);
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/ads/active`, {
+      const response = await fetch(`${API_BASE_URL}/ads/active`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -88,7 +93,7 @@ export default function ChatList({
   const handleAdImpression = async (adId) => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${API_BASE_URL}/api/posts/ads/${adId}/impression`, {
+      await fetch(`${API_BASE_URL}/posts/ads/${adId}/impression`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -104,7 +109,7 @@ export default function ChatList({
   const handleAdClick = async (ad) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/posts/ads/${ad._id}/click`, {
+      const response = await fetch(`${API_BASE_URL}/posts/ads/${ad._id}/click`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
