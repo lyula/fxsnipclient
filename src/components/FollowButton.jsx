@@ -40,17 +40,7 @@ export default function FollowButton({ authorId, followersHashed, buttonClass = 
         followersHashed: Array.isArray(followersHashed) ? followersHashed : 'not-array'
       });
     }
-    
-    // Also log when button shows for authors you claim to follow
-    if (shouldShow && authorId) {
-      console.log(`[FollowButton] Button showing for ${authorId}:`, {
-        isFollowing,
-        isFollowedGlobally, 
-        followersHashedLength: Array.isArray(followersHashed) ? followersHashed.length : 'not-array',
-        hashedCurrentUserId,
-        followersHashedIncludes: Array.isArray(followersHashed) ? followersHashed.includes(hashedCurrentUserId) : false
-      });
-    }
+    // Removed noisy console.log for normal button show
   }, [shouldShow, isFollowing, isFollowedGlobally, authorId, hashedCurrentUserId, followersHashed]);
 
   // Don't show button if user is self, already following, or followed globally

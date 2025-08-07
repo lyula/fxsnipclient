@@ -2,8 +2,64 @@ import React, { useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaExternalLinkAlt, FaEye, FaMousePointer, FaCalendarAlt, FaDollarSign, FaGlobe, FaFlag, FaUser, FaVolumeMute, FaVolumeUp, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
+import AdsInteractionBar from './AdsInteractionBar';
+import {
+  likeAd,
+  shareAd,
+  viewAd,
+  getAdInteractions
+} from '../utils/adInteractionsApi';
 
 const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, isInFeed = false }) => {
+  const [liked, setLiked] = useState(false);
+  const [likeAnimating, setLikeAnimating] = useState(false);
+  const [likesUsers, setLikesUsers] = useState([]);
+  const [showLikes, setShowLikes] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [shares, setShares] = useState(0);
+  const [views, setViews] = useState(0);
+  const [normalizedLikes, setNormalizedLikes] = useState([]);
+  const [loadingLikes, setLoadingLikes] = useState(false);
+
+  // Fetch ad interactions on mount (for feed ads)
+  useEffect(() => {
+    if (isInFeed && ad._id) {
+      getAdInteractions(ad._id).then(data => {
+        setLiked(data.likes?.some(u => u._id === ad.currentUserId));
+        setLikesUsers(data.likes || []);
+        setNormalizedLikes(data.likes || []);
+        setShares(data.shares?.length || 0);
+        setViews(data.viewCount || 0);
+      });
+    }
+  }, [ad._id, isInFeed, ad.currentUserId]);
+
+  // Track view on mount (for feed ads)
+  useEffect(() => {
+    if (isInFeed && ad._id) {
+      viewAd(ad._id).then(data => {
+        setViews(data.viewCount || 0);
+      });
+    }
+  }, [ad._id, isInFeed]);
+
+  const handleLike = async () => {
+    setLikeAnimating(true);
+    try {
+      const data = await likeAd(ad._id);
+      // The backend now returns the full AdInteraction object, so update all relevant states
+      setLiked(data.likes?.some(u => u._id === ad.currentUserId));
+      setLikesUsers(data.likes || []);
+      setNormalizedLikes(data.likes || []);
+    } finally {
+      setTimeout(() => setLikeAnimating(false), 400);
+    }
+  };
+
+  const handleShare = async () => {
+    await shareAd(ad._id);
+    setShares(s => s + 1);
+  };
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [hasTrackedImpression, setHasTrackedImpression] = useState(false);
@@ -217,11 +273,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
   };
 
   return (
-    <div className={`rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 ${isInFeed ? 'h-auto' : 'h-[520px]'} flex flex-col ${
-      isInFeed 
-        ? 'bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20' 
-        : 'bg-white dark:bg-gray-800'
-    }`}>
+    <div className={`rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 ${isInFeed ? 'h-auto' : 'h-[520px]'} flex flex-col bg-white dark:bg-gray-800`}>
       {/* User Info Header */}
       {ad.userId && (
         <div className="flex items-center p-4 pb-2 border-b border-gray-100 dark:border-gray-700">
@@ -419,21 +471,45 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
             {/* Action Buttons */}
             <div className={`flex gap-2 ${isInFeed ? 'mt-2' : 'mt-auto'}`}>
               {isInFeed ? (
-                /* Feed view - show CTA button */
-                <button
-                  onClick={() => {
-                    if (ad.linkUrl) {
-                      // If ad has a URL, open it directly
-                      window.open(ad.linkUrl, '_blank');
-                    } else {
-                      // Otherwise use the provided onClick handler
-                      onClick && onClick();
-                    }
-                  }}
-                  className="flex-1 bg-[#a99d6b] hover:bg-[#968B5C] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md"
-                >
-                  {ad.linkUrl ? 'Visit Link' : (ad.buttonText || 'Learn More')}
-                </button>
+                <div className="w-full flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      if (ad.linkUrl) {
+                        window.open(ad.linkUrl, '_blank');
+                      } else {
+                        onClick && onClick();
+                      }
+                    }}
+                    className="w-full bg-[#a99d6b] hover:bg-[#968B5C] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md"
+                  >
+                    {ad.linkUrl ? 'Visit Link' : (ad.buttonText || 'Learn More')}
+                  </button>
+                  {/* Ads interaction bar below the button, using backend data */}
+                  <AdsInteractionBar
+                    liked={liked}
+                    likeAnimating={likeAnimating}
+                    handleLike={handleLike}
+                    normalizedLikes={normalizedLikes}
+                    likesUsers={likesUsers}
+                    setShowLikes={setShowLikes}
+                    showLikes={showLikes}
+                    setShowComments={setShowComments}
+                    localPost={{
+                      comments: ad.commentsList || [],
+                      shares: shares,
+                      _id: ad._id,
+                      views: views
+                    }}
+                    loadingLikes={loadingLikes}
+                    getPostLikes={null}
+                    setLikesUsers={setLikesUsers}
+                    currentUserId={ad.currentUserId}
+                    currentUsername={ad.currentUsername}
+                    currentUserVerified={ad.currentUserVerified}
+                    onShare={handleShare}
+                    views={views}
+                  />
+                </div>
               ) : (
                 /* Management view - show admin buttons */
                 <>

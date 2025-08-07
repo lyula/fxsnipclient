@@ -7,7 +7,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://fxsnipserver.onrender.com',
+        target: process.env.NODE_ENV === 'production'
+          ? 'https://fxsnipserver.onrender.com'
+          : 'http://localhost:5000',
         changeOrigin: true,
         secure: false // Set to true if your backend has a valid SSL cert
       }
