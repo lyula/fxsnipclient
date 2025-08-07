@@ -29,6 +29,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     typingUsers,
     updateConversation,
     onlineUsers,
+    socketConnected,
     sendSeen // <-- Add sendSeen from context
   } = useDashboard();
   const [input, setInput] = useState("");
@@ -183,6 +184,19 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
   // Use isUserStatusTyping for both header and input indicators
   const isRecipientTyping = isUserStatusTyping;
 
+  // Debug logging for typing status
+  useEffect(() => {
+    if (isUserStatusTyping || isRecipientTyping) {
+      console.log('[ChatBox] Typing indicator ACTIVE:', {
+        selectedUserId,
+        conversationId,
+        isUserStatusTyping,
+        isRecipientTyping,
+        socketConnected
+      });
+    }
+  }, [selectedUserId, conversationId, isUserStatusTyping, isRecipientTyping, socketConnected]);
+
   // --- Emoji picker logic ---
   useEffect(() => {
     if (!showEmojiPicker) return;
@@ -275,6 +289,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
       if (e.target.value.trim()) {
         // Send typing event only if not already typing
         if (!isTypingRef.current) {
+          console.log('[ChatBox] Sending typing event - Socket connected:', socketConnected);
           sendTyping(conversationId, otherUserId);
           isTypingRef.current = true;
         }
@@ -287,6 +302,8 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
         debouncedStopTyping.cancel();
         stopTypingWithDelay();
       }
+    } else {
+      console.log('[ChatBox] Not sending typing - Same user or missing IDs:', { otherUserId, myUserIdStr });
     }
   };
 
@@ -749,8 +766,22 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
               {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
             </button>
+            {/* Socket connection status indicator */}
+            <div className="flex items-center ml-2">
+              <div 
+                className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-red-500'}`}
+                title={socketConnected ? 'Connected' : 'Disconnected'}
+              ></div>
+            </div>
             {/* Unified typing indicator for header */}
-            <UserStatus userId={selectedUser._id} token={token} typing={isUserStatusTyping} online={isRecipientOnline} />
+            <UserStatus 
+              userId={selectedUser._id} 
+              token={token} 
+              typing={isUserStatusTyping} 
+              online={isRecipientOnline}
+              typingUsers={typingUsers}
+              conversationId={conversationId}
+            />
           </div>
         </div>
         <div

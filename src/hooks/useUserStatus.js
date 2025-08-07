@@ -21,13 +21,13 @@ export default function useUserStatus(targetUserId, token, typingUsers = {}, con
     const targetUserIdStr = String(targetUserId);
     const isTyping = typingArr.some(id => String(id) === targetUserIdStr);
     
-    console.log('[useUserStatus] Typing calculation:', { 
-      conversationId, 
-      targetUserId: targetUserIdStr, 
-      typingArr, 
-      isTyping,
-      typingUsers 
-    });
+    if (isTyping) {
+      console.log('[useUserStatus] User is typing!', { 
+        conversationId, 
+        targetUserId: targetUserIdStr, 
+        typingArr
+      });
+    }
     
     setTyping(isTyping);
   }, [typingUsers, conversationId, targetUserId]);

@@ -284,7 +284,7 @@ export default function ProfileSuggestions({
             e.stopPropagation();
           }}
         >
-          <style jsx>{`
+          <style>{`
             div::-webkit-scrollbar {
               display: none;
             }

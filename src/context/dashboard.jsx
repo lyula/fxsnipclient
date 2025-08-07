@@ -407,13 +407,27 @@ export function DashboardProvider({ children }) {
    * @param {string} recipientUserId - The userId of the recipient (NOT the conversationId)
    */
   const sendTyping = useCallback((conversationId, recipientUserId) => {
-    if (!socketRef.current) return;
+    if (!socketRef.current || !socketConnected) {
+      console.warn('[DashboardContext] sendTyping: Socket not ready!', { 
+        socketExists: !!socketRef.current, 
+        socketConnected, 
+        conversationId, 
+        recipientUserId 
+      });
+      return;
+    }
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendTyping: recipientUserId is missing!', { conversationId, recipientUserId });
+      return;
     }
     console.log('[Dashboard] Sending typing event:', { conversationId, to: recipientUserId });
+    console.log('[Dashboard] Socket emit details:', { 
+      event: 'typing', 
+      payload: { conversationId, to: recipientUserId },
+      socketId: socketRef.current?.id 
+    });
     socketRef.current.emit("typing", { conversationId, to: recipientUserId });
-  }, []);
+  }, [socketConnected]);
 
   /**
    * Emits stop-typing event to recipient.
@@ -421,13 +435,22 @@ export function DashboardProvider({ children }) {
    * @param {string} recipientUserId - The userId of the recipient (NOT the conversationId)
    */
   const sendStopTyping = useCallback((conversationId, recipientUserId) => {
-    if (!socketRef.current) return;
+    if (!socketRef.current || !socketConnected) {
+      console.warn('[DashboardContext] sendStopTyping: Socket not ready!', { 
+        socketExists: !!socketRef.current, 
+        socketConnected, 
+        conversationId, 
+        recipientUserId 
+      });
+      return;
+    }
     if (!recipientUserId) {
       console.warn('[DashboardContext] sendStopTyping: recipientUserId is missing!', { conversationId, recipientUserId });
+      return;
     }
     console.log('[Dashboard] Sending stop-typing event:', { conversationId, to: recipientUserId });
     socketRef.current.emit("stop-typing", { conversationId, to: recipientUserId });
-  }, []);
+  }, [socketConnected]);
 
   // --- Send seen receipts for messages ---
   const sendSeen = useCallback(({ conversationId, to, messageIds }) => {
@@ -1068,6 +1091,10 @@ export function DashboardProvider({ children }) {
       reconnectionDelay: 10000,
       reconnectionDelayMax: 20000,
     });
+    // Attach to window for debugging
+    if (typeof window !== 'undefined') {
+      window.dashboardSocket = socketRef.current;
+    }
     // On connect, emit user-online and get-online-users
     socketRef.current.on("connect", () => {
       setSocketConnected(true);

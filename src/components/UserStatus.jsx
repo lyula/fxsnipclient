@@ -1,8 +1,8 @@
 import React from "react";
 import useUserStatus from "../hooks/useUserStatus";
 
-export default function UserStatus({ userId, token, typing: typingProp, online: onlineProp }) {
-  const { online: onlineState, lastSeen, typing: typingState } = useUserStatus(userId, token);
+export default function UserStatus({ userId, token, typing: typingProp, online: onlineProp, typingUsers = {}, conversationId = null }) {
+  const { online: onlineState, lastSeen, typing: typingState } = useUserStatus(userId, token, typingUsers, conversationId);
   const typing = typeof typingProp === 'boolean' ? typingProp : typingState;
   const online = typeof onlineProp === 'boolean' ? onlineProp : onlineState;
 
@@ -10,6 +10,10 @@ export default function UserStatus({ userId, token, typing: typingProp, online: 
   if (typing) statusText = "Typing...";
   else if (online) statusText = "Online";
   else if (lastSeen) statusText = `Last seen ${formatLastSeen(lastSeen)}`;
+
+  if (typing) {
+    console.log('[UserStatus] Displaying "Typing..." for user:', userId);
+  }
 
   return (
     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 min-h-[1.2em] text-left">
