@@ -24,3 +24,5 @@ export default function VerifiedBadge() {
     </span>
   );
 }
+
+// forcing deployment for ads url in the edployed env to pick
