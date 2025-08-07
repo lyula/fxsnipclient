@@ -308,6 +308,8 @@ export default function AdCreation() {
         if (result.success) {
           setImage(result.url);
           setImagePublicId(result.publicId);
+          setPreviewFile(result.url); // Show uploaded image as preview
+          setPreviewType("image");
           setUploadProgress("Image uploaded successfully!");
           setTimeout(() => {
             setUploadProgress("");
@@ -363,6 +365,8 @@ export default function AdCreation() {
         if (result.success) {
           setVideo(result.url);
           setVideoPublicId(result.publicId);
+          setPreviewFile(result.url); // Show uploaded video as preview
+          setPreviewType("video");
           setUploadProgress("Video uploaded successfully!");
           setTimeout(() => {
             setUploadProgress("");
