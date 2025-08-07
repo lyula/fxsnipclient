@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FaPlay, FaPause, FaExternalLinkAlt, FaEye, FaMousePointer, FaCalendarAlt, FaDollarSign, FaGlobe, FaFlag, FaUser, FaVolumeMute, FaVolumeUp, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
@@ -7,7 +7,9 @@ import {
   likeAd,
   shareAd,
   viewAd,
-  getAdInteractions
+  getAdInteractions,
+  commentAd,
+  replyAdComment
 } from '../utils/adInteractionsApi';
 
 const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, isInFeed = false }) => {
@@ -20,37 +22,72 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
   const [views, setViews] = useState(0);
   const [normalizedLikes, setNormalizedLikes] = useState([]);
   const [loadingLikes, setLoadingLikes] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [replyTextMap, setReplyTextMap] = useState({});
+  const [hasTrackedImpression, setHasTrackedImpression] = useState(false);
+  const containerRef = useRef(null);
 
   // Fetch ad interactions on mount (for feed ads)
   useEffect(() => {
     if (isInFeed && ad._id) {
       getAdInteractions(ad._id).then(data => {
-        setLiked(data.likes?.some(u => u._id === ad.currentUserId));
-        setLikesUsers(data.likes || []);
-        setNormalizedLikes(data.likes || []);
-        setShares(data.shares?.length || 0);
-        setViews(data.viewCount || 0);
+        const currentUserId = ad.currentUserId;
+        const likesArray = Array.isArray(data?.likes) ? data.likes : [];
+        setLiked(!!likesArray.find(u => String(u?._id) === String(currentUserId)));
+        setLikesUsers(likesArray);
+        setNormalizedLikes(likesArray);
+        setShares(Array.isArray(data?.shares) ? data.shares.length : 0);
+        setViews(typeof data?.viewCount === 'number' ? data.viewCount : 0);
+        setComments(Array.isArray(data?.comments) ? data.comments : []);
+      }).catch(() => {
+        setLiked(false);
       });
     }
   }, [ad._id, isInFeed, ad.currentUserId]);
 
-  // Track view on mount (for feed ads)
+  // Track view using IntersectionObserver (for feed ads)
   useEffect(() => {
-    if (isInFeed && ad._id) {
-      viewAd(ad._id).then(data => {
-        setViews(data.viewCount || 0);
-      });
+    if (!isInFeed || !ad._id || !containerRef.current || hasTrackedImpression) return;
+    const el = containerRef.current;
+    let observer;
+    if ('IntersectionObserver' in window) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.5 && !hasTrackedImpression) {
+            // Count impression in ad analytics
+            onView && onView();
+            // Count unique view in ad interactions
+            viewAd(ad._id).then((data) => {
+              setViews(typeof data?.viewCount === 'number' ? data.viewCount : (v) => v);
+            }).catch(() => {});
+            setHasTrackedImpression(true);
+            if (observer) observer.unobserve(el);
+          }
+        },
+        { threshold: [0, 0.5, 1] }
+      );
+      observer.observe(el);
     }
-  }, [ad._id, isInFeed]);
+    return () => {
+      if (observer && el) observer.unobserve(el);
+    };
+  }, [isInFeed, ad._id, onView, hasTrackedImpression]);
 
   const handleLike = async () => {
     setLikeAnimating(true);
     try {
+      // Optimistic toggle
+      setLiked(prev => !prev);
       const data = await likeAd(ad._id);
-      // The backend now returns the full AdInteraction object, so update all relevant states
-      setLiked(data.likes?.some(u => u._id === ad.currentUserId));
-      setLikesUsers(data.likes || []);
-      setNormalizedLikes(data.likes || []);
+      const likesArray = Array.isArray(data?.likes) ? data.likes : [];
+      setLiked(!!likesArray.find(u => String(u?._id) === String(ad.currentUserId)));
+      setLikesUsers(likesArray);
+      setNormalizedLikes(likesArray);
+    } catch (e) {
+      // revert optimistic on error
+      setLiked(prev => !prev);
     } finally {
       setTimeout(() => setLikeAnimating(false), 400);
     }
@@ -60,9 +97,9 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
     await shareAd(ad._id);
     setShares(s => s + 1);
   };
+
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [videoError, setVideoError] = useState(false);
-  const [hasTrackedImpression, setHasTrackedImpression] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
@@ -88,19 +125,6 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
       }
     }
   }, [ad._id, ad.video, videoError]);
-
-  // Track impression when ad is in view (for feed ads)
-  useEffect(() => {
-    if (isInFeed && onView && !hasTrackedImpression) {
-      // Track impression after a brief delay to ensure the ad is actually visible
-      const timer = setTimeout(() => {
-        onView();
-        setHasTrackedImpression(true);
-      }, 1000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isInFeed, onView, hasTrackedImpression]);
 
   const formatCurrency = (amount, currency = 'USD') => {
     return new Intl.NumberFormat('en-US', {
@@ -284,8 +308,36 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
     }
   };
 
+  const handleAddComment = async (e) => {
+    e?.preventDefault?.();
+    if (!commentText.trim()) return;
+    try {
+      const res = await commentAd(ad._id, commentText.trim());
+      setComments(Array.isArray(res?.comments) ? res.comments : []);
+      setCommentText('');
+    } catch (err) {
+      // ignore for now
+    }
+  };
+
+  const handleAddReply = async (commentId) => {
+    const text = (replyTextMap[commentId] || '').trim();
+    if (!text) return;
+    try {
+      const res = await replyAdComment(ad._id, commentId, text);
+      setComments(prev => prev.map(c => (
+        String(c._id) === String(commentId)
+          ? { ...c, replies: Array.isArray(res?.replies) ? res.replies : [] }
+          : c
+      )));
+      setReplyTextMap(prev => ({ ...prev, [commentId]: '' }));
+    } catch (err) {
+      // ignore for now
+    }
+  };
+
   return (
-    <div className={`rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 ${isInFeed ? 'h-auto' : 'h-[520px]'} flex flex-col bg-white dark:bg-gray-800`}>
+    <div ref={containerRef} className={`rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 ${isInFeed ? 'h-auto' : 'h-[520px]'} flex flex-col bg-white dark:bg-gray-800`}>
       {/* User Info Header */}
       {ad.userId && (
         <div className="flex items-center p-4 pb-2 border-b border-gray-100 dark:border-gray-700">
@@ -507,7 +559,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
                     showLikes={showLikes}
                     setShowComments={setShowComments}
                     localPost={{
-                      comments: ad.commentsList || [],
+                      comments: comments || [],
                       shares: shares,
                       _id: ad._id,
                       views: views
@@ -521,6 +573,62 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
                     onShare={handleShare}
                     views={views}
                   />
+
+                  {/* Comments UI (simple) */}
+                  {showComments && (
+                    <div className="mt-2">
+                      {/* Add comment */}
+                      <form onSubmit={handleAddComment} className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Write a comment..."
+                          className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        />
+                        <button type="submit" className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm">Post</button>
+                      </form>
+
+                      {/* Comments list */}
+                      <div className="space-y-3">
+                        {comments.length === 0 && (
+                          <div className="text-sm text-gray-500 dark:text-gray-400">No comments yet</div>
+                        )}
+                        {comments.map((c) => (
+                          <div key={c._id} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+                            <div className="text-sm text-gray-900 dark:text-gray-100">
+                              <span className="font-semibold">{c.user?.username || 'User'}</span>: {c.text}
+                            </div>
+                            {/* Replies */}
+                            <div className="mt-1 ml-3 space-y-1">
+                              {(c.replies || []).map((r) => (
+                                <div key={r._id} className="text-sm text-gray-700 dark:text-gray-300">
+                                  <span className="font-semibold">{r.user?.username || 'User'}</span>: {r.text}
+                                </div>
+                              ))}
+                            </div>
+                            {/* Reply input */}
+                            <div className="mt-2 ml-3 flex gap-2">
+                              <input
+                                type="text"
+                                value={replyTextMap[c._id] || ''}
+                                onChange={(e) => setReplyTextMap(prev => ({ ...prev, [c._id]: e.target.value }))}
+                                placeholder="Reply..."
+                                className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleAddReply(c._id)}
+                                className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm"
+                              >
+                                Reply
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Management view - show admin buttons */

@@ -2,7 +2,7 @@ import React from "react";
 import { FaHeart, FaRegHeart, FaRegCommentDots, FaChartBar } from "react-icons/fa";
 import { LuShare2 } from "react-icons/lu";
 
-export default function PostInteractionBar({
+export default function AdsInteractionBar({
   liked,
   likeAnimating,
   handleLike,

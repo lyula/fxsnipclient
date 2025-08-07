@@ -158,7 +158,7 @@ export default function ChatList({
                   Sponsored
                 </div>
                 <AdCard
-                  ad={item}
+                  ad={{ ...item, currentUserId: currentUserId, currentUsername: currentUsername, currentUserVerified: currentUserVerified }}
                   onView={() => handleAdImpression(item._id)}
                   onClick={() => handleAdClick(item)}
                   showAnalytics={false}
@@ -220,7 +220,7 @@ export default function ChatList({
             <React.Fragment key={`ad-${selectedAd._id}-${idx}`}>
               <div className="w-full">
                 <AdCard
-                  ad={selectedAd}
+                  ad={{ ...selectedAd, currentUserId: currentUserId, currentUsername: currentUsername, currentUserVerified: currentUserVerified }}
                   onView={() => handleAdImpression(selectedAd._id)}
                   onClick={() => handleAdClick(selectedAd)}
                   showAnalytics={false}
