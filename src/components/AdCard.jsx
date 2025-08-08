@@ -558,7 +558,7 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
                           className="w-full bg-[#a99d6b] hover:bg-[#968B5C] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
                           style={{ textDecoration: 'none' }}
                         >
-                          Learn More
+                          Visit Link
                         </a>
                       );
                     }
