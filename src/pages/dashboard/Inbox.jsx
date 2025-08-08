@@ -8,7 +8,7 @@ const Inbox = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { conversations } = useDashboard();
+  const { conversations, setConversations, getConversationId } = useDashboard();
 
   // Responsive state
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
@@ -34,7 +34,43 @@ const Inbox = () => {
   useEffect(() => {
     const chatParam = searchParams.get("chat");
     if (chatParam) {
-      const user = conversations?.find(u => u.username === decodeURIComponent(chatParam));
+      const decodedUsername = decodeURIComponent(chatParam);
+      // Try to find a real user object in conversations (with _id)
+      // Try to get the real user object from navigation state (adUser from AdCard)
+      let adUser = null;
+      if (window.history.state && window.history.state.usr && window.history.state.usr.adUser) {
+        adUser = window.history.state.usr.adUser;
+      }
+      // Prefer real user from conversations (with valid _id)
+      let user = conversations?.find(u => u.username === decodedUsername && u._id && u._id.length >= 12);
+      if (!user && adUser && adUser._id && adUser.username === decodedUsername) {
+        // Not in conversations yet, but adUser is available
+        user = {
+          _id: adUser._id,
+          username: adUser.username,
+          avatar: adUser.profile?.profileImage || adUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(decodedUsername)}`,
+          verified: adUser.verified || adUser.profile?.verified || false,
+          lastMessage: '',
+          lastTime: '',
+          lastTimestamp: Date.now(),
+          unreadCount: 0
+        };
+        setConversations(prev => [user, ...prev]);
+      } else if (!user) {
+        // Fallback: use any conversation with this username
+        let fallbackUser = conversations?.find(u => u.username === decodedUsername);
+        user = {
+          _id: fallbackUser?._id || getConversationId(myUserId, decodedUsername),
+          username: decodedUsername,
+          avatar: fallbackUser?.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(decodedUsername)}`,
+          verified: fallbackUser?.verified || fallbackUser?.profile?.verified || false,
+          lastMessage: '',
+          lastTime: '',
+          lastTimestamp: Date.now(),
+          unreadCount: 0
+        };
+        setConversations(prev => [user, ...prev]);
+      }
       if (user && (!selectedUser || selectedUser._id !== user._id)) {
         setSelectedUser(user);
       }

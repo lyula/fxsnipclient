@@ -1331,6 +1331,7 @@ export function DashboardProvider({ children }) {
   // Context value
   const value = useMemo(() => ({
     conversations,
+    setConversations,
     fetchConversations,
     updateConversation,
     notifications,
@@ -1387,6 +1388,7 @@ export function DashboardProvider({ children }) {
     unfollowUserGlobally,
   }), [
     conversations,
+    setConversations,
     fetchConversations,
     updateConversation,
     notifications,

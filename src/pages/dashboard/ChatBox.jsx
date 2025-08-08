@@ -105,9 +105,16 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // Fetch profile image for selectedUser
+  // Helper: check if a string is a valid MongoDB ObjectId
+  const isValidObjectId = (id) => typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
+
+  // Fetch profile image for selectedUser (only if valid ObjectId)
   useEffect(() => {
     if (!selectedUser || !selectedUser._id) return;
+    if (!isValidObjectId(selectedUser._id)) {
+      setAvatarUrl(`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(selectedUser.username)}`);
+      return;
+    }
     getProfileImages({ userIds: [selectedUser._id] }).then(res => {
       if (res && res.images && res.images[selectedUser._id]) {
         setAvatarUrl(res.images[selectedUser._id]);
@@ -129,29 +136,30 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     return onlineUsers && selectedUser?._id ? onlineUsers.has(selectedUser._id) : false;
   }, [onlineUsers, selectedUser]);
 
-  // --- Fetch last seen on chat open if recipient is offline ---
+  // --- Fetch last seen on chat open if recipient is offline and _id is valid ---
   useEffect(() => {
-    if (selectedUser && selectedUser._id && !isRecipientOnline) {
-      const API_BASE = import.meta.env.VITE_API_URL;
-      fetch(`${API_BASE}/user/last-seen/${selectedUser._id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    if (!selectedUser || !selectedUser._id) return;
+    if (!isValidObjectId(selectedUser._id)) return;
+    if (isRecipientOnline) return;
+    const API_BASE = import.meta.env.VITE_API_URL;
+    fetch(`${API_BASE}/user/last-seen/${selectedUser._id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(res => res.json())
+      .then (data => {
+        console.log('lastSeen fetch result (on open):', data);
+        if (data && data.lastSeen) {
+          setLocalSelectedUser(u => {
+            if (!u.lastSeen || new Date(data.lastSeen) > new Date(u.lastSeen)) {
+              return { ...u, lastSeen: data.lastSeen };
+            }
+            return u;
+          });
+        }
       })
-        .then(res => res.json())
-        .then (data => {
-          console.log('lastSeen fetch result (on open):', data);
-          if (data && data.lastSeen) {
-            setLocalSelectedUser(u => {
-              if (!u.lastSeen || new Date(data.lastSeen) > new Date(u.lastSeen)) {
-                return { ...u, lastSeen: data.lastSeen };
-              }
-              return u;
-            });
-          }
-        })
-        .catch(() => {});
-    }
+      .catch(() => {});
   }, [selectedUser, isRecipientOnline, token]);
 
   // --- Use context for messages ---
@@ -213,10 +221,16 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
-  // --- Fetch messages from API for history ---
+  // --- Fetch messages from API for history (only if valid ObjectId) ---
   const { setInboxMessages } = useDashboard();
   const fetchMessages = async (userId, week = 0, prepend = false) => {
     setError(null);
+    if (!isValidObjectId(userId)) {
+      setMessagesFetched(true);
+      setHasMore(false);
+      setInboxMessages(prev => ({ ...prev, [conversationId]: [] }));
+      return;
+    }
     try {
       const response = await getConversation(userId + '?week=' + week);
       if (!Array.isArray(response)) {
@@ -755,7 +769,12 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
             className="hover:opacity-80 transition-opacity mr-3"
           >
             <div className="relative">
-              <img src={avatarUrl} alt={selectedUser.username} className="w-10 h-10 rounded-full cursor-pointer" />
+              <img
+                src={avatarUrl}
+                alt={selectedUser.username}
+                className="w-10 h-10 rounded-full cursor-pointer"
+                onError={e => { e.target.onerror = null; e.target.src = '/default-avatar.png'; }}
+              />
             </div>
           </Link>
           <div className="flex-1 flex flex-col">
@@ -764,7 +783,9 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
               onClick={() => navigate(`/dashboard/community/user/${encodeURIComponent(selectedUser.username)}`)}
             >
               <span className="font-semibold text-gray-900 dark:text-white">{selectedUser.username}</span>
-              {selectedUser.verified && <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />}
+              {(selectedUser.verified || selectedUser.profile?.verified) && (
+                <VerifiedBadge style={{ height: '1em', width: '1em', verticalAlign: 'middle' }} />
+              )}
             </button>
             {/* Socket connection status indicator */}
             <div className="flex items-center ml-2">
@@ -809,7 +830,7 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                 </div>
               ))}
             </div>
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && (!error || error === 'Failed to fetch messages.' || error === 'An error occurred while fetching messages.') ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -818,6 +839,12 @@ const ChatBox = ({ selectedUser, onBack, myUserId, token }) => {
                   </svg>
                 </div>
                 <p className="text-gray-500 dark:text-gray-400">No messages yet. Say hello!</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-red-500 dark:text-red-400">
+                <p>{error}</p>
               </div>
             </div>
           ) : (

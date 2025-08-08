@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useDashboard } from '../context/dashboard';
 import { FaPlay, FaPause, FaExternalLinkAlt, FaEye, FaMousePointer, FaCalendarAlt, FaDollarSign, FaGlobe, FaFlag, FaUser, FaVolumeMute, FaVolumeUp, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import VerifiedBadge from './VerifiedBadge';
@@ -13,6 +14,7 @@ import {
 } from '../utils/adInteractionsApi';
 
 const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, isInFeed = false }) => {
+  const { conversations, setConversations, getConversationId, userId } = useDashboard();
   const [liked, setLiked] = useState(false);
   const [likeAnimating, setLikeAnimating] = useState(false);
   const [likesUsers, setLikesUsers] = useState([]);
@@ -580,7 +582,27 @@ const AdCard = ({ ad, onEdit, onDelete, onView, onClick, showAnalytics = false, 
                         <button
                           type="button"
                           className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 transform hover:scale-[1.02] shadow-sm hover:shadow-md text-center"
-                          disabled
+                          onClick={async () => {
+                            if (ad.userId && ad.userId.username) {
+                              // Ensure user is in conversations before navigating
+                              const alreadyInConvos = conversations && conversations.some(u => u.username === ad.userId.username);
+                              if (!alreadyInConvos) {
+                                // Add minimal user info to conversations
+                                const newConv = {
+                                  _id: getConversationId(userId, ad.userId._id),
+                                  username: ad.userId.username,
+                                  avatar: ad.userId.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(ad.userId.username)}`,
+                                  verified: ad.userId.verified || false,
+                                  lastMessage: '',
+                                  lastTime: '',
+                                  lastTimestamp: Date.now(),
+                                  unreadCount: 0
+                                };
+                                setConversations(prev => [newConv, ...prev]);
+                              }
+                              window.location.href = `http://localhost:5173/dashboard/inbox?chat=${encodeURIComponent(ad.userId.username)}`;
+                            }
+                          }}
                         >
                           Send Direct Message
                         </button>
