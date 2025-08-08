@@ -35,7 +35,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
       <div className="mx-0">
         <div className="bg-white dark:bg-gray-900 border border-gray-200/50 dark:border-gray-700/50 border-b-0 shadow-sm">
           {/* Mobile-first design - Google Material Design inspired */}
-          <div className="w-full px-2 py-1.5">
+          <div className="w-full px-2 py-0">
             {/* Mobile Layout */}
             <div className="flex md:hidden">
           {!searchMode ? (
@@ -79,15 +79,15 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
               </div>
               
               {/* Center - Search icon */}
-              <div className="flex-1 flex justify-center">
-                <button
-                  className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 dark:bg-white dark:hover:bg-gray-200"
-                  aria-label="Search posts"
-                  onClick={() => setSearchMode(true)}
-                >
-                  <FaSearch className="w-4 h-4 text-gray-600 dark:text-gray-800" />
-                </button>
-              </div>
+                <div className="flex-1 flex justify-center px-0 py-0">
+                  <button
+                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 dark:bg-white dark:hover:bg-gray-200"
+                    aria-label="Search posts"
+                    onClick={() => setSearchMode(true)}
+                  >
+                    <FaSearch className="w-4 h-4 text-gray-600 dark:text-gray-800" />
+                  </button>
+                </div>
               
               {/* Right side - Create Post button */}
               <div className="flex items-center flex-shrink-0">
@@ -117,11 +117,11 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                   }
                 }}
               >
-                <div className="flex-1 relative">
+                <div className="flex-1 relative my-2">
                   <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
-                    className="w-full pl-10 pr-4 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-base placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
+                    className="w-full pl-10 pr-2 py-2 rounded-2xl bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-base placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100"
                     placeholder="Search posts..."
                     value={searchValue}
                     onChange={e => setSearchValue(e.target.value)}
@@ -202,11 +202,11 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                 }
               }}
             >
-              <div className="relative">
+              <div className="relative my-2">
                 <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  className="pl-10 pr-4 py-2 w-56 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-sm placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 transition-all duration-200"
+                  className="pl-10 pr-2 py-2 w-56 rounded-2xl bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-[#a99d6b] focus:border-transparent text-sm placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 transition-all duration-200"
                   placeholder="Search posts..."
                   value={searchValue}
                   onChange={e => setSearchValue(e.target.value)}

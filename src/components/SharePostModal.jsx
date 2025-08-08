@@ -225,7 +225,7 @@ export default function SharePostModal({ postLink, topPeople = [], loadingConver
               value={searchQuery}
               onChange={e => onUserSearch(e.target.value)}
               placeholder="Search users..."
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs mb-2"
+              className="w-full px-4 py-3 mt-0 mb-0 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-xs mb-2"
             />
             {searching && <div className="text-gray-500 dark:text-gray-400 text-xs py-2 text-center">Searching...</div>}
             {!searching && searchResults.length > 0 && (

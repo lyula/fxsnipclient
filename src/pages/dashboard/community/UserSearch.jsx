@@ -143,7 +143,7 @@ export default function UserSearch({ currentUser, username, onFollow, onClose })
           placeholder="Search users…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 border rounded px-3 py-2 text-gray-900 dark:text-white bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+          className="flex-1 rounded-2xl px-4 py-3 mt-0 mb-0 text-gray-900 dark:text-white bg-white dark:bg-gray-800 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
         />
       </div>
       
