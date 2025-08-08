@@ -81,7 +81,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
               {/* Center - Search icon */}
               <div className="flex-1 flex justify-center">
                 <button
-                  className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 dark:bg-white dark:hover:bg-gray-200"
+                  className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 dark:bg-white dark:hover:bg-gray-200"
                   aria-label="Search posts"
                   onClick={() => setSearchMode(true)}
                 >
@@ -98,7 +98,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                     aria-label="Create new post"
                   >
                     <FaPlus className="w-3 h-3" />
-                    <span>Create</span>
+                    <span> Create Post</span>
                   </button>
                 )}
               </div>
@@ -232,7 +232,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                 aria-label="Create new post"
               >
                 <FaPlus className="w-3.5 h-3.5" />
-                <span>Create</span>
+                <span>+ Create Post</span>
               </button>
             )}
           </div>
