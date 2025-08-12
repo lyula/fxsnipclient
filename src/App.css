@@ -105,7 +105,7 @@ body {
     border-top: 1px solid rgb(239 243 244) !important;
     border-bottom: none !important;
     margin: 0 !important;
-    padding: 12px 0!important;
+  padding: 5px 0!important;
     box-shadow: none !important;
     background: white !important;
   }
@@ -203,7 +203,7 @@ body {
   .mobile-comments-section {
     border-top: 1px solid rgb(239 243 244) !important;
     margin: 12px -16px 0 -16px !important;
-    padding: 12px 16px 0 16px !important;
+  padding: 5px 16px 0 16px !important;
   }
 
   .dark .mobile-comments-section {

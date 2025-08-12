@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Get Our App</title>
+  <link rel="icon" href="./pwa-192x192.png" />
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f0f4ff 0%, #e4e9ff 100%);
+      margin: 0;
+      padding: 0;
+      color: #1f2937;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      width: 100vw;
+      overflow-x: hidden;
+    }
+    .playstore-header {
+      background: linear-gradient(90deg, #2563eb, #4f46e5);
+      color: #fff;
+      padding: 20px 0;
+      text-align: center;
+      font-size: 1.5em;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      width: 100%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .store-container {
+      max-width: 400px;
+      width: 90%;
+      margin: 20px auto;
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      padding: 24px;
+      transition: transform 0.3s ease;
+    }
+    .store-container:hover {
+      transform: translateY(-4px);
+    }
+    .app-main {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+    }
+    .app-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+    .app-icon:hover {
+      transform: scale(1.05);
+    }
+    .app-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .app-title {
+      font-size: 1.5em;
+      font-weight: 800;
+      margin-bottom: 4px;
+      color: #111827;
+    }
+    .app-dev {
+      color: #4f46e5;
+      font-size: 1em;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .install-btn {
+      background: linear-gradient(90deg, #2563eb, #4f46e5);
+      color: #fff;
+      font-size: 1.1em;
+      font-weight: 600;
+      padding: 12px 36px;
+      border-radius: 12px;
+      text-decoration: none;
+      margin-top: 8px;
+      box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+      border: none;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .install-btn:hover {
+      background: linear-gradient(90deg, #1e40af, #3730a3);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(37,99,235,0.4);
+    }
+    .screenshots {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      padding: 16px 0;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .screenshots::-webkit-scrollbar {
+      display: none;
+    }
+    .screenshots img {
+      width: 140px;
+      height: 260px;
+      object-fit: cover;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+    .screenshots img:hover {
+      transform: scale(1.03);
+    }
+    .app-desc {
+      color: #374151;
+      font-size: 1.1em;
+      margin: 20px 0;
+      text-align: left;
+      line-height: 1.7;
+      font-weight: 400;
+    }
+    .note {
+      margin: 20px 0;
+      color: #6b7280;
+      font-size: 0.95em;
+      text-align: center;
+      line-height: 1.5;
+    }
+    @media (max-width: 600px) {
+      html, body {
+        width: 100vw;
+        overflow-x: hidden;
+      }
+      .store-container {
+        width: 100vw;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        padding-left: 0;
+        padding-right: 0;
+      }
+      .app-main {
+        padding: 12px 0;
+      }
+      .app-icon {
+        width: 64px;
+        height: 64px;
+      }
+      .app-title {
+        font-size: 1.3em;
+      }
+      .install-btn {
+        padding: 10px 24px;
+        font-size: 1em;
+      }
+      .screenshots img {
+        width: 120px;
+        height: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="playstore-header">Zack's Store</div>
+  <div class="store-container">
+    <div class="app-main">
+      <img src="/app/assets/pwa-192x192.png" alt="App Icon" class="app-icon" />
+      <div class="app-info">
+        <div class="app-title">Journalyze-App</div>
+        <div class="app-dev">by Journalyze Team</div>
+        <button class="install-btn" id="openAppBtn">Install</button>
+      </div>
+    </div>
+  <div class="screenshots">
+    <img src="/app/assets/pwa-192x192.png" alt="Screenshot 1" />
+    <img src="/app/assets/pwa-192x192.png" alt="Screenshot 2" />
+    <img src="/app/assets/pwa-192x192.png" alt="Screenshot 3" />
+  </div>
+    <div class="app-desc">
+      The easiest way to manage your Forex journal, chat, and more. Track your trades, chat with other traders, and stay organized—all in one beautiful, installable app. Works offline and can be added to your home screen for a native-like experience.
+    </div>
+    <div class="note">
+      I hope you enjoy the experience🙌😅
+    </div>
+    <div class="rating-section" style="margin: 18px 0 0 0; text-align: center; display: flex; flex-direction: column; align-items: center;">
+      <div style="font-weight: 500; font-size: 1.08em; margin-bottom: 6px;">Rate this app:</div>
+      <div id="starRating" style="font-size: 2em; color: #FFD600; cursor: pointer; user-select: none; display: flex; justify-content: center; gap: 2px;">
+        <span data-star="1">&#9734;</span>
+        <span data-star="2">&#9734;</span>
+        <span data-star="3">&#9734;</span>
+        <span data-star="4">&#9734;</span>
+        <span data-star="5">&#9734;</span>
+      </div>
+      <div id="ratingThanks" style="display:none; color:#2563eb; font-weight:500; margin-top:8px; text-align:center;">Thank you for rating us on the app store!</div>
+    </div>
+    <div id="appModal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;overflow:auto;">
+      <div style="background:#fff;border-radius:16px;max-width:420px;width:100vw;height:100vh;box-shadow:0 8px 32px rgba(0,0,0,0.2);position:relative;display:flex;flex-direction:column;overflow:hidden;">
+        <button id="closeAppModal" style="position:absolute;top:12px;right:16px;font-size:1.8em;background:none;border:none;cursor:pointer;color:#374151;z-index:2;">&times;</button>
+        <iframe src="/app/index.html" style="flex:1;width:100vw;height:100vh;border:none;border-radius:0 0 16px 16px;max-width:100vw;max-height:100vh;overflow:hidden;"></iframe>
+      </div>
+    </div>
+  </div>
+<script>
+  // 5-star rating system
+  const starRating = document.getElementById('starRating');
+  const ratingThanks = document.getElementById('ratingThanks');
+  let rated = false;
+  if (starRating) {
+    starRating.addEventListener('mouseover', function(e) {
+      if (rated) return;
+      if (e.target.dataset.star) {
+        const n = parseInt(e.target.dataset.star);
+        Array.from(starRating.children).forEach((star, i) => {
+          star.innerHTML = i < n ? '&#9733;' : '&#9734;';
+        });
+      }
+    });
+    starRating.addEventListener('mouseout', function() {
+      if (rated) return;
+      Array.from(starRating.children).forEach(star => { star.innerHTML = '&#9734;'; });
+    });
+    starRating.addEventListener('click', function(e) {
+      if (e.target.dataset.star) {
+        const n = parseInt(e.target.dataset.star);
+        Array.from(starRating.children).forEach((star, i) => {
+          star.innerHTML = i < n ? '&#9733;' : '&#9734;';
+        });
+        rated = true;
+        ratingThanks.style.display = 'block';
+      }
+    });
+  }
+  const openBtn = document.getElementById('openAppBtn');
+  const modal = document.getElementById('appModal');
+  const closeBtn = document.getElementById('closeAppModal');
+  openBtn.onclick = () => { modal.style.display = 'flex'; };
+  closeBtn.onclick = () => { modal.style.display = 'none'; };
+  window.onclick = (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  };
+</script>
+    <div class="note">
+      Request : Please give feedback if you like the app.
+    </div>
+</body>
+</html>
