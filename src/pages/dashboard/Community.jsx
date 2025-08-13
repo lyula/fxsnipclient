@@ -26,7 +26,7 @@ function FloatingNotification({ message, onClose }) {
 // (Floating notification state will be defined inside the component)
 import { searchPosts, deletePost as apiDeletePost } from "../../utils/api";
 import { useLocation } from "react-router-dom";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaSearch } from "react-icons/fa";
 
 import ChatList from "./community/ChatList";
 import CommunityTabs from "./community/CommunityTabs";
@@ -1295,9 +1295,9 @@ function isValidPost(post) {
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                     <FaSearch className="w-6 h-6 text-gray-400" />
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 text-lg font-medium mb-2">No posts found</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-lg font-medium mb-2">No matching posts were found</p>
                   <p className="text-gray-500 dark:text-gray-500 text-sm">
-                    Try searching with different keywords or check your spelling
+                    Try searching with different keywords or check your spelling.
                   </p>
                 </div>
               </div>

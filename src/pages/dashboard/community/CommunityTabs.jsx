@@ -198,7 +198,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                 e.preventDefault();
                 if (searchValue.trim() && onSearch) {
                   onSearch(searchValue.trim());
-                  setSearchValue("");
+                  // Do NOT clear searchValue here, so X icon persists
                 }
               }}
             >
@@ -214,11 +214,13 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                 {searchValue && (
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200 text-lg"
                     onClick={() => {
                       setSearchValue("");
-                      if (onCancelSearch) onCancelSearch();
+                      setSearchMode(false); // Always exit search mode
+                      if (onCancelSearch) onCancelSearch(); // Always reset feed
                     }}
+                    aria-label="Clear search"
                   >
                     ×
                   </button>
