@@ -1208,21 +1208,6 @@ const handleView = async () => {
                   setZoomProfile({ postImage: imageUrl });
                 }}
               />
-              {/* Zoom indicator overlay */}
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 opacity-0 group-hover:opacity-100">
-                <div 
-                  className="absolute bottom-4 right-4 bg-white bg-opacity-90 text-gray-800 px-3 py-1 rounded-full text-sm font-medium shadow-lg cursor-pointer hover:bg-opacity-100 transition-all duration-200"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Try to get the highest quality version of the image
-                    const imageUrl = post.image;
-                    console.log('Opening zoom via indicator for image:', imageUrl);
-                    setZoomProfile({ postImage: imageUrl });
-                  }}
-                >
-                  🔍 Click to zoom
-                </div>
-              </div>
             </div>
           </>
         )}
