@@ -232,7 +232,7 @@ export default function CommunityTabs({ activeTab, setActiveTab, onCreatePost, v
                 aria-label="Create new post"
               >
                 <FaPlus className="w-3.5 h-3.5" />
-                <span>+ Create Post</span>
+                <span>Create Post</span>
               </button>
             )}
           </div>
